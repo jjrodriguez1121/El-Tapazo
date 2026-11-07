@@ -62,16 +62,19 @@ export default function ModalNuevoProducto({
         ? String(categorias[0].id)
         : '',
     unidad: productoParaEditar?.unidad ?? 'Unidad',
-    precioVenta: productoParaEditar?.precio_evento != null
-      ? String(productoParaEditar.precio_evento)
+    precioVenta: productoParaEditar?.precio_venta != null
+      ? String(productoParaEditar.precio_venta)
       : '',
+    margenGanancia: productoParaEditar?.margen_ganancia != null
+      ? String(productoParaEditar.margen_ganancia)
+      : '30',
+    precioAutomatico: productoParaEditar?.precio_venta_automatico ?? true,
     stockActual: existencias.length
       ? String(existencias.reduce((total, existencia) => total + Number(existencia.cantidad_disponible), 0))
       : '',
     stockMinimo: existencias.length
       ? String(existencias.reduce((total, existencia) => total + Number(existencia.cantidad_minima ?? 0), 0))
       : '',
-    ubicacion: existencias.map((existencia) => existencia.ubicacion.nombre).join(', '),
   })
   const [imagen, setImagen] = useState(
     productoParaEditar?.imagen
@@ -103,16 +106,16 @@ export default function ModalNuevoProducto({
     setErrores((actuales) => ({ ...actuales, imagen: '' }))
   }
 
-  function enviar(evento) {
+  async function enviar(evento) {
     evento.preventDefault()
     const nuevosErrores = {
       nombre: validarObligatorio(datos.nombre, 'Escribe el nombre del producto.'),
       sku: validarSku(datos.sku),
       categoriaId: validarObligatorio(datos.categoriaId, 'Selecciona una categoría.'),
       precioVenta: validarNumeroNoNegativo(datos.precioVenta, 'El precio de venta'),
+      margenGanancia: validarNumeroNoNegativo(datos.margenGanancia, 'El margen de ganancia'),
       stockActual: validarNumeroNoNegativo(datos.stockActual, 'El stock actual', { entero: true }),
       stockMinimo: validarNumeroNoNegativo(datos.stockMinimo, 'El stock mínimo', { entero: true }),
-      ubicacion: validarObligatorio(datos.ubicacion, 'Escribe la ubicación del producto.'),
     }
 
     const categoria = categorias.find((opcion) => String(opcion.id) === datos.categoriaId)
@@ -135,15 +138,16 @@ export default function ModalNuevoProducto({
       return
     }
 
-    alCrear({
+    await alCrear({
       nombre: datos.nombre.trim(),
       sku: datos.sku.trim(),
       categoria,
       unidad: datos.unidad,
       precioVenta: Number(datos.precioVenta),
+      margenGanancia: Number(datos.margenGanancia),
+      precioAutomatico: datos.precioAutomatico,
       stockActual: Number(datos.stockActual),
       stockMinimo: Number(datos.stockMinimo),
-      ubicacion: datos.ubicacion.trim(),
       imagen: imagen?.vistaPrevia ?? '',
     })
     alCerrar()
@@ -266,6 +270,26 @@ export default function ModalNuevoProducto({
                 value={datos.precioVenta}
                 onChange={(evento) => cambiar('precioVenta', evento.target.value)}
                 error={errores.precioVenta}
+                disabled={datos.precioAutomatico}
+              />
+              <CampoFormulario
+                id={`${id}-margen`}
+                etiqueta="Margen de ganancia (%)"
+                name="margenGanancia"
+                type="number"
+                required
+                min="0"
+                step="0.01"
+                value={datos.margenGanancia}
+                onChange={(evento) => {
+                  cambiar('margenGanancia', evento.target.value)
+                  const costo = Number(productoParaEditar?.costo ?? 0)
+                  const margen = Number(evento.target.value)
+                  if (datos.precioAutomatico && costo > 0) {
+                    cambiar('precioVenta', String(Math.round(costo * (1 + margen / 100) * 100) / 100))
+                  }
+                }}
+                error={errores.margenGanancia}
               />
               <CampoFormulario
                 id={`${id}-stock`}
@@ -291,18 +315,16 @@ export default function ModalNuevoProducto({
                 onChange={(evento) => cambiar('stockMinimo', evento.target.value)}
                 error={errores.stockMinimo}
               />
-              <CampoFormulario
-                id={`${id}-ubicacion`}
-                etiqueta="Ubicación"
-                name="ubicacion"
-                maxLength={100}
-                required
-                placeholder="Ej. Bodega A-12"
-                value={datos.ubicacion}
-                onChange={(evento) => cambiar('ubicacion', evento.target.value)}
-                error={errores.ubicacion}
-              />
             </div>
+            <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-azul-700">
+              <input
+                type="checkbox"
+                checked={datos.precioAutomatico}
+                onChange={(evento) => cambiar('precioAutomatico', evento.target.checked)}
+                className="h-4 w-4 rounded border-azul-300"
+              />
+              Calcular el precio automáticamente con el margen y el costo promedio
+            </label>
           </section>
 
           <section className="rounded-xl border border-azul-150 bg-blanco p-4 sm:p-5">

@@ -54,8 +54,8 @@ LOCAL_APPS = [
     "clientes",
     "catalogo",
     "inventario",
-    "eventos",
-    "distribucion",
+    "ventas",
+    "compras",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -190,11 +190,8 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "TipoDeUbicacion": "inventario.models.TIPOS_DE_UBICACION",
         "TipoDeMovimiento": "inventario.models.TIPOS_DE_MOVIMIENTO",
-        "EstadoDeEvento": "eventos.models.ESTADOS_DE_EVENTO",
-        "EstadoDeGrupo": "eventos.models.ESTADOS_DE_GRUPO",
-        "EstadoDePedidoEvento": "eventos.models.ESTADOS_DE_PEDIDO_EVENTO",
-        "EstadoDePulsera": "eventos.models.ESTADOS_DE_PULSERA",
-        "EstadoDePedidoDistribucion": "distribucion.models.ESTADOS_DE_PEDIDO_DISTRIBUCION",
+        "EstadoDeVenta": "ventas.models.ESTADOS_DE_VENTA",
+        "EstadoDeCuentaPorCobrar": "ventas.models.ESTADOS_DE_CUENTA_POR_COBRAR",
         "EstadoDeNegocio": "negocios.models.ESTADOS_DE_NEGOCIO",
     },
 }

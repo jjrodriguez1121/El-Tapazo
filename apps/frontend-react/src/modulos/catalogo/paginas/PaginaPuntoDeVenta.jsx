@@ -17,8 +17,6 @@ import EsqueletoDeProductos from '../componentes/EsqueletoDeProductos'
 import { useCatalogoDeProductos } from '../hooks/useCatalogoDeProductos'
 import { CATEGORIAS_DE_EJEMPLO, PRODUCTOS_DE_EJEMPLO } from '../utilidades/datosDeEjemplo'
 
-const IVA = 0.19
-
 function ImagenProducto({ producto }) {
   return producto.imagen ? (
     <img src={producto.imagen} alt="" className="h-full w-full object-cover" />
@@ -80,12 +78,32 @@ export default function PaginaPuntoDeVenta() {
   )
   const cantidadArticulos = carrito.reduce((total, linea) => total + linea.cantidad, 0)
   const subtotal = carrito.reduce(
-    (total, linea) => total + Number(linea.producto.precio_evento) * linea.cantidad,
+    (total, linea) =>
+      total + Number(linea.producto.precio_venta ?? linea.producto.precio_evento ?? 0) * linea.cantidad,
     0
   )
   const descuento = Math.round(subtotal * (Number(porcentajeDescuento || 0) / 100))
-  const impuesto = Math.round(subtotal * IVA)
-  const total = subtotal + impuesto - descuento
+  const totalConDescuento = subtotal - descuento
+  const impuesto = Math.round(
+    carrito.reduce((totalImpuesto, linea) => {
+      const precio = Number(linea.producto.precio_venta ?? linea.producto.precio_evento ?? 0)
+      const porcentaje = Number(linea.producto.impuesto?.porcentaje ?? 0)
+      const importeLinea = Math.round(precio * linea.cantidad)
+      const importeLineaConDescuento =
+        subtotal > 0 ? importeLinea - Math.round(importeLinea * descuento / subtotal) : 0
+      if (!porcentaje) return totalImpuesto
+      return totalImpuesto + Math.round(importeLineaConDescuento * porcentaje / (100 + porcentaje))
+    }, 0)
+  )
+  const baseGravable = totalConDescuento - impuesto
+  const tasasDeImpuesto = [
+    ...new Set(
+      carrito.map((linea) => Number(linea.producto.impuesto?.porcentaje ?? 0))
+    ),
+  ]
+  const etiquetaImpuesto =
+    tasasDeImpuesto.length === 1 ? `IVA (${tasasDeImpuesto[0]}%)` : 'IVA (mixto)'
+  const total = totalConDescuento
 
   function agregarAlCarrito(producto) {
     setAvisoCobro('')
@@ -168,7 +186,10 @@ export default function PaginaPuntoDeVenta() {
             )
             const cantidadEnCarrito =
               carrito.find((linea) => String(linea.producto.id) === String(producto.id))?.cantidad ?? 0
-            const ubicacion = stockDelProducto.map((existencia) => existencia.ubicacion.nombre).join(', ')
+            const ubicacion = stockDelProducto
+              .map((existencia) => existencia.ubicacion?.nombre)
+              .filter(Boolean)
+              .join(', ')
 
             return (
               <article
@@ -190,7 +211,7 @@ export default function PaginaPuntoDeVenta() {
                 </p>
                 <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                   <span className="text-xs font-bold text-azul-950">
-                    {formatearPesos(Number(producto.precio_evento))}
+                    {formatearPesos(Number(producto.precio_venta ?? producto.precio_evento ?? 0))}
                   </span>
                   <button
                     type="button"
@@ -243,7 +264,7 @@ export default function PaginaPuntoDeVenta() {
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-[10px] font-semibold text-azul-950">{producto.nombre}</h3>
                   <p className="text-[9px] font-medium text-azul-600">
-                    {formatearPesos(Number(producto.precio_evento))}
+                    {formatearPesos(Number(producto.precio_venta ?? producto.precio_evento ?? 0))}
                   </p>
                 </div>
                 <div className="flex flex-none items-center gap-1.5">
@@ -290,10 +311,10 @@ export default function PaginaPuntoDeVenta() {
         <section className="border-t border-azul-100 px-3.5 py-3">
           <dl className="flex flex-col gap-2 text-[10px]">
             <div className="flex justify-between gap-3 text-azul-500">
-              <dt>Subtotal</dt><dd>{formatearPesos(subtotal)}</dd>
+              <dt>Subtotal</dt><dd>{formatearPesos(baseGravable)}</dd>
             </div>
             <div className="flex justify-between gap-3 text-azul-500">
-              <dt>IVA (19%)</dt><dd>{formatearPesos(impuesto)}</dd>
+              <dt>{etiquetaImpuesto}</dt><dd>{formatearPesos(impuesto)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3 text-azul-500">
               <dt className="flex items-center gap-1.5">
@@ -313,7 +334,10 @@ export default function PaginaPuntoDeVenta() {
                 />
                 %
               </dt>
-              <dd>−{formatearPesos(descuento)}</dd>
+              <dd>
+                <span aria-hidden="true">−</span>
+                <span>{formatearPesos(descuento)}</span>
+              </dd>
             </div>
           </dl>
           <div className="mt-3 flex items-center justify-between border-t border-dashed border-azul-200 pt-2.5">

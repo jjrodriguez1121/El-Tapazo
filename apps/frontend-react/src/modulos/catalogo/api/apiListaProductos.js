@@ -21,7 +21,14 @@ export async function obtenerCatalogoDeProductos() {
     listarTodasLasPaginas('/inventario/existencias/'),
   ])
 
-  return { productos, categorias, existencias }
+  const categoriasConCantidad = categorias.map((categoria) => ({
+    ...categoria,
+    cantidadProductos: productos.filter(
+      (producto) => String(producto.categoria?.id) === String(categoria.id)
+    ).length,
+  }))
+
+  return { productos, categorias: categoriasConCantidad, existencias }
 }
 
 export const crearProducto = (datos) =>

@@ -15,6 +15,7 @@ import Aviso from '@/componentes/ui/Aviso'
 import Insignia from '@/componentes/ui/Insignia'
 import { formatearCantidad, formatearPesos } from '@/utilidades/formatos'
 import { mensajeDeError } from '@/utilidades/errores'
+import { clienteApi } from '@/librerias/clienteApi'
 
 import EsqueletoDeProductos from '../componentes/EsqueletoDeProductos'
 import ModalNuevoProducto from '../componentes/ModalNuevoProducto'
@@ -99,28 +100,38 @@ export default function PaginaDetalleProducto() {
     : existencias.some((existencia) => existencia.esta_bajo_minimo)
       ? { etiqueta: 'Stock bajo', tono: 'alerta' }
       : { etiqueta: 'En stock', tono: 'exito' }
-  const ubicaciones = [...new Set(existencias.map((existencia) => existencia.ubicacion.nombre))]
   const proveedor = producto.proveedor
   const movimientos = producto.movimientos ?? []
   const categorias = catalogo.data?.categorias.length
     ? catalogo.data.categorias
     : CATEGORIAS_DE_EJEMPLO
 
-  function actualizarProducto(datos) {
+  async function actualizarProducto(datos) {
     const idProducto = producto.id
     const estaBajoMinimo = datos.stockMinimo > 0 && datos.stockActual <= datos.stockMinimo
+    const respuesta = await clienteApi.put(`/catalogo/productos/${idProducto}/`, {
+      sku: datos.sku.trim(),
+      nombre: datos.nombre.trim(),
+      categoria_id: datos.categoria.id,
+      costo: producto.costo ?? 0,
+      precio_venta: datos.precioVenta,
+      margen_ganancia: datos.margenGanancia,
+      precio_venta_automatico: datos.precioAutomatico,
+      cantidad_disponible: datos.stockActual,
+      cantidad_minima: datos.stockMinimo,
+      imagen: datos.imagen || '',
+    })
     setProductoEditado({
-      ...producto,
+      ...respuesta.data,
       nombre: datos.nombre,
       sku: datos.sku,
       categoria: datos.categoria,
       unidad: datos.unidad,
-      precio_evento: datos.precioVenta,
       imagen: datos.imagen || producto.imagen || '',
       existencias: [
         {
           producto: { id: idProducto },
-          ubicacion: { nombre: datos.ubicacion },
+          ubicacion: { nombre: 'Bodega Principal' },
           cantidad_disponible: datos.stockActual,
           cantidad_minima: datos.stockMinimo,
           esta_bajo_minimo: estaBajoMinimo,
@@ -167,7 +178,7 @@ export default function PaginaDetalleProducto() {
 
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-2xl font-bold text-azul-950">
-              {formatearPesos(Number(producto.precio_evento))}
+              {formatearPesos(Number(producto.precio_venta ?? producto.precio_evento))}
             </p>
             <Insignia tono={estadoStock.tono}>{estadoStock.etiqueta}</Insignia>
           </div>
@@ -183,12 +194,6 @@ export default function PaginaDetalleProducto() {
               <dt className="text-[11px] text-azul-400">Stock mínimo</dt>
               <dd className="mt-1 text-sm font-bold text-azul-950">
                 {formatearCantidad(stockMinimo)} {producto.unidad ?? 'unidades'}
-              </dd>
-            </div>
-            <div className="rounded-xl border border-azul-150 bg-blanco px-3.5 py-3">
-              <dt className="text-[11px] text-azul-400">Ubicación</dt>
-              <dd className="mt-1 text-sm font-bold text-azul-950">
-                {ubicaciones.length ? ubicaciones.join(', ') : 'Sin ubicación registrada'}
               </dd>
             </div>
             <div className="rounded-xl border border-azul-150 bg-blanco px-3.5 py-3">

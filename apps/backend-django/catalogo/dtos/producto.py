@@ -16,20 +16,22 @@ class DatosDeProductoDTO:
     nombre: str
     categoria_id: int
     costo: Decimal
-    precio_evento: Decimal
-    precio_mayorista: Decimal
+    precio_venta: Decimal
+    imagen: str = ""
+    cantidad_disponible: Decimal = Decimal("0")
+    cantidad_minima: Decimal = Decimal("0")
+    margen_ganancia: Decimal = Decimal("30.00")
+    precio_venta_automatico: bool = True
 
 
 @dataclass(frozen=True)
 class MargenDeVentaDTO:
-    """El margen de un producto en los dos canales.
+    """El margen de un producto sobre su precio de venta.
 
     Los márgenes son `None` cuando el costo es cero: sin costo no hay margen
     que calcular, y devolver 0 % o infinito sería inventarse un número.
     """
 
     costo: Decimal
-    precio_evento: Decimal
-    precio_mayorista: Decimal
-    margen_evento: Decimal | None
-    margen_mayorista: Decimal | None
+    precio_venta: Decimal
+    margen: Decimal | None

@@ -1,9 +1,17 @@
 import { formatearCantidad } from '@/utilidades/formatos'
+import { PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react'
 
 /**
  * Tarjeta individual que representa una categoría del catálogo.
  */
-export default function TarjetaDeCategoria({ nombre, cantidadProductos, Icono, onClick }) {
+export default function TarjetaDeCategoria({
+  nombre,
+  cantidadProductos,
+  Icono,
+  onClick,
+  alEditar,
+  alEliminar,
+}) {
   const textoProductos = `${formatearCantidad(cantidadProductos)} ${
     cantidadProductos === 1 ? 'producto' : 'productos'
   }`
@@ -30,6 +38,30 @@ export default function TarjetaDeCategoria({ nombre, cantidadProductos, Icono, o
           {textoProductos}
         </p>
       </div>
+      <footer className="mt-4 flex justify-end gap-1 border-t border-azul-100 pt-3">
+        <button
+          type="button"
+          aria-label={`Editar ${nombre}`}
+          onClick={(evento) => {
+            evento.stopPropagation()
+            alEditar()
+          }}
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50"
+        >
+          <PencilSimpleIcon size={15} /> Editar
+        </button>
+        <button
+          type="button"
+          aria-label={`Eliminar ${nombre}`}
+          onClick={(evento) => {
+            evento.stopPropagation()
+            alEliminar()
+          }}
+          className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold text-error-600 hover:bg-error-50"
+        >
+          <TrashIcon size={15} /> Eliminar
+        </button>
+      </footer>
     </article>
   )
 }

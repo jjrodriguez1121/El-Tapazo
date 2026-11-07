@@ -1,68 +1,39 @@
-"""El resumen de ventas por canal: cuánto puso la barra y cuánto el mayoreo.
-
-Vive aquí y no en una app `informes` porque el dato que cruza los dos canales
-es **el negocio**, y porque cada canal calcula lo suyo en su propia app: este
-módulo solo suma lo que le dan. Si mañana hay un tercer canal, se añade una
-línea aquí y sus consultas van en su app, no en esta.
-
-`vendido` y `cobrado` son dos números distintos a propósito. En la barra casi
-coinciden —se cobra la misma noche—; en el mayoreo no, porque se vende a
-crédito: lo cobrado de septiembre suele ser lo vendido de agosto.
-"""
+"""Resumen de ventas para el dashboard."""
 
 from datetime import date
 
+from django.db.models import DecimalField, ExpressionWrapper, F, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from distribucion.selectores import informes as informes_de_mayoreo
-from eventos.selectores import informes as informes_de_bar
 from negocios.excepciones import RangoDeFechasInvalido
+from ventas.models import PagoVenta, Venta
 
-CANAL_BAR = "bar"
-CANAL_MAYOREO = "mayoreo"
+IMPORTE = DecimalField(max_digits=24, decimal_places=2)
 
 
-def resumen_de_ventas(
-    *, negocio_id: int, desde: date | None = None, hasta: date | None = None
-) -> dict:
-    """Lo vendido y lo cobrado por cada canal en un rango de fechas.
-
-    Sin fechas, el mes en curso: es la pregunta que se hace de verdad —"¿cómo
-    vamos este mes?"— y evita que el informe recorra toda la historia cada vez
-    que alguien abre la pantalla.
-
-    Raises:
-        RangoDeFechasInvalido: la fecha de inicio es posterior a la del final.
-    """
+def resumen_de_ventas(*, negocio_id: int, desde: date | None = None, hasta: date | None = None) -> dict:
+    """Ventas registradas y pagos recibidos dentro del rango indicado."""
     desde, hasta = _rango(desde=desde, hasta=hasta)
-
-    bar = informes_de_bar.ventas_del_canal(negocio_id=negocio_id, desde=desde, hasta=hasta)
-    mayoreo = informes_de_mayoreo.ventas_del_canal(negocio_id=negocio_id, desde=desde, hasta=hasta)
-    return {
-        "desde": desde,
-        "hasta": hasta,
-        "canales": [
-            {"canal": CANAL_BAR, **bar},
-            {"canal": CANAL_MAYOREO, **mayoreo},
-        ],
-        "vendido_total": bar["vendido"] + mayoreo["vendido"],
-        "cobrado_total": bar["cobrado"] + mayoreo["cobrado"],
-    }
+    ventas = Venta.objects.filter(negocio_id=negocio_id, fecha__date__range=(desde, hasta)).exclude(
+        estado=Venta.Estado.ANULADA
+    )
+    vendido = ventas.aggregate(
+        total=Coalesce(
+            Sum(ExpressionWrapper(F("detalles__cantidad") * F("detalles__precio_unitario"), output_field=IMPORTE)),
+            0,
+            output_field=IMPORTE,
+        )
+    )["total"]
+    cobrado = PagoVenta.objects.filter(
+        negocio_id=negocio_id, fecha__date__range=(desde, hasta)
+    ).aggregate(total=Coalesce(Sum("monto"), 0, output_field=IMPORTE))["total"]
+    return {"desde": desde, "hasta": hasta, "vendido_total": vendido, "cobrado_total": cobrado}
 
 
 def _rango(*, desde: date | None, hasta: date | None) -> tuple[date, date]:
-    """El rango pedido, o el mes en curso.
-
-    `timezone.localdate()` y **nunca `date.today()`**: un cierre a las once de
-    la noche cae en el día siguiente en UTC, y el resumen del mes se comería el
-    primero o el último día.
-
-    Raises:
-        RangoDeFechasInvalido.
-    """
     hoy = timezone.localdate()
-    desde = desde or hoy.replace(day=1)
-    hasta = hasta or hoy
+    desde, hasta = desde or hoy.replace(day=1), hasta or hoy
     if desde > hasta:
         raise RangoDeFechasInvalido(desde=desde.isoformat(), hasta=hasta.isoformat())
     return desde, hasta

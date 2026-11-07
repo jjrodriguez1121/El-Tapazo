@@ -6,9 +6,39 @@ esas dos últimas, porque un mismo producto se le puede comprar a varios
 proveedores a precios distintos.
 """
 
+from decimal import Decimal
+
 from django.db import models
 
 from nucleo.models import ModeloDelNegocio
+
+
+class Impuesto(ModeloDelNegocio):
+    class TipoTratamiento(models.TextChoices):
+        GRAVADO = "gravado", "Gravado"
+        EXENTO = "exento", "Exento"
+        NO_GRAVADO = "no_gravado", "No gravado"
+
+    nombre = models.CharField("nombre", max_length=100)
+    porcentaje = models.DecimalField("porcentaje", max_digits=5, decimal_places=2, default=0)
+    tipo_tratamiento = models.CharField(
+        "tipo de tratamiento", max_length=20, choices=TipoTratamiento.choices,
+        default=TipoTratamiento.GRAVADO,
+    )
+    activo = models.BooleanField("activo", default=True)
+
+    class Meta:
+        db_table = "impuestos"
+        ordering = ["nombre"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["negocio", "nombre"], name="impuesto_nombre_unico_por_negocio"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(porcentaje__gte=0) & models.Q(porcentaje__lte=100),
+                name="impuesto_porcentaje_valido",
+            ),
+        ]
 
 
 class Categoria(ModeloDelNegocio):
@@ -59,6 +89,8 @@ class Proveedor(ModeloDelNegocio):
         related_name="proveedores",
         verbose_name="negocio",
     )
+    tipo_documento = models.CharField("tipo de documento", max_length=20, blank=True)
+    numero_documento = models.CharField("número de documento", max_length=30, blank=True)
 
     razon_social = models.CharField("razón social", max_length=150)
     nit = models.CharField("NIT", max_length=20, blank=True)
@@ -94,8 +126,7 @@ class Proveedor(ModeloDelNegocio):
 class Producto(ModeloDelNegocio):
     """Lo que el negocio vende, en cualquiera de los dos canales.
 
-    Un solo catálogo con dos precios: `precio_evento` para la venta directa en
-    el bar y `precio_mayorista` para la distribución a tiendas.
+    Cada producto tiene un único precio de venta vigente.
     """
 
     sku = models.CharField("SKU", max_length=50, db_index=True)
@@ -105,6 +136,14 @@ class Producto(ModeloDelNegocio):
         on_delete=models.PROTECT,
         related_name="productos",
         verbose_name="categoría",
+    )
+    impuesto = models.ForeignKey(
+        "catalogo.Impuesto",
+        on_delete=models.PROTECT,
+        related_name="productos",
+        verbose_name="impuesto",
+        null=True,
+        blank=True,
     )
     proveedores = models.ManyToManyField(
         "catalogo.Proveedor",
@@ -124,8 +163,25 @@ class Producto(ModeloDelNegocio):
             "cada proveedor va en productos_proveedores."
         ),
     )
-    precio_evento = models.DecimalField("precio en evento", max_digits=12, decimal_places=2)
-    precio_mayorista = models.DecimalField("precio mayorista", max_digits=12, decimal_places=2)
+    precio_venta = models.DecimalField("precio de venta", max_digits=12, decimal_places=2)
+    margen_ganancia = models.DecimalField(
+        "margen de ganancia",
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal("30.00"),
+    )
+    precio_venta_automatico = models.BooleanField(
+        "precio de venta automático",
+        default=True,
+    )
+    imagen = models.TextField("imagen", blank=True, default="")
+    codigo = models.CharField("código", max_length=50, blank=True)
+    presentacion = models.CharField("presentación", max_length=30, blank=True)
+    contenido_presentacion = models.CharField(
+        "contenido de la presentación", max_length=100, blank=True
+    )
+    stock_minimo = models.PositiveIntegerField("stock mínimo", default=0)
+    controla_inventario = models.BooleanField("controla inventario", default=True)
 
     activo = models.BooleanField(
         "activo",
@@ -147,8 +203,7 @@ class Producto(ModeloDelNegocio):
             models.CheckConstraint(
                 condition=(
                     models.Q(costo__gte=0)
-                    & models.Q(precio_evento__gte=0)
-                    & models.Q(precio_mayorista__gte=0)
+                    & models.Q(precio_venta__gte=0)
                 ),
                 name="producto_precios_no_negativos",
                 violation_error_message="Ni el costo ni los precios pueden ser negativos.",

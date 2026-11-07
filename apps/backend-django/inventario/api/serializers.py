@@ -3,22 +3,7 @@
 from rest_framework import serializers
 
 from catalogo.models import Producto
-from inventario.models import Existencia, MovimientoInventario, Ubicacion
-
-
-# --------------------------------------------------------------------------- #
-# Ubicaciones
-# --------------------------------------------------------------------------- #
-class UbicacionInputSerializer(serializers.Serializer):
-    nombre = serializers.CharField(max_length=100)
-    tipo = serializers.ChoiceField(choices=Ubicacion.Tipo.choices)
-    direccion = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
-
-
-class UbicacionOutputSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Ubicacion
-        fields = ("id", "nombre", "tipo", "direccion", "activa", "creado_en", "actualizado_en")
+from inventario.models import Existencia, MovimientoInventario
 
 
 # --------------------------------------------------------------------------- #
@@ -34,7 +19,6 @@ class ExistenciaOutputSerializer(serializers.ModelSerializer):
     """`esta_bajo_minimo` sale calculado: con la mínima en 0 nunca lo está."""
 
     producto = ProductoAnidadoSerializer(read_only=True)
-    ubicacion = UbicacionOutputSerializer(read_only=True)
     esta_bajo_minimo = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -42,7 +26,6 @@ class ExistenciaOutputSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "producto",
-            "ubicacion",
             "cantidad_disponible",
             "cantidad_minima",
             "esta_bajo_minimo",

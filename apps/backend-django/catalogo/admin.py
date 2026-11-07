@@ -33,8 +33,7 @@ class ProductoAdmin(admin.ModelAdmin):
         "categoria",
         "negocio",
         "costo",
-        "precio_evento",
-        "precio_mayorista",
+        "precio_venta",
         "activo",
     )
     list_filter = ("negocio", "categoria", "activo")

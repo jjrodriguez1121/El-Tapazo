@@ -48,6 +48,7 @@ class Cliente(ModeloDelNegocio):
     numero_documento = models.CharField("número de documento", max_length=30)
     nombre = models.CharField("nombre", max_length=120)
     apellido = models.CharField("apellido", max_length=120)
+    direccion = models.CharField("dirección", max_length=255, blank=True)
     fecha_nacimiento = models.DateField(
         "fecha de nacimiento",
         help_text="Se guarda la fecha y no la edad: la edad cambia sola cada año.",

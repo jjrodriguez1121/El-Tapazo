@@ -96,7 +96,7 @@ def comparar_precios_de_proveedores(
 
 
 def margen_de_venta(*, producto_id: int, negocio_id: int) -> MargenDeVentaDTO:
-    """Cuánto se le gana al producto en cada canal, en porcentaje sobre el costo.
+    """Cuánto se le gana al producto, en porcentaje sobre el costo.
 
     Con el costo en cero devuelve `None` en vez de un número: sin costo no hay
     margen que calcular, y contestar 0 % o infinito sería inventárselo.
@@ -104,10 +104,8 @@ def margen_de_venta(*, producto_id: int, negocio_id: int) -> MargenDeVentaDTO:
     producto = obtener_producto(producto_id=producto_id, negocio_id=negocio_id)
     return MargenDeVentaDTO(
         costo=producto.costo,
-        precio_evento=producto.precio_evento,
-        precio_mayorista=producto.precio_mayorista,
-        margen_evento=_porcentaje_sobre(producto.costo, producto.precio_evento),
-        margen_mayorista=_porcentaje_sobre(producto.costo, producto.precio_mayorista),
+        precio_venta=producto.precio_venta,
+        margen=_porcentaje_sobre(producto.costo, producto.precio_venta),
     )
 
 

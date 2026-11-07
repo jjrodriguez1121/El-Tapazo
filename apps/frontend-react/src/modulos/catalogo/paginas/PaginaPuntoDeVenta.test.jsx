@@ -24,6 +24,7 @@ beforeEach(() => {
           sku: 'ELC-003',
           categoria: { id: 1, nombre: 'Eléctrico' },
           precio_evento: '12000.00',
+          impuesto: { id: 1, nombre: 'IVA 19 %', porcentaje: '19.00' },
         },
       ],
       categorias: [{ id: 1, nombre: 'Eléctrico' }],
@@ -57,10 +58,10 @@ test('agrega productos, cambia cantidades y calcula los totales', async () => {
   await usuario.click(screen.getByRole('button', { name: 'Sumar Bujía NGK' }))
 
   expect(screen.getByText('2 artículos')).toBeInTheDocument()
-  expect(screen.getByText('$24.000')).toBeInTheDocument()
-  expect(screen.getByText('$4.560')).toBeInTheDocument()
+  expect(screen.getByText('$19.160')).toBeInTheDocument()
+  expect(screen.getByText('$3.640')).toBeInTheDocument()
   expect(screen.getByText('$1.200')).toBeInTheDocument()
-  expect(screen.getByText('$27.360')).toBeInTheDocument()
+  expect(screen.getByText('$22.800')).toBeInTheDocument()
 })
 
 test('muestra eliminar siempre y retira la línea completa del carrito', async () => {

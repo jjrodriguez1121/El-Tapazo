@@ -7,17 +7,25 @@ import CampoTexto from '@/componentes/ui/CampoTexto'
 import { mensajeDeError } from '@/utilidades/errores'
 import { validarObligatorio } from '@/utilidades/validaciones'
 
-import { useCrearCategoria } from '../hooks/useCrearCategoria'
+import { useActualizarCategoria, useCrearCategoria } from '../hooks/useCrearCategoria'
 
 const LARGO_MAXIMO_DEL_NOMBRE = 100
 const LARGO_MAXIMO_DE_LA_DESCRIPCION = 255
 
-export default function ModalNuevaCategoria({ alCerrar, alCrear, categoriasExistentes = [] }) {
-	const [nombre, setNombre] = useState('')
-	const [descripcion, setDescripcion] = useState('')
+export default function ModalNuevaCategoria({
+	alCerrar,
+	alCrear,
+	alActualizar,
+	categoriasExistentes = [],
+	categoriaParaEditar = null,
+}) {
+	const [nombre, setNombre] = useState(categoriaParaEditar?.nombre ?? '')
+	const [descripcion, setDescripcion] = useState(categoriaParaEditar?.descripcion ?? '')
 	const [errorDelNombre, setErrorDelNombre] = useState('')
 	const idDescripcion = useId()
 	const creacion = useCrearCategoria()
+	const actualizacion = useActualizarCategoria()
+	const operacionEnCurso = creacion.isPending || actualizacion.isPending
 
 	function enviar(evento) {
 		evento.preventDefault()
@@ -26,6 +34,7 @@ export default function ModalNuevaCategoria({ alCerrar, alCrear, categoriasExist
 
 		if (!error && categoriasExistentes.some(
 			(categoria) => categoria.nombre.trim().toLocaleLowerCase('es-CO') === nombreLimpio.toLocaleLowerCase('es-CO')
+				&& categoria.id !== categoriaParaEditar?.id
 		)) {
 			error = 'Ya existe una categoría con ese nombre.'
 		}
@@ -36,15 +45,19 @@ export default function ModalNuevaCategoria({ alCerrar, alCrear, categoriasExist
 		}
 
 		setErrorDelNombre('')
-		creacion.mutate(
-			{ nombre: nombreLimpio, descripcion: descripcion.trim() },
-			{
-				onSuccess: (categoria) => {
-					alCrear(categoria)
-					alCerrar()
-				},
-			}
-		)
+		const datos = { nombre: nombreLimpio, descripcion: descripcion.trim() }
+		const opciones = {
+			onSuccess: (categoria) => {
+				if (categoriaParaEditar) alActualizar(categoria)
+				else alCrear(categoria)
+				alCerrar()
+			},
+		}
+		if (categoriaParaEditar) {
+			actualizacion.mutate({ id: categoriaParaEditar.id, datos }, opciones)
+		} else {
+			creacion.mutate(datos, opciones)
+		}
 	}
 
 	return (
@@ -58,7 +71,7 @@ export default function ModalNuevaCategoria({ alCerrar, alCrear, categoriasExist
 				<header className="mb-6 flex items-start justify-between gap-4">
 					<div>
 						<h2 id="titulo-modal-categoria" className="text-lg font-bold text-azul-950">
-							Nueva categoría
+							{categoriaParaEditar ? 'Editar categoría' : 'Nueva categoría'}
 						</h2>
 						<p className="mt-1 text-sm font-medium text-azul-400">
 							Agrega una categoría al catálogo.
@@ -69,7 +82,7 @@ export default function ModalNuevaCategoria({ alCerrar, alCrear, categoriasExist
 						aria-label="Cerrar"
 						title="Cerrar"
 						onClick={alCerrar}
-						disabled={creacion.isPending}
+						disabled={operacionEnCurso}
 						className="grid size-9 flex-none place-items-center rounded-lg text-azul-500 hover:bg-azul-50 focus-visible:outline-2 focus-visible:outline-azul-400 disabled:opacity-50"
 					>
 						<XIcon size={20} />
@@ -112,19 +125,21 @@ export default function ModalNuevaCategoria({ alCerrar, alCrear, categoriasExist
 						/>
 					</div>
 
-					{creacion.error && <Aviso>{mensajeDeError(creacion.error)}</Aviso>}
+					{(creacion.error || actualizacion.error) && (
+						<Aviso>{mensajeDeError(creacion.error ?? actualizacion.error)}</Aviso>
+					)}
 
 					<footer className="flex justify-end gap-3 pt-1">
 						<button
 							type="button"
 							onClick={alCerrar}
-							disabled={creacion.isPending}
+							disabled={operacionEnCurso}
 							className="rounded-xl border border-azul-200 px-4 py-2.5 text-sm font-semibold text-azul-700 hover:bg-azul-50 focus-visible:outline-2 focus-visible:outline-azul-400 disabled:opacity-50"
 						>
 							Cancelar
 						</button>
-						<Boton type="submit" cargando={creacion.isPending}>
-							Crear categoría
+						<Boton type="submit" cargando={operacionEnCurso}>
+							{categoriaParaEditar ? 'Guardar cambios' : 'Crear categoría'}
 						</Boton>
 					</footer>
 				</form>

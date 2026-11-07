@@ -51,15 +51,6 @@ class Evento(ModeloDelNegocio):
         CERRADO = "cerrado", "Cerrado"
         CANCELADO = "cancelado", "Cancelado"
 
-    ubicacion = models.ForeignKey(
-        "inventario.Ubicacion",
-        on_delete=models.PROTECT,
-        related_name="eventos",
-        verbose_name="ubicación",
-        null=True,
-        blank=True,
-        help_text="Dónde se monta la barra. Puede definirse después de planear el evento.",
-    )
     nombre = models.CharField("nombre", max_length=150)
     tipo_espacio = models.CharField(
         "tipo de espacio",
@@ -110,12 +101,6 @@ class Evento(ModeloDelNegocio):
             # cuerpo de `Meta` no ve las clases anidadas de `Evento`. Si algún
             # día cambia el valor del enum, la prueba de esta restricción es la
             # que avisa.
-            models.UniqueConstraint(
-                fields=["ubicacion"],
-                condition=models.Q(estado="en_curso", ubicacion__isnull=False),
-                name="evento_una_sola_jornada_en_curso_por_ubicacion",
-                violation_error_message="Esa ubicación ya tiene una jornada abierta.",
-            ),
         ]
         indexes = [
             # "Los eventos de este negocio, del más reciente al más viejo" es

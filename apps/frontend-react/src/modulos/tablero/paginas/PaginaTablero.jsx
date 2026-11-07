@@ -1,4 +1,5 @@
-import { ClipboardTextIcon, PackageIcon, TrendUpIcon, WarningIcon } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
+import { ClipboardTextIcon, PackageIcon, TrendUpIcon, WarningIcon, WalletIcon } from '@phosphor-icons/react'
 
 import { formatearCantidad, formatearFechaLarga, formatearPesos } from '@/utilidades/formatos'
 
@@ -7,6 +8,8 @@ import GraficaDeVentasDeLaSemana from '../componentes/GraficaDeVentasDeLaSemana'
 import PedidosRecientes from '../componentes/PedidosRecientes'
 import ProductosMasVendidos from '../componentes/ProductosMasVendidos'
 import TarjetaDeIndicador from '../componentes/TarjetaDeIndicador'
+import PanelDelTablero from '../componentes/PanelDelTablero'
+import { clienteApi } from '@/librerias/clienteApi'
 import {
   ALERTAS_DE_STOCK,
   INDICADORES,
@@ -26,6 +29,14 @@ const APARIENCIA_DE_INDICADORES = {
 
 /** Lo primero que se ve al entrar: las cifras del día y lo que pide atención. */
 export default function PaginaTablero() {
+  const [cuentasPorPagar, setCuentasPorPagar] = useState([])
+
+  useEffect(() => {
+    clienteApi.get('/compras/cuentas-por-pagar/')
+      .then(({ data }) => setCuentasPorPagar(data))
+      .catch(() => setCuentasPorPagar([]))
+  }, [])
+
   return (
     <div>
       <header className="mb-6">
@@ -62,6 +73,33 @@ export default function PaginaTablero() {
         <div className="flex min-w-0 flex-col gap-4.5">
           <AlertasDeStock alertas={ALERTAS_DE_STOCK} />
           <PedidosRecientes pedidos={PEDIDOS_RECIENTES} />
+          <PanelDelTablero
+            titulo="Cuentas por pagar"
+            accesorio={<WalletIcon size={20} className="text-alerta-600" />}
+          >
+            {cuentasPorPagar.length === 0 ? (
+              <p className="py-3 text-sm text-azul-400">No hay cuentas pendientes.</p>
+            ) : (
+              <div className="divide-y divide-azul-100">
+                {cuentasPorPagar.map((cuenta) => (
+                  <div key={cuenta.id} className="flex items-start justify-between gap-3 py-3 text-sm">
+                    <div>
+                      <p className="font-semibold text-azul-900">{cuenta.proveedor}</p>
+                      <p className="text-xs text-azul-400">
+                        Vence {formatearFechaLarga(new Date(`${cuenta.fecha_vencimiento}T00:00:00`))}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-azul-950">{formatearPesos(cuenta.saldo)}</p>
+                      <p className={`text-xs font-semibold ${cuenta.estado === 'VENCIDA' ? 'text-error-600' : 'text-alerta-600'}`}>
+                        {cuenta.estado}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </PanelDelTablero>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { CheckIcon } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
+import { clienteApi } from '@/librerias/clienteApi'
 import {
   validarCorreoOpcional,
   validarDocumento,
@@ -27,25 +28,31 @@ function CampoProveedor({ etiqueta, id, error = '', className = '', ...props }) 
   )
 }
 
-export default function ModalNuevoProveedor({ alCerrar, alCrear, proveedoresExistentes = [] }) {
+export default function ModalNuevoProveedor({
+  alCerrar,
+  alGuardar,
+  proveedoresExistentes = [],
+  proveedorParaEditar = null,
+}) {
   const id = useId()
   const [datos, setDatos] = useState({
-    razonSocial: '',
-    nit: '',
-    nombreContacto: '',
-    telefono: '',
-    correo: '',
-    ciudad: '',
-    direccion: '',
+    razonSocial: proveedorParaEditar?.razonSocial ?? proveedorParaEditar?.razon_social ?? '',
+    nit: proveedorParaEditar?.nit ?? '',
+    nombreContacto: proveedorParaEditar?.nombreContacto ?? proveedorParaEditar?.nombre_contacto ?? '',
+    telefono: proveedorParaEditar?.telefono ?? '',
+    correo: proveedorParaEditar?.correo ?? '',
+    ciudad: proveedorParaEditar?.ciudad ?? '',
+    direccion: proveedorParaEditar?.direccion ?? '',
   })
   const [errores, setErrores] = useState({})
+  const [guardando, setGuardando] = useState(false)
 
   function cambiar(campo, valor) {
     setDatos((actuales) => ({ ...actuales, [campo]: valor }))
     setErrores((actuales) => ({ ...actuales, [campo]: '' }))
   }
 
-  function enviar(evento) {
+  async function enviar(evento) {
     evento.preventDefault()
     const razonSocial = datos.razonSocial.trim()
     const nit = datos.nit.trim()
@@ -61,12 +68,14 @@ export default function ModalNuevoProveedor({ alCerrar, alCrear, proveedoresExis
     if (!nuevosErrores.razonSocial && proveedoresExistentes.some(
       (proveedor) => (proveedor.razonSocial ?? proveedor.razon_social ?? '')
         .trim()
-        .toLocaleLowerCase('es-CO') === razonSocialNormalizada
+        .toLocaleLowerCase('es-CO') === razonSocialNormalizada &&
+        String(proveedor.id) !== String(proveedorParaEditar?.id)
     )) {
       nuevosErrores.razonSocial = 'Ya existe un proveedor con esa razón social.'
     }
     if (!nuevosErrores.nit && nitNormalizado && proveedoresExistentes.some(
-      (proveedor) => (proveedor.nit ?? '').replace(/[^a-z\d]/gi, '').toUpperCase() === nitNormalizado
+      (proveedor) => (proveedor.nit ?? '').replace(/[^a-z\d]/gi, '').toUpperCase() === nitNormalizado &&
+        String(proveedor.id) !== String(proveedorParaEditar?.id)
     )) {
       nuevosErrores.nit = 'Ya existe un proveedor con ese NIT.'
     }
@@ -76,19 +85,35 @@ export default function ModalNuevoProveedor({ alCerrar, alCrear, proveedoresExis
       return
     }
 
-    alCrear({
-      id: `local-${Date.now()}`,
-      ...datos,
-      razonSocial,
-      nit,
-      nombreContacto: datos.nombreContacto.trim(),
-      telefono: datos.telefono.trim(),
-      correo: datos.correo.trim(),
-      ciudad: datos.ciudad.trim(),
-      direccion: datos.direccion.trim(),
-      cantidadProductos: 0,
-    })
-    alCerrar()
+    setGuardando(true)
+    try {
+      const datosProveedor = {
+        razon_social: razonSocial,
+        nit,
+        nombre_contacto: datos.nombreContacto.trim(),
+        telefono: datos.telefono.trim(),
+        correo: datos.correo.trim(),
+        ciudad: datos.ciudad.trim(),
+        direccion: datos.direccion.trim(),
+      }
+      const respuesta = proveedorParaEditar
+        ? await clienteApi.put(`/catalogo/proveedores/${proveedorParaEditar.id}/`, datosProveedor)
+        : await clienteApi.post('/catalogo/proveedores/', datosProveedor)
+      alGuardar({
+        ...respuesta.data,
+        razonSocial: respuesta.data.razon_social,
+        nombreContacto: respuesta.data.nombre_contacto,
+        cantidadProductos: proveedorParaEditar?.cantidadProductos ?? 0,
+      })
+      alCerrar()
+    } catch (error) {
+      setErrores((actuales) => ({
+        ...actuales,
+        razonSocial: error.response?.data?.detail ?? 'No fue posible guardar el proveedor.',
+      }))
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
@@ -101,7 +126,7 @@ export default function ModalNuevoProveedor({ alCerrar, alCrear, proveedoresExis
       >
         <header className="mb-5">
           <h2 id={`${id}-titulo`} className="text-lg font-bold text-azul-950">
-            Nuevo proveedor
+            {proveedorParaEditar ? 'Editar proveedor' : 'Nuevo proveedor'}
           </h2>
           <p className="mt-1 text-xs font-medium text-azul-600">
             Registra los datos comerciales y de contacto.
@@ -205,6 +230,7 @@ export default function ModalNuevoProveedor({ alCerrar, alCrear, proveedoresExis
             </button>
             <button
               type="submit"
+              disabled={guardando}
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-azul-950 px-4 text-xs font-bold text-blanco hover:bg-azul-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-azul-600"
             >
               <CheckIcon size={16} weight="bold" /> Guardar proveedor

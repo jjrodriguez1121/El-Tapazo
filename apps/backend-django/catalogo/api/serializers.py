@@ -8,7 +8,7 @@ repetido, que la categoría sea de este negocio— viven en `servicios/`.
 
 from rest_framework import serializers
 
-from catalogo.models import Categoria, Producto, ProductoProveedor, Proveedor
+from catalogo.models import Categoria, Impuesto, Producto, ProductoProveedor, Proveedor
 
 
 # --------------------------------------------------------------------------- #
@@ -67,9 +67,21 @@ class ProductoInputSerializer(serializers.Serializer):
     sku = serializers.CharField(max_length=50)
     nombre = serializers.CharField(max_length=200)
     categoria_id = serializers.IntegerField()
-    costo = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
-    precio_evento = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
-    precio_mayorista = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+    costo = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0, required=False, default=0
+    )
+    precio_venta = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+    imagen = serializers.CharField(required=False, allow_blank=True, default="")
+    cantidad_disponible = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0, required=False, default=0
+    )
+    cantidad_minima = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=0, required=False, default=0
+    )
+    margen_ganancia = serializers.DecimalField(
+        max_digits=6, decimal_places=2, min_value=0, required=False, default=30
+    )
+    precio_venta_automatico = serializers.BooleanField(required=False, default=True)
 
 
 class CategoriaAnidadaSerializer(serializers.ModelSerializer):
@@ -80,8 +92,15 @@ class CategoriaAnidadaSerializer(serializers.ModelSerializer):
         fields = ("id", "nombre")
 
 
+class ImpuestoAnidadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Impuesto
+        fields = ("id", "nombre", "porcentaje", "tipo_tratamiento", "activo")
+
+
 class ProductoOutputSerializer(serializers.ModelSerializer):
     categoria = CategoriaAnidadaSerializer(read_only=True)
+    impuesto = ImpuestoAnidadoSerializer(read_only=True)
 
     class Meta:
         model = Producto
@@ -90,9 +109,12 @@ class ProductoOutputSerializer(serializers.ModelSerializer):
             "sku",
             "nombre",
             "categoria",
+            "impuesto",
             "costo",
-            "precio_evento",
-            "precio_mayorista",
+            "precio_venta",
+            "margen_ganancia",
+            "precio_venta_automatico",
+            "imagen",
             "activo",
             "creado_en",
             "actualizado_en",
@@ -100,18 +122,11 @@ class ProductoOutputSerializer(serializers.ModelSerializer):
 
 
 class CambioDePrecioInputSerializer(serializers.Serializer):
-    """Al menos uno de los dos precios. Mandar el cuerpo vacío no es un cambio."""
+    """El nuevo precio de venta."""
 
-    precio_evento = serializers.DecimalField(
-        max_digits=12, decimal_places=2, min_value=0, required=False
-    )
-    precio_mayorista = serializers.DecimalField(
-        max_digits=12, decimal_places=2, min_value=0, required=False
-    )
+    precio_venta = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
 
     def validate(self, datos: dict) -> dict:
-        if not datos:
-            raise serializers.ValidationError("Indica al menos un precio para cambiar.")
         return datos
 
 
@@ -119,10 +134,8 @@ class MargenDeVentaOutputSerializer(serializers.Serializer):
     """Los márgenes van como porcentaje, y en `null` cuando el costo es cero."""
 
     costo = serializers.DecimalField(max_digits=12, decimal_places=2)
-    precio_evento = serializers.DecimalField(max_digits=12, decimal_places=2)
-    precio_mayorista = serializers.DecimalField(max_digits=12, decimal_places=2)
-    margen_evento = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
-    margen_mayorista = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
+    precio_venta = serializers.DecimalField(max_digits=12, decimal_places=2)
+    margen = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
 
 
 # --------------------------------------------------------------------------- #

@@ -1,9 +1,4 @@
-"""La única puerta que usan los dos canales de venta.
-
-`eventos` y `distribucion` **no llaman al motor directamente**: llaman aquí. Así
-el signo, el tipo y la forma de devolver lo que se movió se deciden una vez, y
-no una vez por canal.
-"""
+"""La puerta por la que las ventas registran sus salidas de inventario."""
 
 from decimal import Decimal
 

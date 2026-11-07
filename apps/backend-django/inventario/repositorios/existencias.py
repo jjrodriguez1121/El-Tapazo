@@ -22,7 +22,7 @@ from django.utils import timezone
 from inventario.models import Existencia
 
 
-def bloquear(*, producto_id: int, ubicacion_id: int, negocio_id: int) -> Existencia | None:
+def bloquear(*, producto_id: int, negocio_id: int) -> Existencia | None:
     """La fila del saldo, bloqueada hasta el final de la transacción.
 
     Devuelve `None` si no existe todavía. **Ojo: un `select_for_update()` sobre
@@ -32,22 +32,21 @@ def bloquear(*, producto_id: int, ubicacion_id: int, negocio_id: int) -> Existen
     """
     return (
         Existencia.objects.select_for_update()
-        .filter(producto_id=producto_id, ubicacion_id=ubicacion_id, negocio_id=negocio_id)
+        .filter(producto_id=producto_id, negocio_id=negocio_id)
         .first()
     )
 
 
-def obtener(*, producto_id: int, ubicacion_id: int, negocio_id: int) -> Existencia | None:
+def obtener(*, producto_id: int, negocio_id: int) -> Existencia | None:
     """Lectura sin bloquear. Para consultar, nunca para decidir si hay stock."""
     return Existencia.objects.filter(
-        producto_id=producto_id, ubicacion_id=ubicacion_id, negocio_id=negocio_id
+        producto_id=producto_id, negocio_id=negocio_id
     ).first()
 
 
-def crear_en_cero(*, producto_id: int, ubicacion_id: int, negocio_id: int) -> Existencia:
+def crear_en_cero(*, producto_id: int, negocio_id: int) -> Existencia:
     return Existencia.objects.create(
         producto_id=producto_id,
-        ubicacion_id=ubicacion_id,
         negocio_id=negocio_id,
         cantidad_disponible=Decimal("0.00"),
     )

@@ -18,11 +18,10 @@ from rest_framework.viewsets import GenericViewSet
 
 from inventario.api import filtros, serializers
 from inventario.dtos import LineaDeProductoDTO
-from inventario.models import Existencia, MovimientoInventario, Ubicacion
+from inventario.models import Existencia, MovimientoInventario
 from inventario.selectores import existencias as selector
 from inventario.servicios import ajustes as servicio_de_ajustes
 from inventario.servicios import operaciones
-from inventario.servicios import ubicaciones as servicio_de_ubicaciones
 from nucleo.api.vistas import MixinDelNegocio
 from nucleo.permisos import EsAdministrador, EsDelEquipo
 
@@ -48,74 +47,6 @@ class _ViewSetDeLectura(MixinDelNegocio, mixins.ListModelMixin, GenericViewSet):
 
 
 # --------------------------------------------------------------------------- #
-# Ubicaciones
-# --------------------------------------------------------------------------- #
-class UbicacionViewSet(_ViewSetDeLectura, mixins.RetrieveModelMixin):
-    """/api/v1/inventario/ubicaciones/"""
-
-    serializer_class = serializers.UbicacionOutputSerializer
-    filterset_class = filtros.UbicacionFiltro
-    # Solo para que drf-spectacular sepa de qué modelo es el listado: el
-    # queryset de verdad lo arma `get_queryset` con el negocio del usuario.
-    queryset = Ubicacion.objects.none()
-
-    def get_queryset(self):
-        return selector.ubicaciones_del_negocio(negocio_id=self.negocio_id)
-
-    @extend_schema(summary="Listar las ubicaciones del negocio")
-    def list(self, request: Request, *args, **kwargs) -> Response:
-        return super().list(request, *args, **kwargs)
-
-    @extend_schema(summary="Ver una ubicación")
-    def retrieve(self, request: Request, *args, **kwargs) -> Response:
-        return super().retrieve(request, *args, **kwargs)
-
-    @extend_schema(
-        summary="Crear una ubicación",
-        request=serializers.UbicacionInputSerializer,
-        responses={201: serializers.UbicacionOutputSerializer},
-    )
-    def create(self, request: Request) -> Response:
-        entrada = serializers.UbicacionInputSerializer(data=request.data)
-        entrada.is_valid(raise_exception=True)
-
-        ubicacion = servicio_de_ubicaciones.crear_ubicacion(
-            negocio_id=self.negocio_id, **entrada.validated_data
-        )
-        return Response(
-            serializers.UbicacionOutputSerializer(ubicacion).data,
-            status=status.HTTP_201_CREATED,
-        )
-
-    @extend_schema(
-        summary="Cambiar una ubicación",
-        request=serializers.UbicacionInputSerializer,
-        responses={200: serializers.UbicacionOutputSerializer},
-    )
-    def update(self, request: Request, pk: str) -> Response:
-        entrada = serializers.UbicacionInputSerializer(data=request.data)
-        entrada.is_valid(raise_exception=True)
-
-        ubicacion = servicio_de_ubicaciones.actualizar_ubicacion(
-            ubicacion_id=int(pk), negocio_id=self.negocio_id, **entrada.validated_data
-        )
-        return Response(serializers.UbicacionOutputSerializer(ubicacion).data)
-
-    @extend_schema(
-        summary="Desactivar una ubicación",
-        description="No se borra: el kardex histórico la sigue nombrando.",
-        request=None,
-        responses={200: serializers.UbicacionOutputSerializer},
-    )
-    @action(detail=True, methods=["post"], url_path="desactivacion")
-    def desactivacion(self, request: Request, pk: str) -> Response:
-        ubicacion = servicio_de_ubicaciones.desactivar_ubicacion(
-            ubicacion_id=int(pk), negocio_id=self.negocio_id
-        )
-        return Response(serializers.UbicacionOutputSerializer(ubicacion).data)
-
-
-# --------------------------------------------------------------------------- #
 # Existencias
 # --------------------------------------------------------------------------- #
 class ExistenciaViewSet(_ViewSetDeLectura):
@@ -132,8 +63,8 @@ class ExistenciaViewSet(_ViewSetDeLectura):
     def get_queryset(self):
         return (
             Existencia.objects.filter(negocio_id=self.negocio_id)
-            .select_related("producto", "ubicacion")
-            .order_by("ubicacion__nombre", "producto__nombre")
+            .select_related("producto", "producto__categoria")
+            .order_by("producto__nombre")
         )
 
     @extend_schema(summary="Ver las existencias del negocio")

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { MagnifyingGlassIcon, PackageIcon, PlusIcon } from '@phosphor-icons/react'
-import { Link, useLocation } from 'react-router-dom'
+import { MagnifyingGlassIcon, PackageIcon } from '@phosphor-icons/react'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
 import Insignia from '@/componentes/ui/Insignia'
@@ -8,9 +8,7 @@ import { formatearCantidad, formatearPesos } from '@/utilidades/formatos'
 import { mensajeDeError } from '@/utilidades/errores'
 
 import EsqueletoDeProductos from '../componentes/EsqueletoDeProductos'
-import ModalNuevoProducto from '../componentes/ModalNuevoProducto'
 import { useCatalogoDeProductos } from '../hooks/useCatalogoDeProductos'
-import { CATEGORIAS_DE_EJEMPLO, PRODUCTOS_DE_EJEMPLO } from '../utilidades/datosDeEjemplo'
 
 const ESTADO_STOCK = {
   disponible: { tono: 'exito', etiqueta: 'En stock' },
@@ -28,10 +26,12 @@ function estadoDeExistencias(existencias) {
 export default function PaginaProductos() {
   const catalogo = useCatalogoDeProductos()
   const { state: estadoDeNavegacion } = useLocation()
-  const [categoriaActiva, setCategoriaActiva] = useState('todas')
+  const [parametros] = useSearchParams()
+  const categoriaDeLaUrl = parametros.get('categoria')
+  const [categoriaActiva, setCategoriaActiva] = useState(
+    categoriaDeLaUrl ? Number(categoriaDeLaUrl) : 'todas'
+  )
   const [busqueda, setBusqueda] = useState('')
-  const [modalAbierto, setModalAbierto] = useState(false)
-  const [productosLocales, setProductosLocales] = useState([])
 
   if (catalogo.isPending) return <EsqueletoDeProductos />
 
@@ -52,19 +52,16 @@ export default function PaginaProductos() {
   }
 
   const { productos: productosDelCatalogo, categorias, existencias } = catalogo.data
-  const usandoDatosDeEjemplo = productosDelCatalogo.length === 0
-  const productosBaseOriginales = usandoDatosDeEjemplo ? PRODUCTOS_DE_EJEMPLO : productosDelCatalogo
+  const productosBaseOriginales = productosDelCatalogo
   const productoActualizado = estadoDeNavegacion?.productoActualizado
   const productosBase = productoActualizado
     ? productosBaseOriginales.map((producto) =>
         String(producto.id) === String(productoActualizado.id) ? productoActualizado : producto
       )
     : productosBaseOriginales
-  const productos = [...productosBase, ...productosLocales]
-  const categoriasVisibles = usandoDatosDeEjemplo ? CATEGORIAS_DE_EJEMPLO : categorias
-  const existenciasBaseOriginales = usandoDatosDeEjemplo
-    ? PRODUCTOS_DE_EJEMPLO.flatMap((producto) => producto.existencias)
-    : existencias
+  const productos = productosBase
+  const categoriasVisibles = categorias
+  const existenciasBaseOriginales = existencias
   const existenciasBase = productoActualizado
     ? [
         ...existenciasBaseOriginales.filter(
@@ -73,10 +70,7 @@ export default function PaginaProductos() {
         ...(productoActualizado.existencias ?? []),
       ]
     : existenciasBaseOriginales
-  const existenciasVisibles = [
-    ...existenciasBase,
-    ...productosLocales.flatMap((producto) => producto.existencias),
-  ]
+  const existenciasVisibles = existenciasBase
   const existenciasPorProducto = new Map()
   for (const existencia of existenciasVisibles) {
     const productoId = existencia.producto.id
@@ -88,7 +82,8 @@ export default function PaginaProductos() {
   const textoBusqueda = busqueda.trim().toLocaleLowerCase('es-CO')
   const productosFiltrados = productos.filter((producto) => {
     const coincideCategoria =
-      categoriaActiva === 'todas' || producto.categoria.id === categoriaActiva
+      categoriaActiva === 'todas' ||
+      String(producto.categoria.id) === String(categoriaActiva)
     const coincideBusqueda =
       !textoBusqueda ||
       producto.nombre.toLocaleLowerCase('es-CO').includes(textoBusqueda) ||
@@ -101,32 +96,6 @@ export default function PaginaProductos() {
       .map((existencia) => existencia.producto.id)
   )
 
-  function agregarProductoLocal(datos) {
-    const id = `local-${Date.now()}`
-    const estaBajoMinimo = datos.stockMinimo > 0 && datos.stockActual <= datos.stockMinimo
-    setProductosLocales((actuales) => [
-      ...actuales,
-      {
-        id,
-        nombre: datos.nombre,
-        sku: datos.sku,
-        categoria: datos.categoria,
-        unidad: datos.unidad,
-        precio_evento: datos.precioVenta,
-        imagen: datos.imagen,
-        existencias: [
-          {
-            producto: { id },
-            ubicacion: { nombre: datos.ubicacion },
-            cantidad_disponible: datos.stockActual,
-            cantidad_minima: datos.stockMinimo,
-            esta_bajo_minimo: estaBajoMinimo,
-          },
-        ],
-      },
-    ])
-  }
-
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -137,24 +106,11 @@ export default function PaginaProductos() {
             {' · '}
             {formatearCantidad(productosBajoMinimo.size)} con stock bajo
           </p>
-          {usandoDatosDeEjemplo && (
-            <p className="mt-1 text-xs font-semibold text-alerta-700">Datos de ejemplo</p>
-          )}
         </div>
-        <button
-          type="button"
-          onClick={() => setModalAbierto(true)}
-          disabled={!categoriasVisibles.length}
-          className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl bg-azul-950 px-4 text-sm font-bold text-blanco transition-colors hover:bg-azul-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-azul-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <PlusIcon size={17} weight="bold" />
-          Nuevo producto
-        </button>
+        <span className="rounded-lg bg-azul-50 px-3 py-2 text-xs font-semibold text-azul-600">
+          Altas registradas desde Compras
+        </span>
       </header>
-
-      {!categoriasVisibles.length && (
-        <Aviso>No hay categorías activas. Crea una categoría antes de agregar productos.</Aviso>
-      )}
 
       <div className="flex flex-col gap-3">
         <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar por categoría">
@@ -205,7 +161,6 @@ export default function PaginaProductos() {
                 <th scope="col" className="px-4 py-3.5">Categoría</th>
                 <th scope="col" className="px-4 py-3.5">Precio</th>
                 <th scope="col" className="px-4 py-3.5">Stock</th>
-                <th scope="col" className="px-4 py-3.5">Ubicación</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-azul-100">
@@ -216,8 +171,6 @@ export default function PaginaProductos() {
                   0
                 )
                 const estado = ESTADO_STOCK[estadoDeExistencias(existenciasDelProducto)]
-                const ubicaciones = [...new Set(existenciasDelProducto.map((existencia) => existencia.ubicacion.nombre))]
-
                 return (
                   <tr key={producto.id} className="transition-colors hover:bg-azul-50/40">
                     <td className="px-4 py-3.5">
@@ -244,7 +197,7 @@ export default function PaginaProductos() {
                     </td>
                     <td className="px-4 py-3.5 text-sm text-azul-700">{producto.categoria.nombre}</td>
                     <td className="px-4 py-3.5 text-sm font-bold text-exito-800">
-                      {formatearPesos(Number(producto.precio_evento))}
+                      {formatearPesos(Number(producto.precio_venta ?? producto.precio_evento))}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex flex-col items-start gap-1">
@@ -253,9 +206,6 @@ export default function PaginaProductos() {
                           {formatearCantidad(cantidad)} {producto.unidad ?? 'unidades'}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-4 py-3.5 text-sm text-azul-600">
-                      {ubicaciones.length ? ubicaciones.join(', ') : 'Sin ubicación'}
                     </td>
                   </tr>
                 )
@@ -275,14 +225,6 @@ export default function PaginaProductos() {
         </div>
       </section>
 
-      {modalAbierto && (
-        <ModalNuevoProducto
-          categorias={categoriasVisibles}
-          productosExistentes={productos}
-          alCrear={agregarProductoLocal}
-          alCerrar={() => setModalAbierto(false)}
-        />
-      )}
     </div>
   )
 }

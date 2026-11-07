@@ -3,7 +3,6 @@
 from rest_framework import serializers
 
 from clientes.models import Cliente
-from eventos.models import ClienteEvento
 
 
 class ClienteInputSerializer(serializers.Serializer):
@@ -51,19 +50,3 @@ class ClienteOutputSerializer(serializers.ModelSerializer):
 class BusquedaPorDocumentoSerializer(serializers.Serializer):
     tipo_documento = serializers.ChoiceField(choices=Cliente.TipoDocumento.choices)
     numero_documento = serializers.CharField(max_length=30)
-
-
-class CuentaDelHistorialSerializer(serializers.ModelSerializer):
-    """Una noche de esa persona: en qué evento, cuánto consumió y si ya cerró."""
-
-    evento = serializers.CharField(source="grupo_evento.evento.nombre", read_only=True)
-    fecha = serializers.DateTimeField(source="grupo_evento.evento.fecha_inicio", read_only=True)
-    consumido = serializers.DecimalField(max_digits=24, decimal_places=2, read_only=True)
-    cuenta_abierta = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ClienteEvento
-        fields = ("id", "evento", "fecha", "consumido", "cuenta_abierta", "liberada_en")
-
-    def get_cuenta_abierta(self, cuenta: ClienteEvento) -> bool:
-        return cuenta.liberada_en is None

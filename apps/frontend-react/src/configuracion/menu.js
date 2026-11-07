@@ -1,15 +1,10 @@
 import {
-  CalendarCheckIcon,
   ChatCircleDotsIcon,
-  ClipboardTextIcon,
-  ContactlessPaymentIcon,
   GearSixIcon,
   HandCoinsIcon,
   PackageIcon,
-  ReceiptIcon,
   ShoppingCartIcon,
   SquaresFourIcon,
-  StorefrontIcon,
   TagIcon,
   TruckIcon,
   UsersIcon,
@@ -21,7 +16,7 @@ import { RUTAS } from './rutas'
  * Las secciones del menú lateral, en el orden en que se ven.
  *
  * `soloAdministrador` sigue la decisión 6 del plan de negocio: catálogo,
- * inventario, distribución y el registro de pulseras son del administrador.
+ * inventario y cartera son módulos administrativos.
  * Esconder el enlace es comodidad para quien usa la pantalla; quien lo impide
  * de verdad es el backend, que responde 403.
  */
@@ -37,6 +32,7 @@ export const SECCIONES_DEL_MENU = [
     titulo: 'Inventario',
     elementos: [
       { ruta: RUTAS.productos, etiqueta: 'Productos', Icono: PackageIcon, soloAdministrador: true },
+      { ruta: RUTAS.compras, etiqueta: 'Compras', Icono: ShoppingCartIcon, soloAdministrador: true },
       { ruta: RUTAS.categorias, etiqueta: 'Categorías', Icono: TagIcon, soloAdministrador: true },
       {
         ruta: RUTAS.proveedores,
@@ -47,28 +43,8 @@ export const SECCIONES_DEL_MENU = [
     ],
   },
   {
-    titulo: 'Barra',
+    titulo: 'Cartera',
     elementos: [
-      { ruta: RUTAS.jornadas, etiqueta: 'Jornadas y caja', Icono: CalendarCheckIcon },
-      { ruta: RUTAS.cuentas, etiqueta: 'Cuentas', Icono: ReceiptIcon },
-      {
-        ruta: RUTAS.pulseras,
-        etiqueta: 'Pulseras',
-        Icono: ContactlessPaymentIcon,
-        soloAdministrador: true,
-      },
-    ],
-  },
-  {
-    titulo: 'Distribución',
-    elementos: [
-      {
-        ruta: RUTAS.pedidos,
-        etiqueta: 'Pedidos',
-        Icono: ClipboardTextIcon,
-        soloAdministrador: true,
-      },
-      { ruta: RUTAS.tiendas, etiqueta: 'Tiendas', Icono: StorefrontIcon, soloAdministrador: true },
       {
         ruta: RUTAS.cartera,
         etiqueta: 'Cuentas por cobrar',

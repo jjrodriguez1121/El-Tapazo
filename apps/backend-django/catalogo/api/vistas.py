@@ -12,12 +12,13 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.request import Request
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from catalogo.api import filtros, serializers
 from catalogo.dtos import DatosDeProductoDTO
-from catalogo.models import Categoria, Producto, Proveedor
+from catalogo.models import Categoria, Impuesto, Producto, Proveedor
 from catalogo.selectores import productos as selector
 from catalogo.servicios import categorias as servicio_de_categorias
 from catalogo.servicios import ofertas as servicio_de_ofertas
@@ -34,6 +35,19 @@ class _ViewSetDelCatalogo(
 
     permission_classes = [EsAdministrador]
     lookup_value_regex = "[0-9]+"
+
+
+class ImpuestoViewSet(_ViewSetDelCatalogo):
+    """Tarifas tributarias disponibles para clasificar productos."""
+
+    serializer_class = serializers.ImpuestoAnidadoSerializer
+    queryset = Impuesto.objects.none()
+
+    def get_queryset(self):
+        return Impuesto.objects.filter(
+            negocio_id=self.negocio_id,
+            activo=True,
+        ).order_by("nombre")
 
 
 # --------------------------------------------------------------------------- #
@@ -196,16 +210,8 @@ class ProductoViewSet(_ViewSetDelCatalogo):
         responses={201: serializers.ProductoOutputSerializer},
     )
     def create(self, request: Request) -> Response:
-        entrada = serializers.ProductoInputSerializer(data=request.data)
-        entrada.is_valid(raise_exception=True)
-
-        producto = servicio.crear_producto(
-            negocio_id=self.negocio_id,
-            datos=DatosDeProductoDTO(**entrada.validated_data),
-        )
-        return Response(
-            serializers.ProductoOutputSerializer(producto).data,
-            status=status.HTTP_201_CREATED,
+        raise PermissionDenied(
+            "Los productos nuevos se crean al registrar una compra."
         )
 
     @extend_schema(

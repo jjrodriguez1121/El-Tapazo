@@ -16,7 +16,6 @@ from clientes.api import filtros, serializers
 from clientes.dtos import DatosDeClienteDTO
 from clientes.models import Cliente
 from clientes.selectores import clientes as selector
-from clientes.selectores import historial_de_consumo
 from clientes.servicios import clientes as servicio
 from nucleo.api.vistas import MixinDelNegocio
 from nucleo.permisos import EsAdministrador, EsDelEquipo
@@ -121,15 +120,3 @@ class ClienteViewSet(
             negocio_id=self.negocio_id, **entrada.validated_data
         )
         return Response(serializers.ClienteOutputSerializer(cliente).data)
-
-    @extend_schema(
-        summary="Ver el historial de consumo",
-        description="Las cuentas que ha tenido y cuánto consumió en cada una.",
-        responses={200: serializers.CuentaDelHistorialSerializer(many=True)},
-    )
-    @action(detail=True, methods=["get"], url_path="historial")
-    def historial(self, request: Request, pk: str) -> Response:
-        cuentas = historial_de_consumo(cliente_id=int(pk), negocio_id=self.negocio_id)
-        pagina = self.paginate_queryset(cuentas)
-        salida = serializers.CuentaDelHistorialSerializer(pagina, many=True)
-        return self.get_paginated_response(salida.data)

@@ -1,8 +1,8 @@
-import { PackageIcon, PhoneIcon, TruckIcon, UserIcon } from '@phosphor-icons/react'
+import { PackageIcon, PencilSimpleIcon, PhoneIcon, TrashIcon, TruckIcon, UserIcon } from '@phosphor-icons/react'
 
 import { formatearCantidad } from '@/utilidades/formatos'
 
-export default function TarjetaDeProveedor({ proveedor }) {
+export default function TarjetaDeProveedor({ proveedor, alEditar, alEliminar }) {
   return (
     <article className="flex min-h-30 flex-col gap-2.5 rounded-xl border border-azul-150 bg-blanco p-3.5 transition-colors hover:border-azul-200">
       <div className="flex items-start gap-3">
@@ -30,6 +30,14 @@ export default function TarjetaDeProveedor({ proveedor }) {
         {formatearCantidad(proveedor.cantidadProductos)}{' '}
         {proveedor.cantidadProductos === 1 ? 'producto' : 'productos'}
       </div>
+      <footer className="mt-auto flex justify-end gap-2 border-t border-azul-100 pt-2">
+        <button type="button" aria-label={`Editar ${proveedor.razonSocial}`} onClick={() => alEditar(proveedor)} className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50">
+          <PencilSimpleIcon size={15} /> Editar
+        </button>
+        <button type="button" aria-label={`Eliminar ${proveedor.razonSocial}`} onClick={() => alEliminar(proveedor)} className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-semibold text-error-600 hover:bg-error-50">
+          <TrashIcon size={15} /> Eliminar
+        </button>
+      </footer>
     </article>
   )
 }

@@ -11,14 +11,10 @@ export const RUTAS = {
 
   // Las secciones del menú lateral.
   puntoDeVenta: '/punto-de-venta',
+  compras: '/compras',
   productos: '/productos',
   categorias: '/categorias',
   proveedores: '/proveedores',
-  jornadas: '/jornadas',
-  cuentas: '/cuentas',
-  pulseras: '/pulseras',
-  pedidos: '/pedidos',
-  tiendas: '/tiendas',
   cartera: '/cartera',
   clientes: '/clientes',
   pqrs: '/pqrs',
