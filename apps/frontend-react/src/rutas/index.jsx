@@ -43,6 +43,9 @@ const PaginaCompras = lazy(() => import('@/modulos/compras/paginas/PaginaCompras
 const PaginaCuentasPorPagar = lazy(
   () => import('@/modulos/compras/paginas/PaginaCuentasPorPagar')
 )
+const PaginaCuentasPorCobrar = lazy(
+  () => import('@/modulos/ventas/paginas/PaginaCuentasPorCobrar')
+)
 const PaginaProveedores = lazy(() => import('@/modulos/catalogo/paginas/PaginaProveedores'))
 const PaginaDetalleProducto = lazy(() => import('@/modulos/catalogo/paginas/PaginaDetalleProducto'))
 const PaginaPqrs = lazy(() => import('@/modulos/pqrs/paginas/PaginaPqrs'))
@@ -57,6 +60,7 @@ const SECCIONES_EN_CONSTRUCCION = ELEMENTOS_DEL_MENU.filter(
     elemento.ruta !== RUTAS.productos &&
     elemento.ruta !== RUTAS.compras &&
     elemento.ruta !== RUTAS.cuentasPorPagar &&
+    elemento.ruta !== RUTAS.cartera &&
     elemento.ruta !== RUTAS.proveedores &&
     elemento.ruta !== RUTAS.clientes &&
     elemento.ruta !== RUTAS.pqrs
@@ -170,6 +174,14 @@ export default function Rutas() {
           element={
             <Suspense fallback={<EsqueletoDeProductos />}>
               <PaginaCuentasPorPagar />
+            </Suspense>
+          }
+        />
+        <Route
+          path={RUTAS.cartera}
+          element={
+            <Suspense fallback={<EsqueletoDeProductos />}>
+              <PaginaCuentasPorCobrar />
             </Suspense>
           }
         />
