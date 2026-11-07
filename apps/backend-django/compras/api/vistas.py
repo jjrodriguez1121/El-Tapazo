@@ -172,6 +172,7 @@ def _obtener_o_crear_producto(*, negocio_id, datos):
         sku=sku,
         nombre=nuevo["nombre"].strip(),
         categoria=categoria,
+        
         precio_venta=Decimal("0"),
         impuesto=impuesto,
         costo=0,

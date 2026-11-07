@@ -8,6 +8,7 @@ import {
   TagIcon,
   TruckIcon,
   UsersIcon,
+  WalletIcon,
 } from '@phosphor-icons/react'
 
 import { RUTAS } from './rutas'
@@ -45,6 +46,12 @@ export const SECCIONES_DEL_MENU = [
   {
     titulo: 'Cartera',
     elementos: [
+      {
+        ruta: RUTAS.cuentasPorPagar,
+        etiqueta: 'Cuentas por pagar',
+        Icono: WalletIcon,
+        soloAdministrador: true,
+      },
       {
         ruta: RUTAS.cartera,
         etiqueta: 'Cuentas por cobrar',

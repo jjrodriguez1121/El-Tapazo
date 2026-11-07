@@ -40,6 +40,9 @@ const PaginaPuntoDeVenta = lazy(() => import('@/modulos/catalogo/paginas/PaginaP
 const PaginaCategorias = lazy(() => import('@/modulos/catalogo/paginas/PaginaCategorias'))
 const PaginaProductos = lazy(() => import('@/modulos/catalogo/paginas/PaginaProductos'))
 const PaginaCompras = lazy(() => import('@/modulos/compras/paginas/PaginaCompras'))
+const PaginaCuentasPorPagar = lazy(
+  () => import('@/modulos/compras/paginas/PaginaCuentasPorPagar')
+)
 const PaginaProveedores = lazy(() => import('@/modulos/catalogo/paginas/PaginaProveedores'))
 const PaginaDetalleProducto = lazy(() => import('@/modulos/catalogo/paginas/PaginaDetalleProducto'))
 const PaginaPqrs = lazy(() => import('@/modulos/pqrs/paginas/PaginaPqrs'))
@@ -53,6 +56,7 @@ const SECCIONES_EN_CONSTRUCCION = ELEMENTOS_DEL_MENU.filter(
     elemento.ruta !== RUTAS.categorias &&
     elemento.ruta !== RUTAS.productos &&
     elemento.ruta !== RUTAS.compras &&
+    elemento.ruta !== RUTAS.cuentasPorPagar &&
     elemento.ruta !== RUTAS.proveedores &&
     elemento.ruta !== RUTAS.clientes &&
     elemento.ruta !== RUTAS.pqrs
@@ -158,6 +162,14 @@ export default function Rutas() {
           element={
             <Suspense fallback={<EsqueletoDeProductos />}>
               <PaginaCompras />
+            </Suspense>
+          }
+        />
+        <Route
+          path={RUTAS.cuentasPorPagar}
+          element={
+            <Suspense fallback={<EsqueletoDeProductos />}>
+              <PaginaCuentasPorPagar />
             </Suspense>
           }
         />

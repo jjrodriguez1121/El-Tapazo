@@ -16,6 +16,7 @@ export const RUTAS = {
   categorias: '/categorias',
   proveedores: '/proveedores',
   cartera: '/cartera',
+  cuentasPorPagar: '/cuentas-por-pagar',
   clientes: '/clientes',
   pqrs: '/pqrs',
   configuracion: '/configuracion',
