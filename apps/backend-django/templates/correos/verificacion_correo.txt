@@ -1,0 +1,15 @@
+{% autoescape off %}{% comment %}
+Correo de texto plano. El autoescape de Django convertiría el & de las URLs en
+&amp; y el enlace llegaría roto; en HTML eso está bien, aquí no.
+{% endcomment %}Hola {{ nombre }},
+
+Falta un paso para poder entrar a El Tapaso: confirmar que este correo es
+tuyo. Abre este enlace:
+
+{{ enlace }}
+
+El enlace vence en {{ horas_de_vigencia }} horas. Si se te pasa, puedes pedir
+otro desde la pantalla de inicio de sesión.
+
+-- El Tapaso
+{% endautoescape %}

@@ -1,0 +1,33 @@
+# Normaliza los finales de línea para que Windows no rompa el proyecto.
+#
+# Git para Windows viene con core.autocrlf=true: al clonar convertiría los
+# scripts a CRLF y dejarían de funcionar (en Git Bash: "$'\r': command not
+# found"; dentro de un contenedor Linux: "exec ...: no such file or
+# directory"). Estas reglas mandan sobre esa configuración.
+
+# Por defecto: normaliza el texto a LF dentro del repositorio.
+* text=auto eol=lf
+
+# Todo lo que ejecuta un shell o Docker tiene que quedar en LF sí o sí.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.Dockerfile    text eol=lf
+.env.example    text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+
+# Archivos de Windows: estos sí van con CRLF.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# Binarios: que Git no los toque.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary

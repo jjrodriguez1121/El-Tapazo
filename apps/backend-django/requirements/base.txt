@@ -1,0 +1,10 @@
+# Dependencias que se necesitan en TODOS los entornos.
+Django==5.2.17                  # LTS (soporte de seguridad hasta abril 2028)
+djangorestframework~=3.16.0
+django-cors-headers~=4.7
+django-filter~=25.1
+django-environ~=0.12
+drf-spectacular~=0.28           # documentación OpenAPI / Swagger
+djangorestframework-simplejwt~=5.5
+psycopg[binary]~=3.2            # driver de PostgreSQL
+Pillow~=11.0                    # imágenes (fotos de productos)

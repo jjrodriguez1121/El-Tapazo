@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (Django)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: el_tapaso
+          POSTGRES_USER: el_tapaso
+          POSTGRES_PASSWORD: el_tapaso
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports:
+          - 5432:5432
+    defaults:
+      run:
+        working-directory: apps/backend-django
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/backend-django/requirements/*.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements/local.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Verificar el proyecto
+        env:
+          POSTGRES_HOST: localhost
+          DJANGO_SECRET_KEY: ci-secret-key
+        run: python manage.py check
+
+      - name: Pruebas (pytest)
+        env:
+          POSTGRES_HOST: localhost
+          DJANGO_SECRET_KEY: ci-secret-key
+        # pytest devuelve 5 cuando todavía no hay pruebas escritas: eso no es un
+        # fallo. Cuando existan pruebas, un fallo real devuelve 1 y rompe el CI.
+        run: pytest || [ "$?" -eq 5 ]
+
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend-react
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/frontend-react/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Pruebas (vitest)
+        run: npm run test
+
+      - name: Build
+        run: npm run build

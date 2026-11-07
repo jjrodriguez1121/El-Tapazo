@@ -1,0 +1,5 @@
+# Producción: base + servidor WSGI y archivos estáticos.
+-r base.txt
+
+gunicorn~=23.0
+whitenoise~=6.9

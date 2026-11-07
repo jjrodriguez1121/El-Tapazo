@@ -1,0 +1,18 @@
+{% autoescape off %}{% comment %}
+Correo de texto plano. El autoescape de Django convertiría el & de las URLs en
+&amp; y el enlace llegaría roto; en HTML eso está bien, aquí no.
+{% endcomment %}Hola {{ nombre }},
+
+Pediste recuperar la contraseña de tu cuenta en El Tapaso.
+
+Abre este enlace para elegir una nueva:
+
+{{ enlace }}
+
+El enlace vence en {{ horas_de_vigencia }} horas y solo sirve una vez: en
+cuanto cambies la contraseña, deja de funcionar.
+
+Si no fuiste tú, no tienes que hacer nada: tu contraseña sigue igual.
+
+-- El Tapaso
+{% endautoescape %}

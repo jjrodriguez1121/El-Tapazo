@@ -1,0 +1,10 @@
+# Desarrollo: incluye todo lo de base + herramientas de calidad y pruebas.
+-r base.txt
+
+django-debug-toolbar~=6.0
+ipython>=8.30
+ruff>=0.9                       # linter + formateador
+pytest>=8.3
+pytest-django>=4.9
+pytest-cov>=6.0
+factory-boy>=3.3

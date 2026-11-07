@@ -1,0 +1,19 @@
+{% autoescape off %}{% comment %}
+Correo de texto plano. El autoescape de Django convertiría el & de las URLs en
+&amp; y el enlace llegaría roto; en HTML eso está bien, aquí no.
+{% endcomment %}Hola,
+
+{% if invitada_por %}{{ invitada_por }} te invitó{% else %}Te invitaron{% endif %} a trabajar en {{ negocio }} como {{ rol }}.
+
+Para entrar tienes que crear tu contraseña. Abre este enlace:
+
+{{ enlace }}
+
+El enlace vence el {{ expira_en }}. Si se te pasa, pídele al administrador
+que te envíe otro.
+
+Nadie del equipo va a conocer tu contraseña: la eliges tú y solo tú.
+Si no esperabas esta invitación, ignora este correo.
+
+-- El Tapaso
+{% endautoescape %}

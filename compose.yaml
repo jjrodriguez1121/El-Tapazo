@@ -1,0 +1,133 @@
+# Entorno de DESARROLLO.
+# Uso:  ./dev.sh up
+#
+# La base de datos puede ser local (contenedor) o remota (Supabase). Lo decide
+# la variable COMPOSE_PROFILES del .env:
+#   COMPOSE_PROFILES=local-db   -> levanta el contenedor de PostgreSQL
+#   COMPOSE_PROFILES=           -> no lo levanta; Django se conecta a Supabase
+#
+# El código se monta como volumen: lo que edites en tu editor se refleja
+# dentro del contenedor sin reconstruir la imagen.
+
+name: el-tapaso
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: tapaso_db
+    restart: unless-stopped
+    # Solo se levanta si COMPOSE_PROFILES incluye "local-db".
+    profiles: ["local-db"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-el_tapaso}
+      POSTGRES_USER: ${POSTGRES_USER:-el_tapaso}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-el_tapaso}
+    volumes:
+      - postgres_data:/var/lib/postgresql   # PostgreSQL 18+ espera el mount aquí, no en .../data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT_HOST:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-el_tapaso} -d ${POSTGRES_DB:-el_tapaso}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tapaso_net
+
+  # Buzón de pruebas: recibe TODO el correo que manda el backend en desarrollo
+  # y lo muestra en una bandeja de entrada web. No sale nada a internet, no
+  # gasta cupo de ningún proveedor y no hace falta ninguna credencial.
+  mailpit:
+    image: axllent/mailpit:v1.31
+    container_name: tapaso_mailpit
+    restart: unless-stopped
+    command: ["--smtp-auth-accept-any", "--smtp-auth-allow-insecure", "--max", "200"]
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"   # bandeja de entrada web
+    networks:
+      - tapaso_net
+
+  backend:
+    build:
+      context: ./apps/backend-django
+      target: development
+    container_name: tapaso_backend
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-insecure-change-me}
+      DJANGO_DEBUG: "True"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      POSTGRES_DB: ${POSTGRES_DB:-el_tapaso}
+      POSTGRES_USER: ${POSTGRES_USER:-el_tapaso}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-el_tapaso}
+      # "db" = contenedor local. Para Supabase, su host va en el .env.
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+      # Correo: por defecto va a Mailpit, la bandeja de pruebas de aquí al lado.
+      # Para enviarlo de verdad, pon las credenciales del proveedor en el .env
+      # (ver .env.example); lo del .env manda sobre estos valores.
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-mailpit}
+      EMAIL_PORT: ${EMAIL_PORT:-1025}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-False}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-El Tapaso <no-responder@el-tapaso.com>}
+      # Base de los enlaces que viajan en esos correos: los abre el frontend.
+      URL_FRONTEND: ${URL_FRONTEND:-http://localhost:5173}
+      VIGENCIA_ENLACES_HORAS: ${VIGENCIA_ENLACES_HORAS:-24}
+      VIGENCIA_INVITACION_DIAS: ${VIGENCIA_INVITACION_DIAS:-7}
+      MINUTOS_TOKEN_ACCESO: ${MINUTOS_TOKEN_ACCESO:-15}
+      DIAS_TOKEN_REFRESCO: ${DIAS_TOKEN_REFRESCO:-7}
+      LIMITE_PUNTO_DE_CONTROL: ${LIMITE_PUNTO_DE_CONTROL:-60/min}
+    volumes:
+      - ./apps/backend-django:/app
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+        # Con Supabase el servicio "db" no existe; no debe ser un requisito.
+        required: false
+      mailpit:
+        condition: service_started
+    networks:
+      - tapaso_net
+
+  frontend:
+    build:
+      context: ./apps/frontend-react
+      target: development
+    container_name: tapaso_frontend
+    restart: unless-stopped
+    # El script instala las dependencias si el package-lock.json cambió desde la
+    # última vez: así una dependencia nueva le llega a todo el equipo con un
+    # `./dev.sh up`, sin reconstruir. Definir `entrypoint` borra el comando de la
+    # imagen, por eso se repite aquí.
+    entrypoint: ["sh", "scripts/entrypoint.sh"]
+    command: ["npm", "run", "dev", "--", "--host"]
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+      VITE_APP_NAME: ${VITE_APP_NAME:-El Tapaso}
+    volumes:
+      - ./apps/frontend-react:/app
+      # Volumen anónimo: evita que el node_modules del host pise el del contenedor.
+      - /app/node_modules
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+    networks:
+      - tapaso_net
+
+volumes:
+  postgres_data:
+
+networks:
+  tapaso_net:
+    driver: bridge

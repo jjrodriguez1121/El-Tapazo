@@ -1,0 +1,38 @@
+# Configuración de herramientas (no se usa para instalar dependencias:
+# eso vive en requirements/).
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = ["migrations", ".venv", "staticfiles"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "config",
+    "nucleo",
+    "negocios",
+    "usuarios",
+    "clientes",
+    "catalogo",
+    "inventario",
+    "eventos",
+    "distribucion",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py", "tests.py"]
+addopts = "-ra --strict-markers"
+# El proyecto corre con --strict-markers: un marcador sin declarar aquí no
+# falla la prueba, falla la recolección entera.
+markers = [
+    "lento: pruebas que tardan de más (concurrencia con transaction=True, por ejemplo)",
+]
+testpaths = ["nucleo", "negocios", "usuarios", "clientes", "catalogo", "inventario", "eventos", "distribucion"]
+
+[tool.coverage.run]
+omit = ["*/migrations/*", "*/tests/*", "config/*", "manage.py"]

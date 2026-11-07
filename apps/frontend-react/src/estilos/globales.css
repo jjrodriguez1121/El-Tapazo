@@ -1,0 +1,217 @@
+/*
+ * Estilos globales y paleta de El Tapaso.
+ *
+ * La paleta vive aquí y solo aquí. Tailwind convierte cada variable de `@theme`
+ * en clases: `--color-azul-950` da `bg-azul-950`, `text-azul-950`,
+ * `border-azul-950`… Dentro de un componente no se escribe ningún color a mano:
+ * si hace falta un tono, se agrega aquí con su nombre.
+ *
+ * `--color-*: initial` borra la paleta que trae Tailwind, a propósito: así
+ * `bg-blue-500` ni siquiera existe y nadie se sale de la paleta sin notarlo.
+ */
+@import 'tailwindcss';
+
+@theme {
+  --color-*: initial;
+
+  /* Inter llega instalada con npm (@fontsource-variable/inter): no se descarga
+     nada a mano y funciona sin internet. */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Azules, del más oscuro al más claro. Los cinco con nombre en el comentario
+     son la paleta de varios/diseno; los demás, sus tonos intermedios. */
+  --color-azul-950: #112853; /* paleta · texto principal, botones y panel de marca */
+  --color-azul-900: #16305c;
+  --color-azul-850: #1a3564;
+  --color-azul-800: #1b3a6b; /* botón al pasar el cursor */
+  --color-azul-600: #395b88; /* paleta · texto secundario y enlaces */
+  --color-azul-400: #6f8bae; /* paleta · texto de apoyo */
+  --color-azul-300: #a6bbd4; /* paleta */
+  --color-azul-200: #c9d3e0; /* borde de los campos */
+  --color-azul-150: #dbe3ec; /* borde de las cajas */
+  --color-azul-100: #dfe6ef;
+  --color-azul-75: #eef1f5;
+  --color-azul-50: #f2f5f9;
+
+  --color-gris-300: #dadcdd; /* paleta */
+  --color-gris-100: #e9ecef;
+  --color-blanco: #ffffff;
+
+  --color-esqueleto: #e7ecf2;
+  --color-esqueleto-brillo: #f6f8fb;
+
+  /* Error: textos, marcas y cajas de aviso. */
+  --color-error-700: #8a2b36;
+  --color-error-300: #c9a7ac;
+  --color-error-200: #e8ccd0;
+  --color-error-50: #fbf1f2;
+
+  /* Estados de lo que se muestra en el panel: lo que va bien y lo que pide atención. */
+  --color-exito-700: #1e7a4c;
+  --color-exito-50: #e5f5ec;
+  --color-alerta-700: #b3641c;
+  --color-alerta-50: #fdf3e6;
+
+  --radius-tarjeta: 18px;
+  --shadow-marco: 0 26px 60px -24px color-mix(in srgb, var(--color-azul-950) 38%, transparent);
+
+  /* Tamaños de texto del diseño que no están en la escala de Tailwind. */
+  --text-antetitulo: 0.6875rem; /* 11px */
+  --text-etiqueta: 0.8125rem; /* 13px */
+  --text-destacado: 0.9375rem; /* 15px */
+  --text-titulo-chico: 1.4375rem; /* 23px */
+  --text-titulo: 1.6875rem; /* 27px */
+
+  --ease-tinta: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-brillo: brillo 1.3s linear infinite;
+  --animate-pulso: pulso 1.05s ease-in-out infinite;
+  --animate-onda: onda 2s ease-out infinite;
+  --animate-respirar: respirar 2s ease-in-out infinite;
+  /* Cada mancha crece una vez y después deriva sin parar, a su propio ritmo. */
+  --animate-tinta-grande:
+    extender-tinta 2.2s var(--ease-tinta) both, derivar 16s ease-in-out 2.2s infinite;
+  --animate-tinta-mediana:
+    extender-tinta 2.6s var(--ease-tinta) 0.25s both, derivar 20s ease-in-out 2.8s infinite;
+  --animate-tinta-chica:
+    extender-tinta 3s var(--ease-tinta) 0.5s both, derivar 13s ease-in-out 3.4s infinite;
+
+  @keyframes brillo {
+    from {
+      background-position: -420px 0;
+    }
+    to {
+      background-position: 420px 0;
+    }
+  }
+
+  @keyframes pulso {
+    0%,
+    100% {
+      transform: scale(0.55);
+      opacity: 0.45;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes onda {
+    0% {
+      transform: scale(0.25);
+      opacity: 0.85;
+    }
+    100% {
+      transform: scale(1.9);
+      opacity: 0;
+    }
+  }
+
+  @keyframes respirar {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+    50% {
+      transform: scale(1.22);
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes extender-tinta {
+    0% {
+      transform: scale(0.35) translateY(28px);
+      opacity: 0;
+    }
+    45% {
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) translateY(0);
+      opacity: 0.85;
+    }
+  }
+
+  @keyframes derivar {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    33% {
+      transform: translate3d(18px, -14px, 0);
+    }
+    66% {
+      transform: translate3d(-12px, 10px, 0);
+    }
+  }
+}
+
+/* El brillo que recorre un esqueleto de carga mientras llega el contenido. */
+@utility brillo-de-esqueleto {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-esqueleto) 0%,
+    var(--color-esqueleto-brillo) 40%,
+    var(--color-esqueleto) 80%
+  );
+  background-size: 420px 100%;
+}
+
+/* El hueco de la foto de un producto mientras no tenga una: rayas suaves. */
+@utility rayado-de-imagen {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--color-azul-75) 0 6px,
+    var(--color-azul-50) 6px 12px
+  );
+}
+
+/* Las tres manchas de tinta del fondo de las pantallas de acceso. */
+@utility mancha-de-tinta-grande {
+  background-image: radial-gradient(
+    circle at 40% 40%,
+    color-mix(in srgb, var(--color-azul-600) 50%, transparent),
+    transparent 68%
+  );
+}
+
+@utility mancha-de-tinta-mediana {
+  background-image: radial-gradient(
+    circle at 50% 55%,
+    color-mix(in srgb, var(--color-azul-400) 45%, transparent),
+    transparent 70%
+  );
+}
+
+@utility mancha-de-tinta-chica {
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--color-azul-300) 55%, transparent),
+    transparent 72%
+  );
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-blanco font-sans text-azul-950 antialiased;
+  }
+}
+
+/* Quien pide menos movimiento en su sistema no ve la tinta crecer ni los
+   esqueletos brillar: todo llega directo a su estado final. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

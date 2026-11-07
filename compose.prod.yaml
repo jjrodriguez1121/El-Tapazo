@@ -1,0 +1,81 @@
+# Entorno de PRODUCCIÓN (referencia).
+# Uso:  docker compose -f compose.prod.yaml up -d --build
+#
+# Aquí NO se montan volúmenes de código: todo va dentro de la imagen.
+# Las variables sensibles deben venir del entorno del servidor, no de un .env
+# versionado.
+
+name: el-tapaso-prod
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql   # PostgreSQL 18+ espera el mount aquí, no en .../data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tapaso_net
+
+  backend:
+    build:
+      context: ./apps/backend-django
+      target: production
+    restart: always
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      # En producción el correo se envía de verdad: sin estas variables, las
+      # invitaciones y las recuperaciones de contraseña no llegan a nadie.
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL}
+      URL_FRONTEND: ${URL_FRONTEND}
+      VIGENCIA_ENLACES_HORAS: ${VIGENCIA_ENLACES_HORAS:-24}
+      VIGENCIA_INVITACION_DIAS: ${VIGENCIA_INVITACION_DIAS:-7}
+      MINUTOS_TOKEN_ACCESO: ${MINUTOS_TOKEN_ACCESO:-15}
+      DIAS_TOKEN_REFRESCO: ${DIAS_TOKEN_REFRESCO:-7}
+      LIMITE_PUNTO_DE_CONTROL: ${LIMITE_PUNTO_DE_CONTROL:-60/min}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tapaso_net
+
+  frontend:
+    build:
+      context: ./apps/frontend-react
+      target: production
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - tapaso_net
+
+volumes:
+  postgres_data:
+
+networks:
+  tapaso_net:
+    driver: bridge
