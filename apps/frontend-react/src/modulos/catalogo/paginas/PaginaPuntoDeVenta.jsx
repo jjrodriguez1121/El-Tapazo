@@ -59,8 +59,11 @@ export default function PaginaPuntoDeVenta() {
 
   useEffect(() => {
     clienteApi
-      .get('/clientes/')
-      .then(({ data }) => setClientes(Array.isArray(data) ? data : (data.results ?? [])))
+      .get('/clientes/', { params: { activo: true } })
+      .then(({ data }) => {
+        const registros = Array.isArray(data) ? data : (data.results ?? [])
+        setClientes(registros.filter((cliente) => cliente.activo !== false))
+      })
       .catch(() => setClientes([]))
     listarMetodosPago()
       .then((metodos) => {

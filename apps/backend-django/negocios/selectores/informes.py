@@ -1,16 +1,15 @@
 """Resumen de ventas para el dashboard."""
 
 from datetime import date
-
 from decimal import Decimal
 
 from django.db.models import DecimalField, ExpressionWrapper, F, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from negocios.excepciones import RangoDeFechasInvalido
 from compras.models import CuentaPorPagar
 from inventario.models import Existencia
+from negocios.excepciones import RangoDeFechasInvalido
 from ventas.models import CuentaPorCobrar, DetalleVenta, PagoVenta, Venta
 
 IMPORTE = DecimalField(max_digits=24, decimal_places=2)
@@ -31,7 +30,9 @@ def resumen_de_ventas(*, negocio_id: int, desde: date | None = None, hasta: date
         )
     )["total"]
     cobrado = PagoVenta.objects.filter(
-        negocio_id=negocio_id, fecha__date__range=(desde, hasta)
+        negocio_id=negocio_id,
+        fecha__date__range=(desde, hasta),
+        estado=PagoVenta.Estado.CONFIRMADO,
     ).exclude(
         venta__estado=Venta.Estado.ANULADA
     ).aggregate(total=Coalesce(Sum("monto"), 0, output_field=IMPORTE))["total"]
@@ -95,7 +96,9 @@ def resumen_del_dashboard(*, negocio_id: int, desde: date, hasta: date) -> dict:
         ],
     ).aggregate(total=Coalesce(Sum("saldo"), CERO, output_field=IMPORTE))["total"]
     cobrado = PagoVenta.objects.filter(
-        negocio_id=negocio_id, fecha__date__range=(desde, hasta)
+        negocio_id=negocio_id,
+        fecha__date__range=(desde, hasta),
+        estado=PagoVenta.Estado.CONFIRMADO,
     ).exclude(venta__estado=Venta.Estado.ANULADA).aggregate(
         total=Coalesce(Sum("monto"), CERO, output_field=IMPORTE)
     )["total"]

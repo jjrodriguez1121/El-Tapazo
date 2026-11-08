@@ -47,8 +47,10 @@ def registrar_venta(*, datos: DatosDeVentaDTO, negocio_id: int, vendedor_id: int
     }
     if len(productos) != len(cantidades_por_producto):
         raise ValueError("Uno o más productos no pertenecen al negocio o están inactivos.")
-    if datos.cliente_id and not Cliente.objects.filter(pk=datos.cliente_id, negocio_id=negocio_id).exists():
-        raise ValueError("El cliente no pertenece al negocio.")
+    if datos.cliente_id and not Cliente.objects.filter(
+        pk=datos.cliente_id, negocio_id=negocio_id, activo=True
+    ).exists():
+        raise ValueError("El cliente no pertenece al negocio o está inactivo.")
     metodo_pago = None
     if datos.tipo_pago == Venta.TipoPago.CONTADO:
         metodo_pago = MetodoPago.objects.filter(
@@ -128,7 +130,7 @@ def registrar_venta(*, datos: DatosDeVentaDTO, negocio_id: int, vendedor_id: int
             referencia_id=venta.id,
             usuario_id=vendedor_id,
         )
-    total = subtotal_sin_descuento - descuento_total + total_iva
+    total = subtotal_sin_descuento - descuento_total
     venta.subtotal = subtotal
     venta.descuento = descuento_total
     venta.total_iva = total_iva
@@ -258,6 +260,11 @@ def anular_venta(*, venta_id: int, negocio_id: int, usuario_id: int) -> Venta:
         cuenta.saldo = Decimal("0")
         cuenta.estado = CuentaPorCobrar.Estado.ANULADA
         cuenta.save(update_fields=["saldo", "estado", "actualizado_en"])
+
+    PagoVenta.objects.filter(
+        venta=venta,
+        estado=PagoVenta.Estado.CONFIRMADO,
+    ).update(estado=PagoVenta.Estado.ANULADO)
 
     venta.estado = Venta.Estado.ANULADA
     venta.estado_entrega = Venta.EstadoEntrega.ANULADA

@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
+import { clienteApi } from '@/librerias/clienteApi'
 import { renderizarEnRuta } from '@/pruebas/renderizar'
 import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
 
@@ -17,6 +18,7 @@ vi.mock('../hooks/useCatalogoDeProductos', () => ({
 vi.mock('@/librerias/clienteApi', () => ({
   clienteApi: {
     get: vi.fn().mockResolvedValue({ data: [] }),
+    post: vi.fn(),
   },
 }))
 
@@ -30,6 +32,7 @@ beforeEach(() => {
   crearVenta.mockReset()
   listarMetodosPago.mockReset().mockResolvedValue([{ id: 1, nombre: 'Efectivo' }])
   obtenerDetalleVenta.mockReset()
+  clienteApi.get.mockReset().mockResolvedValue({ data: [] })
   useCatalogoDeProductos.mockReturnValue({
     isPending: false,
     isError: false,
@@ -56,6 +59,21 @@ beforeEach(() => {
       ],
     },
   })
+})
+
+test('no ofrece clientes inactivos en el selector de venta', async () => {
+  clienteApi.get.mockResolvedValue({
+    data: [
+      { id: 1, nombre: 'Cliente', apellido: 'Activo', activo: true },
+      { id: 2, nombre: 'Cliente', apellido: 'Inactivo', activo: false },
+    ],
+  })
+
+  renderizarEnRuta(<PaginaPuntoDeVenta />, '/punto-de-venta')
+
+  expect(await screen.findByRole('option', { name: 'Cliente Activo' })).toBeInTheDocument()
+  expect(screen.queryByRole('option', { name: 'Cliente Inactivo' })).not.toBeInTheDocument()
+  expect(clienteApi.get).toHaveBeenCalledWith('/clientes/', { params: { activo: true } })
 })
 
 test('lista los productos disponibles y filtra por categoría', async () => {

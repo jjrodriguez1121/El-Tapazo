@@ -202,6 +202,7 @@ def cuenta_por_cobrar_detalle(request, cuenta_id):
         PagoVenta.objects.filter(
             cuenta_por_cobrar=cuenta,
             negocio_id=request.user.negocio_id,
+            estado=PagoVenta.Estado.CONFIRMADO,
         )
         .select_related("metodo_pago")
         .order_by("-fecha")

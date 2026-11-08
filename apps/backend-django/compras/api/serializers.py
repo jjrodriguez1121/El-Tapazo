@@ -33,6 +33,11 @@ class DetalleCompraSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Seleccione un producto existente o cree uno nuevo, no ambos."
             )
+        valor_bruto = data["costo_unitario"] * data["cantidad"]
+        if data["descuento"] > valor_bruto:
+            raise serializers.ValidationError({
+                "descuento": "El descuento no puede superar el valor de la línea."
+            })
         return data
 
 
@@ -48,6 +53,13 @@ class CompraCrearSerializer(serializers.Serializer):
     )
 
     def validate(self, datos):
+        if datos.get("condicion_pago") == "CREDITO" and datos.get("detalles") and not any(
+            linea["costo_unitario"] * linea["cantidad"] > linea["descuento"]
+            for linea in datos["detalles"]
+        ):
+            raise serializers.ValidationError({
+                "detalles": "El total de la compra debe ser mayor que cero."
+            })
         if datos["condicion_pago"] == "CREDITO" and not datos.get("fecha_vencimiento"):
             raise serializers.ValidationError({
                 "fecha_vencimiento": "Las compras a crédito requieren fecha de vencimiento.",

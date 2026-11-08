@@ -4,8 +4,6 @@ Una venta puede ser de contado o a crédito. Las de crédito generan exactamente
 una cuenta por cobrar, cuyo saldo se actualiza con cada abono.
 """
 
-from decimal import Decimal
-
 from django.db import models
 from django.utils import timezone
 
@@ -153,6 +151,10 @@ class CuentaPorCobrar(ModeloDelNegocio):
 class PagoVenta(ModeloDelNegocio):
     """Un cobro de contado o un abono a una cuenta por cobrar."""
 
+    class Estado(models.TextChoices):
+        CONFIRMADO = "CONFIRMADO", "Confirmado"
+        ANULADO = "ANULADO", "Anulado"
+
     venta = models.ForeignKey(
         "ventas.Venta", on_delete=models.PROTECT, related_name="pagos", verbose_name="venta"
     )
@@ -171,6 +173,12 @@ class PagoVenta(ModeloDelNegocio):
     )
     metodo = models.CharField("medio de pago legado", max_length=20, blank=True)
     referencia_transaccion = models.CharField("referencia", max_length=100, blank=True)
+    estado = models.CharField(
+        "estado",
+        max_length=10,
+        choices=Estado.choices,
+        default=Estado.CONFIRMADO,
+    )
     recibido_por = models.ForeignKey(
         "usuarios.Usuario", on_delete=models.PROTECT, related_name="pagos_recibidos", verbose_name="recibido por"
     )

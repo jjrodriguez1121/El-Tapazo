@@ -50,3 +50,45 @@ def test_compra_a_credito_exige_fecha_de_vencimiento():
 
     assert serializer.is_valid() is False
     assert "fecha_vencimiento" in serializer.errors
+
+
+def test_compra_rechaza_un_descuento_mayor_al_valor_de_su_linea():
+    datos = {
+        **DATOS_COMPRA,
+        "condicion_pago": "CONTADO",
+        "metodo_pago_id": 1,
+        "detalles": [
+            {
+                "producto_id": 1,
+                "cantidad": 1,
+                "costo_unitario": "100.00",
+                "descuento": "150.00",
+            }
+        ],
+    }
+
+    serializer = CompraCrearSerializer(data=datos)
+
+    assert serializer.is_valid() is False
+    assert "descuento" in serializer.errors["detalles"][0]
+
+
+def test_compra_rechaza_un_total_cero():
+    datos = {
+        **DATOS_COMPRA,
+        "condicion_pago": "CREDITO",
+        "fecha_vencimiento": (timezone.localdate() + timedelta(days=1)).isoformat(),
+        "detalles": [
+            {
+                "producto_id": 1,
+                "cantidad": 1,
+                "costo_unitario": "100.00",
+                "descuento": "100.00",
+            }
+        ],
+    }
+
+    serializer = CompraCrearSerializer(data=datos)
+
+    assert serializer.is_valid() is False
+    assert "detalles" in serializer.errors
