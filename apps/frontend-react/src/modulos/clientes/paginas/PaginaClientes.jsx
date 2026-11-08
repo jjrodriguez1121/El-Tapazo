@@ -23,6 +23,7 @@ export default function PaginaClientes() {
   const [clientes, setClientes] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [clienteEnEdicion, setClienteEnEdicion] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
 
@@ -39,12 +40,12 @@ export default function PaginaClientes() {
     }
   }
 
-  async function agregarCliente(cliente) {
+  function aDatosApi(cliente) {
     const partesNombre = cliente.nombre.trim().split(/\s+/)
     const nombre = partesNombre.shift() ?? ''
     const apellido = partesNombre.join(' ')
     const esEstablecimiento = cliente.tipoDocumento.toLowerCase() === 'nit'
-    const { data } = await clienteApi.post('/clientes/', {
+    return {
       tipo_documento: cliente.tipoDocumento.toLowerCase(),
       numero_documento: cliente.documento,
       nombre: esEstablecimiento ? cliente.nombre.trim() : nombre,
@@ -53,8 +54,36 @@ export default function PaginaClientes() {
       telefono: cliente.telefono,
       correo: cliente.correo,
       ciudad: cliente.ciudad,
-    })
-    setClientes((actuales) => [adaptarCliente(data), ...actuales])
+      notas: clienteEnEdicion?.notas ?? '',
+    }
+  }
+
+  async function guardarCliente(cliente) {
+    const datos = aDatosApi(cliente)
+    const { data } = clienteEnEdicion
+      ? await clienteApi.put(`/clientes/${clienteEnEdicion.id}/`, datos)
+      : await clienteApi.post('/clientes/', datos)
+    if (clienteEnEdicion) {
+      setClientes((actuales) => actuales.map((actual) => actual.id === data.id ? adaptarCliente(data) : actual))
+    } else {
+      setClientes((actuales) => [adaptarCliente(data), ...actuales])
+    }
+  }
+
+  function abrirEdicion(cliente) {
+    setClienteEnEdicion(cliente)
+    setModalAbierto(true)
+  }
+
+  async function eliminarCliente(cliente) {
+    if (!window.confirm(`¿Eliminar a ${cliente.nombre}? Esta acción no se puede deshacer.`)) return
+    setError('')
+    try {
+      await clienteApi.delete(`/clientes/${cliente.id}/`)
+      setClientes((actuales) => actuales.filter((actual) => actual.id !== cliente.id))
+    } catch (err) {
+      setError(err.response?.data?.error?.mensaje ?? 'No fue posible eliminar el cliente.')
+    }
   }
 
   useEffect(() => {
@@ -79,7 +108,7 @@ export default function PaginaClientes() {
         </div>
         <button
           type="button"
-          onClick={() => setModalAbierto(true)}
+          onClick={() => { setClienteEnEdicion(null); setModalAbierto(true) }}
           className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl bg-azul-950 px-4 text-sm font-bold text-blanco transition-colors hover:bg-azul-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-azul-600"
         >
           <PlusIcon size={17} weight="bold" /> Nuevo cliente
@@ -106,7 +135,7 @@ export default function PaginaClientes() {
 
       <section aria-label="Listado de clientes" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {clientesFiltrados.map((cliente) => (
-          <TarjetaDeCliente key={cliente.id} cliente={cliente} />
+          <TarjetaDeCliente key={cliente.id} cliente={cliente} alEditar={abrirEdicion} alEliminar={eliminarCliente} />
         ))}
         {cargando && (
           <p className="col-span-full px-4 py-10 text-center text-sm text-azul-400">
@@ -123,7 +152,8 @@ export default function PaginaClientes() {
       {modalAbierto && (
         <ModalNuevoCliente
           alCerrar={() => setModalAbierto(false)}
-          alCrear={agregarCliente}
+          alGuardar={guardarCliente}
+          clienteInicial={clienteEnEdicion}
           clientesExistentes={clientes}
         />
       )}

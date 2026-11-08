@@ -1,7 +1,7 @@
 """Alta, cambio y baja de fichas de cliente."""
 
 from clientes.dtos import DatosDeClienteDTO
-from clientes.excepciones import DocumentoDuplicado
+from clientes.excepciones import ClienteConVentas, DocumentoDuplicado
 from clientes.models import Cliente
 from clientes.repositorios import clientes as repositorio
 from clientes.selectores import obtener_cliente
@@ -68,6 +68,17 @@ def desactivar_cliente(*, cliente_id: int, negocio_id: int) -> Cliente:
     return cliente
 
 
+def eliminar_cliente(*, cliente_id: int, negocio_id: int) -> None:
+    """Elimina una ficha solo si nunca participó en una venta."""
+    cliente = obtener_cliente(cliente_id=cliente_id, negocio_id=negocio_id)
+    # La venta conserva el cliente para informes, cartera y comprobantes.
+    from ventas.models import Venta
+
+    if Venta.objects.filter(cliente_id=cliente.id, negocio_id=negocio_id).exists():
+        raise ClienteConVentas
+    cliente.delete()
+
+
 def _limpiar(datos: DatosDeClienteDTO) -> dict:
     return {
         "tipo_documento": datos.tipo_documento,
@@ -77,5 +88,6 @@ def _limpiar(datos: DatosDeClienteDTO) -> dict:
         "fecha_nacimiento": datos.fecha_nacimiento,
         "telefono": datos.telefono.strip(),
         "correo": datos.correo.strip(),
+        "ciudad": datos.ciudad.strip(),
         "notas": datos.notas.strip(),
     }

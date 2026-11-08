@@ -26,7 +26,12 @@ ACCIONES_DE_ADMINISTRADOR = frozenset({"desactivacion"})
 
 
 class ClienteViewSet(
-    MixinDelNegocio, mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet
+    MixinDelNegocio,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    GenericViewSet,
 ):
     """/api/v1/clientes/"""
 
@@ -90,6 +95,17 @@ class ClienteViewSet(
             datos=DatosDeClienteDTO(**entrada.validated_data),
         )
         return Response(serializers.ClienteOutputSerializer(cliente).data)
+
+    def partial_update(self, request: Request, pk: str) -> Response:
+        return self.update(request, pk)
+
+    @extend_schema(
+        summary="Eliminar un cliente sin ventas",
+        responses={204: None},
+    )
+    def destroy(self, request: Request, pk: str) -> Response:
+        servicio.eliminar_cliente(cliente_id=int(pk), negocio_id=self.negocio_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(
         summary="Desactivar una ficha",

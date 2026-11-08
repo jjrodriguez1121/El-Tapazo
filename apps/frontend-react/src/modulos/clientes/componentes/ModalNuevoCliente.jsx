@@ -29,20 +29,25 @@ function CampoCliente({ etiqueta, id, error = '', className = '', ...props }) {
   )
 }
 
-export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistentes = [] }) {
+function datosIniciales(cliente) {
+  if (!cliente) {
+    return {
+      tipo: 'persona', nombre: '', telefono: '', tipoDocumento: 'cedula', documento: '',
+      fechaNacimiento: '', correo: '', ciudad: '', contacto: '', segmento: 'tienda',
+    }
+  }
+  return {
+    tipo: cliente.tipo === 'establecimiento' ? 'establecimiento' : 'persona',
+    nombre: cliente.nombre ?? '', telefono: cliente.telefono ?? '',
+    tipoDocumento: cliente.tipoDocumento ?? 'cedula', documento: cliente.documento ?? '',
+    fechaNacimiento: cliente.fechaNacimiento ?? '', correo: cliente.correo ?? '',
+    ciudad: cliente.ciudad ?? '', contacto: cliente.contacto ?? '', segmento: cliente.segmento ?? 'tienda',
+  }
+}
+
+export default function ModalNuevoCliente({ alCerrar, alGuardar, clienteInicial = null, clientesExistentes = [] }) {
   const id = useId()
-  const [datos, setDatos] = useState({
-    tipo: 'persona',
-    nombre: '',
-    telefono: '',
-    tipoDocumento: 'cedula',
-    documento: '',
-    fechaNacimiento: '',
-    correo: '',
-    ciudad: '',
-    contacto: '',
-    segmento: 'tienda',
-  })
+  const [datos, setDatos] = useState(() => datosIniciales(clienteInicial))
   const [errores, setErrores] = useState({})
   const [errorGuardado, setErrorGuardado] = useState('')
   const esEstablecimiento = datos.tipo === 'establecimiento'
@@ -70,6 +75,7 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     const tipoDocumentoActual = esEstablecimiento ? 'nit' : datos.tipoDocumento
     const documentoDuplicado = clientesExistentes.some(
       (cliente) =>
+        cliente.id !== clienteInicial?.id &&
         cliente.tipo === datos.tipo &&
         tipoDocumentoNormalizado(
           cliente.tipo === 'establecimiento' ? 'nit' : cliente.tipoDocumento ?? 'cedula'
@@ -84,19 +90,17 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     if (Object.values(nuevosErrores).some(Boolean)) return
 
     try {
-      await alCrear({
-      id: `cliente-local-${Date.now()}`,
+      await alGuardar({
       tipo: datos.tipo,
       nombre,
       telefono,
-      tipoDocumento: esEstablecimiento ? 'NIT' : datos.tipoDocumento,
+      tipoDocumento: esEstablecimiento ? 'nit' : datos.tipoDocumento,
       documento,
       fechaNacimiento: esEstablecimiento ? '' : datos.fechaNacimiento,
       correo: datos.correo.trim(),
       ciudad: datos.ciudad.trim(),
       contacto: esEstablecimiento ? datos.contacto.trim() : '',
       segmento: esEstablecimiento ? datos.segmento : '',
-      saldoPendiente: 0,
     })
       alCerrar()
     } catch {
@@ -113,7 +117,9 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
         className="mx-auto my-4 w-full max-w-2xl rounded-xl border border-azul-150 bg-blanco p-5 shadow-xl sm:p-6"
       >
         <header className="mb-5">
-          <h2 id={`${id}-titulo`} className="text-lg font-bold text-azul-950">Nuevo cliente</h2>
+          <h2 id={`${id}-titulo`} className="text-lg font-bold text-azul-950">
+            {clienteInicial ? 'Editar cliente' : 'Nuevo cliente'}
+          </h2>
           <p className="mt-1 text-xs font-medium text-azul-400">
             Registra una persona o un establecimiento.
           </p>
@@ -291,7 +297,7 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
               type="submit"
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-azul-950 px-4 text-xs font-bold text-blanco hover:bg-azul-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-azul-600"
             >
-              <CheckIcon size={16} weight="bold" /> Guardar cliente
+              <CheckIcon size={16} weight="bold" /> {clienteInicial ? 'Guardar cambios' : 'Guardar cliente'}
             </button>
           </footer>
         </form>

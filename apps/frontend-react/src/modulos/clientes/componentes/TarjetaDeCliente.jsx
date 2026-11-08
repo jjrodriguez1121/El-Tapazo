@@ -1,4 +1,4 @@
-import { BuildingsIcon, EnvelopeSimpleIcon, IdentificationCardIcon, MapPinIcon } from '@phosphor-icons/react'
+import { BuildingsIcon, EnvelopeSimpleIcon, IdentificationCardIcon, MapPinIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react'
 
 import { formatearPesos } from '@/utilidades/formatos'
 
@@ -19,7 +19,7 @@ function iniciales(nombre) {
     .toUpperCase()
 }
 
-export default function TarjetaDeCliente({ cliente }) {
+export default function TarjetaDeCliente({ cliente, alEditar, alEliminar }) {
   const esEstablecimiento = cliente.tipo === 'establecimiento'
   const tieneSaldo = cliente.saldoPendiente > 0
   const identificacion = esEstablecimiento
@@ -86,6 +86,22 @@ export default function TarjetaDeCliente({ cliente }) {
           {tieneSaldo ? formatearPesos(cliente.saldoPendiente) : 'Al día'}
         </span>
       </footer>
+      <div className="flex gap-2 border-t border-azul-100 pt-2">
+        <button
+          type="button"
+          onClick={() => alEditar(cliente)}
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-azul-700 hover:text-azul-950"
+        >
+          <PencilSimpleIcon size={13} /> Editar
+        </button>
+        <button
+          type="button"
+          onClick={() => alEliminar(cliente)}
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-error-700 hover:text-error-900"
+        >
+          <TrashIcon size={13} /> Eliminar
+        </button>
+      </div>
     </article>
   )
 }

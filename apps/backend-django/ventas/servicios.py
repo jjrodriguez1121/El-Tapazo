@@ -175,4 +175,7 @@ def registrar_abono(*, cuenta_id: int, monto: Decimal, metodo_pago_id: int, reci
     cuenta.saldo = nuevo_saldo
     cuenta.estado = CuentaPorCobrar.Estado.PAGADA if nuevo_saldo == 0 else CuentaPorCobrar.Estado.PARCIAL
     cuenta.save(update_fields=["saldo", "estado", "actualizado_en"])
+    if nuevo_saldo == 0:
+        cuenta.venta.estado = Venta.Estado.PAGADA
+        cuenta.venta.save(update_fields=["estado", "actualizado_en"])
     return cuenta

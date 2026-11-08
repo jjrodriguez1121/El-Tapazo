@@ -19,4 +19,5 @@ class DatosDeClienteDTO:
     fecha_nacimiento: date | None
     telefono: str = ""
     correo: str = ""
+    ciudad: str = ""
     notas: str = ""

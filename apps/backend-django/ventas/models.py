@@ -69,6 +69,7 @@ class Venta(ModeloDelNegocio):
                 condition=(
                     models.Q(tipo_pago="contado", estado="pagada")
                     | models.Q(tipo_pago="credito", estado="pendiente")
+                    | models.Q(tipo_pago="credito", estado="pagada")
                     | models.Q(estado="anulada")
                 ),
                 name="venta_estado_coherente_con_pago",

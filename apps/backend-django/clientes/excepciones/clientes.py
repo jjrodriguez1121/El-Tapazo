@@ -25,3 +25,11 @@ class FechaDeNacimientoInvalida(ErrorDeNegocio):
     mensaje = "La fecha de nacimiento no es válida."
     codigo = "fecha_de_nacimiento_invalida"
     status_http = 400
+
+
+class ClienteConVentas(ErrorDeNegocio):
+    """Un cliente con ventas debe conservarse para mantener la trazabilidad."""
+
+    mensaje = "No se puede eliminar un cliente que tiene ventas registradas."
+    codigo = "cliente_con_ventas"
+    status_http = 409
