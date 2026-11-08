@@ -35,6 +35,8 @@ export default function PaginaRegistroVentas() {
   const [error, setError] = useState('')
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [filtroTipoPago, setFiltroTipoPago] = useState('todos')
+  const [filtroEntrega, setFiltroEntrega] = useState('todos')
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
 
   async function marcarComoEntregada(venta) {
@@ -70,13 +72,16 @@ export default function PaginaRegistroVentas() {
 
   const ventasFiltradas = ventas.filter((v) => {
     const coincideEstado = filtroEstado === 'todos' || v.estado === filtroEstado
+    const coincideTipoPago = filtroTipoPago === 'todos' || v.tipo_pago === filtroTipoPago
+    const estadoEntrega = v.estado_entrega ?? 'pendiente_entrega'
+    const coincideEntrega = filtroEntrega === 'todos' || estadoEntrega === filtroEntrega
     const texto = filtroTexto.toLowerCase().trim()
     const coincideTexto =
       !texto ||
       v.numero_venta.toLowerCase().includes(texto) ||
       v.cliente_nombre.toLowerCase().includes(texto) ||
       (v.vendedor && v.vendedor.toLowerCase().includes(texto))
-    return coincideEstado && coincideTexto
+    return coincideEstado && coincideTipoPago && coincideEntrega && coincideTexto
   })
 
   function estaPendienteDeEntrega(venta) {
@@ -145,6 +150,27 @@ export default function PaginaRegistroVentas() {
               <option value="todos">Todos los estados</option>
               <option value="pagada">Pagada</option>
               <option value="pendiente">Pendiente</option>
+              <option value="anulada">Anulada</option>
+            </select>
+            <select
+              aria-label="Filtrar por tipo de pago"
+              value={filtroTipoPago}
+              onChange={(e) => setFiltroTipoPago(e.target.value)}
+              className="h-9 rounded-lg border border-azul-200 px-2 text-xs text-azul-950 outline-none focus:border-azul-600"
+            >
+              <option value="todos">Todos los pagos</option>
+              <option value="contado">Contado</option>
+              <option value="credito">Crédito</option>
+            </select>
+            <select
+              aria-label="Filtrar por estado de entrega"
+              value={filtroEntrega}
+              onChange={(e) => setFiltroEntrega(e.target.value)}
+              className="h-9 rounded-lg border border-azul-200 px-2 text-xs text-azul-950 outline-none focus:border-azul-600"
+            >
+              <option value="todos">Todas las entregas</option>
+              <option value="pendiente_entrega">Pendiente de entrega</option>
+              <option value="entregada">Entregada</option>
               <option value="anulada">Anulada</option>
             </select>
           </div>

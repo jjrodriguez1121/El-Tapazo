@@ -32,6 +32,8 @@ export default function PaginaCuentasPorCobrar() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
+  const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [filtroEntrega, setFiltroEntrega] = useState('todos')
 
   async function cargarCuentas() {
     setCargando(true)
@@ -57,6 +59,13 @@ export default function PaginaCuentasPorCobrar() {
   const totalPendiente = cuentas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
   const vencidas = cuentas.filter((cuenta) => String(cuenta.estado).toUpperCase() === 'VENCIDA')
   const totalVencido = vencidas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
+  const cuentasFiltradas = cuentas.filter((cuenta) => {
+    const coincideEstado = (
+      filtroEstado === 'todos' || String(cuenta.estado).toLowerCase() === filtroEstado
+    )
+    const estadoEntrega = cuenta.estado_entrega ?? 'pendiente_entrega'
+    return coincideEstado && (filtroEntrega === 'todos' || estadoEntrega === filtroEntrega)
+  })
 
   return (
     <div className="flex flex-col gap-5">
@@ -76,6 +85,29 @@ export default function PaginaCuentasPorCobrar() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-azul-150 bg-blanco">
+        <div className="flex flex-wrap gap-2 border-b border-azul-100 p-4">
+          <select
+            aria-label="Filtrar cuentas por estado"
+            value={filtroEstado}
+            onChange={(evento) => setFiltroEstado(evento.target.value)}
+            className="h-9 rounded-lg border border-azul-200 px-2 text-xs text-azul-950 outline-none focus:border-azul-600"
+          >
+            <option value="todos">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="parcial">Parcial</option>
+            <option value="vencida">Vencida</option>
+          </select>
+          <select
+            aria-label="Filtrar cuentas por entrega"
+            value={filtroEntrega}
+            onChange={(evento) => setFiltroEntrega(evento.target.value)}
+            className="h-9 rounded-lg border border-azul-200 px-2 text-xs text-azul-950 outline-none focus:border-azul-600"
+          >
+            <option value="todos">Todas las entregas</option>
+            <option value="pendiente_entrega">Pendiente de entrega</option>
+            <option value="entregada">Entregada</option>
+          </select>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-azul-50 text-xs uppercase text-azul-500">
@@ -92,7 +124,7 @@ export default function PaginaCuentasPorCobrar() {
               </tr>
             </thead>
             <tbody>
-              {cuentas.map((cuenta) => (
+              {cuentasFiltradas.map((cuenta) => (
                 <tr key={cuenta.id} className="border-t border-azul-100">
                   <td className="px-4 py-3 text-xs text-azul-500">
                     {cuenta.fecha_venta
@@ -138,10 +170,10 @@ export default function PaginaCuentasPorCobrar() {
                   </td>
                 </tr>
               ))}
-              {!cargando && !cuentas.length && (
+              {!cargando && !cuentasFiltradas.length && (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-azul-400">
-                    No hay cuentas por cobrar pendientes.
+                    {cuentas.length ? 'No hay cuentas que coincidan con los filtros.' : 'No hay cuentas por cobrar pendientes.'}
                   </td>
                 </tr>
               )}

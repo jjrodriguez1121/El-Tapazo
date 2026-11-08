@@ -19,6 +19,7 @@ export default function PaginaCuentasPorPagar() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [compraDetalleId, setCompraDetalleId] = useState(null)
+  const [filtroEstado, setFiltroEstado] = useState('todos')
 
   async function cargarCuentas() {
     setCargando(true)
@@ -44,6 +45,9 @@ export default function PaginaCuentasPorPagar() {
   const totalPendiente = cuentas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
   const vencidas = cuentas.filter((cuenta) => cuenta.estado === 'VENCIDA')
   const totalVencido = vencidas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
+  const cuentasFiltradas = cuentas.filter((cuenta) => (
+    filtroEstado === 'todos' || String(cuenta.estado).toLowerCase() === filtroEstado
+  ))
 
   return (
     <div className="flex flex-col gap-5">
@@ -76,6 +80,19 @@ export default function PaginaCuentasPorPagar() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-azul-150 bg-blanco">
+        <div className="border-b border-azul-100 p-4">
+          <select
+            aria-label="Filtrar cuentas por estado"
+            value={filtroEstado}
+            onChange={(evento) => setFiltroEstado(evento.target.value)}
+            className="h-9 rounded-lg border border-azul-200 px-2 text-xs text-azul-950 outline-none focus:border-azul-600"
+          >
+            <option value="todos">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="parcial">Parcial</option>
+            <option value="vencida">Vencida</option>
+          </select>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-azul-50 text-xs uppercase text-azul-500">
@@ -91,7 +108,7 @@ export default function PaginaCuentasPorPagar() {
               </tr>
             </thead>
             <tbody>
-              {cuentas.map((cuenta) => (
+              {cuentasFiltradas.map((cuenta) => (
                 <tr key={cuenta.id} className="border-t border-azul-100">
                   <td className="px-4 py-3 text-xs text-azul-500">
                     {cuenta.fecha_compra
@@ -124,10 +141,10 @@ export default function PaginaCuentasPorPagar() {
                   </td>
                 </tr>
               ))}
-              {!cargando && !cuentas.length && (
+              {!cargando && !cuentasFiltradas.length && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-azul-400">
-                    No hay cuentas por pagar pendientes.
+                  <td colSpan={8} className="px-4 py-10 text-center text-azul-400">
+                    {cuentas.length ? 'No hay cuentas que coincidan con los filtros.' : 'No hay cuentas por pagar pendientes.'}
                   </td>
                 </tr>
               )}
