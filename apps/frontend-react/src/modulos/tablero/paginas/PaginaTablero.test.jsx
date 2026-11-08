@@ -16,7 +16,7 @@ test('exige un rango de fechas para consultar el dashboard', async () => {
   expect(screen.getByLabelText('Desde')).toBeRequired()
   expect(screen.getByLabelText('Hasta')).toBeRequired()
   expect(await screen.findByRole('button', { name: 'Aplicar filtro' })).toBeInTheDocument()
-  expect(screen.getByText('Ventas del periodo')).toBeInTheDocument()
+  expect(screen.getByText('Ventas facturadas')).toBeInTheDocument()
 })
 
 test('las alertas de stock llevan al inventario', () => {

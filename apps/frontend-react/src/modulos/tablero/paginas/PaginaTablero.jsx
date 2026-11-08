@@ -12,9 +12,28 @@ import TarjetaDeIndicador from '../componentes/TarjetaDeIndicador'
 
 const APARIENCIA_DE_INDICADORES = {
   ventas: { Icono: TrendUpIcon, tono: 'exito' },
+  bruta: { Icono: TrendUpIcon, tono: 'exito' },
   cobradas: { Icono: WalletIcon, tono: 'info' },
+  cobrar: { Icono: WalletIcon, tono: 'alerta' },
+  pagar: { Icono: WalletIcon, tono: 'error' },
   pedidos: { Icono: CalendarIcon, tono: 'alerta' },
+  contado: { Icono: WalletIcon, tono: 'exito' },
+  credito: { Icono: WalletIcon, tono: 'alerta' },
   'stock-bajo': { Icono: WarningIcon, tono: 'error' },
+}
+
+const RESUMEN_VACIO = {
+  ventas_facturadas: 0,
+  ventas_netas: 0,
+  utilidad_bruta: 0,
+  cobrado_en_periodo: 0,
+  por_cobrar: 0,
+  por_pagar: 0,
+  ventas_registradas: 0,
+  ventas_contado: 0,
+  ventas_credito: 0,
+  entregas_pendientes: 0,
+  stock_bajo: 0,
 }
 
 function fechaLocal(valor = new Date()) {
@@ -59,6 +78,7 @@ export default function PaginaTablero() {
   const [desde, setDesde] = useState(hoy)
   const [hasta, setHasta] = useState(hoy)
   const [ventas, setVentas] = useState([])
+  const [resumen, setResumen] = useState(RESUMEN_VACIO)
   const [alertas, setAlertas] = useState([])
   const [cuentasPorPagar, setCuentasPorPagar] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -76,12 +96,19 @@ export default function PaginaTablero() {
 
     setCargando(true)
     setError('')
-    const [respuestaVentas, respuestaStock, respuestaCuentas] = await Promise.allSettled([
+    const [respuestaResumen, respuestaVentas, respuestaStock, respuestaCuentas] = await Promise.allSettled([
+      clienteApi.get('/negocios/informes/dashboard/', { params: rango }),
       clienteApi.get('/ventas/'),
       clienteApi.get('/inventario/existencias/bajo-minimo/'),
       clienteApi.get('/compras/cuentas-por-pagar/'),
     ])
 
+    if (respuestaResumen.status === 'fulfilled') {
+      setResumen(respuestaResumen.value.data)
+    } else {
+      setResumen(RESUMEN_VACIO)
+      setError('No fue posible cargar los indicadores del dashboard.')
+    }
     if (respuestaVentas.status === 'fulfilled') {
       setVentas(coleccion(respuestaVentas.value.data))
     } else {
@@ -105,16 +132,18 @@ export default function PaginaTablero() {
   const ventasDelRango = useMemo(() => ventas.filter((venta) => (
     venta.estado !== 'anulada' && fechaDeVenta(venta) >= desde && fechaDeVenta(venta) <= hasta
   )), [ventas, desde, hasta])
-  const totalVendido = ventasDelRango.reduce((total, venta) => total + Number(venta.total || 0), 0)
-  const totalCobrado = ventasDelRango
-    .filter((venta) => venta.estado === 'pagada')
-    .reduce((total, venta) => total + Number(venta.total || 0), 0)
+  const totalVendido = Number(resumen.ventas_facturadas || 0)
   const dias = useMemo(() => diasDelRango(desde, hasta, ventasDelRango), [desde, hasta, ventasDelRango])
   const indicadores = [
-    { id: 'ventas', etiqueta: 'Ventas del periodo', valor: formatearPesos(totalVendido) },
-    { id: 'cobradas', etiqueta: 'Ventas pagadas', valor: formatearPesos(totalCobrado) },
-    { id: 'pedidos', etiqueta: 'Ventas registradas', valor: String(ventasDelRango.length) },
-    { id: 'stock-bajo', etiqueta: 'Stock bajo', valor: String(alertas.length) },
+    { id: 'ventas', etiqueta: 'Ventas facturadas', valor: formatearPesos(Number(resumen.ventas_facturadas)) },
+    { id: 'bruta', etiqueta: 'Utilidad', valor: formatearPesos(Number(resumen.utilidad_bruta)) },
+    { id: 'cobradas', etiqueta: 'Cobrado en el periodo', valor: formatearPesos(Number(resumen.cobrado_en_periodo)) },
+    { id: 'cobrar', etiqueta: 'Por cobrar actual', valor: formatearPesos(Number(resumen.por_cobrar)) },
+    { id: 'pagar', etiqueta: 'Por pagar actual', valor: formatearPesos(Number(resumen.por_pagar)) },
+    { id: 'contado', etiqueta: 'Ventas de contado', valor: String(resumen.ventas_contado) },
+    { id: 'credito', etiqueta: 'Ventas a crédito', valor: String(resumen.ventas_credito) },
+    { id: 'pedidos', etiqueta: 'Entregas pendientes', valor: String(resumen.entregas_pendientes) },
+    { id: 'stock-bajo', etiqueta: 'Stock bajo', valor: String(resumen.stock_bajo) },
   ]
 
   function enviarFormulario(evento) {
@@ -147,9 +176,9 @@ export default function PaginaTablero() {
         {formatearFechaLarga(new Date(`${desde}T00:00:00`))} — {formatearFechaLarga(new Date(`${hasta}T00:00:00`))}
       </p>
 
-      <div className="mb-4.5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4.5 grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {indicadores.map((indicador) => (
-          <TarjetaDeIndicador key={indicador.id} {...APARIENCIA_DE_INDICADORES[indicador.id]} etiqueta={indicador.etiqueta} valor={indicador.valor} variacion="" />
+          <TarjetaDeIndicador key={indicador.id} {...APARIENCIA_DE_INDICADORES[indicador.id]} etiqueta={indicador.etiqueta} valor={indicador.valor} variacion="" compacta />
         ))}
       </div>
 

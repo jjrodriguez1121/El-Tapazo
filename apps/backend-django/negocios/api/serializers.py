@@ -35,6 +35,16 @@ class RangoDeFechasSerializer(serializers.Serializer):
     hasta = serializers.DateField(required=False, allow_null=True, default=None)
 
 
+class RangoDeFechasObligatorioSerializer(serializers.Serializer):
+    desde = serializers.DateField()
+    hasta = serializers.DateField()
+
+    def validate(self, datos):
+        if datos["desde"] > datos["hasta"]:
+            raise serializers.ValidationError("La fecha inicial no puede ser posterior a la fecha final.")
+        return datos
+
+
 class VentasDelCanalSerializer(serializers.Serializer):
     canal = serializers.CharField()
     vendido = serializers.DecimalField(max_digits=24, decimal_places=2)
@@ -49,3 +59,22 @@ class ResumenDeVentasOutputSerializer(serializers.Serializer):
     canales = VentasDelCanalSerializer(many=True)
     vendido_total = serializers.DecimalField(max_digits=24, decimal_places=2)
     cobrado_total = serializers.DecimalField(max_digits=24, decimal_places=2)
+
+
+class ResumenDashboardOutputSerializer(serializers.Serializer):
+    desde = serializers.DateField()
+    hasta = serializers.DateField()
+    ventas_facturadas = serializers.DecimalField(max_digits=24, decimal_places=2)
+    ventas_netas = serializers.DecimalField(max_digits=24, decimal_places=2)
+    descuentos = serializers.DecimalField(max_digits=24, decimal_places=2)
+    impuestos = serializers.DecimalField(max_digits=24, decimal_places=2)
+    costo_de_ventas = serializers.DecimalField(max_digits=24, decimal_places=2)
+    utilidad_bruta = serializers.DecimalField(max_digits=24, decimal_places=2)
+    cobrado_en_periodo = serializers.DecimalField(max_digits=24, decimal_places=2)
+    por_cobrar = serializers.DecimalField(max_digits=24, decimal_places=2)
+    por_pagar = serializers.DecimalField(max_digits=24, decimal_places=2)
+    ventas_registradas = serializers.IntegerField()
+    ventas_contado = serializers.IntegerField()
+    ventas_credito = serializers.IntegerField()
+    entregas_pendientes = serializers.IntegerField()
+    stock_bajo = serializers.IntegerField()
