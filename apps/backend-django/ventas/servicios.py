@@ -35,7 +35,7 @@ def registrar_venta(*, datos: DatosDeVentaDTO, negocio_id: int, vendedor_id: int
 
     productos = {
         producto.id: producto
-        for producto in Producto.objects.select_for_update().select_related("impuesto").filter(
+        for producto in Producto.objects.select_for_update(of=("self",)).select_related("impuesto").filter(
             negocio_id=negocio_id, activo=True, pk__in=cantidades_por_producto
         )
     }

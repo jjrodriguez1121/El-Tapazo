@@ -305,7 +305,7 @@ export default function PaginaPuntoDeVenta() {
 
       <aside
         aria-label="Carrito de venta actual"
-        className="flex min-h-[460px] flex-col overflow-hidden rounded-xl border border-azul-150 bg-blanco xl:sticky xl:top-5 xl:h-[calc(100dvh-7rem)]"
+        className="flex min-h-[460px] flex-col rounded-xl border border-azul-150 bg-blanco xl:sticky xl:top-5 xl:max-h-[calc(100dvh-5rem)]"
       >
         <header className="flex items-start justify-between border-b border-azul-100 px-3.5 py-3">
           <div>
@@ -376,7 +376,7 @@ export default function PaginaPuntoDeVenta() {
           )}
         </div>
 
-        <section className="border-t border-azul-100 px-3.5 py-3">
+        <section className="overflow-y-auto border-t border-azul-100 px-3.5 py-3">
           <dl className="flex flex-col gap-2 text-[10px]">
             <div className="flex justify-between gap-3 text-azul-500">
               <dt>Subtotal</dt><dd>{formatearPesos(baseGravable)}</dd>

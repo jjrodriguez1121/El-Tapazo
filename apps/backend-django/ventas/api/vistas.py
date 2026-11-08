@@ -4,19 +4,19 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from nucleo.permisos import EsAdministrador
+from nucleo.permisos import EsAdministrador, EsCajeroOAdministrador
 from ventas.models import CuentaPorCobrar, MetodoPago
 from ventas.dtos import DatosDeVentaDTO, LineaDeVentaDTO
 from ventas.servicios import registrar_abono as registrar_abono_cartera, registrar_venta
 
 
 @api_view(["POST"])
-@permission_classes([EsAdministrador])
+@permission_classes([EsCajeroOAdministrador])
 def ventas(request):
     lineas = request.data.get("lineas", [])
     tipo_pago = request.data.get("tipo_pago")
     if not isinstance(lineas, list) or not lineas:
-        raise ValidationError({"lineas": "Agregue al menos un producto."})
+        raise ValidationError("Agregue al menos un producto.")
     try:
         datos = DatosDeVentaDTO(
             lineas=[
@@ -40,7 +40,7 @@ def ventas(request):
             vendedor_id=request.user.id,
         )
     except (KeyError, TypeError, ValueError) as error:
-        raise ValidationError({"detail": str(error)})
+        raise ValidationError(str(error))
     return Response({
         "id": venta.id,
         "numero_venta": venta.numero_venta,
@@ -51,7 +51,7 @@ def ventas(request):
 
 
 @api_view(["GET"])
-@permission_classes([EsAdministrador])
+@permission_classes([EsCajeroOAdministrador])
 def metodos_pago(request):
     metodos = MetodoPago.objects.filter(
         negocio_id=request.user.negocio_id, estado=True

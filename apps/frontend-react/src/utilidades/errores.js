@@ -19,7 +19,16 @@ export const codigoDeError = (error) => error?.response?.data?.error?.codigo
 /** El mensaje listo para mostrarle a una persona. */
 export function mensajeDeError(error) {
   if (esErrorDeConexion(error)) return MENSAJE_SIN_CONEXION
-  return error?.response?.data?.error?.mensaje ?? MENSAJE_POR_DEFECTO
+  const data = error?.response?.data
+  if (data?.error?.mensaje) return data.error.mensaje
+  if (typeof data?.detail === 'string') return data.detail
+  if (Array.isArray(data?.errores) && data.errores[0]) return data.errores[0]
+  if (data?.error?.detalles) {
+    const primerDetalle = Object.values(data.error.detalles)[0]
+    if (Array.isArray(primerDetalle) && primerDetalle[0]) return primerDetalle[0]
+    if (typeof primerDetalle === 'string') return primerDetalle
+  }
+  return MENSAJE_POR_DEFECTO
 }
 
 /** Los errores por campo (`{ nombre: ['...'] }`), para pintarlos bajo cada input. */
