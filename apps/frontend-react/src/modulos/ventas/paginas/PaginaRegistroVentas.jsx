@@ -123,9 +123,9 @@ export default function PaginaRegistroVentas() {
           <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-azul-50 text-xs uppercase text-azul-500">
               <tr>
+                <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Venta</th>
                 <th className="px-4 py-3">Cliente</th>
-                <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Tipo pago</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3 text-center">Ítems</th>
@@ -136,14 +136,14 @@ export default function PaginaRegistroVentas() {
             <tbody>
               {ventasFiltradas.map((venta) => (
                 <tr key={venta.id} className="border-t border-azul-100 hover:bg-azul-50/30">
-                  <td className="px-4 py-3 font-semibold text-azul-950">{venta.numero_venta}</td>
-                  <td className="px-4 py-3 text-azul-700">{venta.cliente_nombre}</td>
-                  <td className="px-4 py-3 text-xs text-azul-500">
+                  <td className="px-4 py-3 text-xs font-medium text-azul-500">
                     {new Intl.DateTimeFormat('es-CO', {
                       dateStyle: 'medium',
                       timeStyle: 'short',
                     }).format(new Date(venta.fecha_venta))}
                   </td>
+                  <td className="px-4 py-3 font-semibold text-azul-950">{venta.numero_venta}</td>
+                  <td className="px-4 py-3 text-azul-700">{venta.cliente_nombre}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-bold ${

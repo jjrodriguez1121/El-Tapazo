@@ -59,6 +59,7 @@ def cuentas_por_pagar(request):
             "compra_id": cuenta.compra_id,
             "numero_compra": cuenta.compra.numero_compra,
             "proveedor": cuenta.compra.proveedor.razon_social,
+            "fecha_compra": cuenta.compra.fecha_compra,
             "fecha_vencimiento": cuenta.fecha_vencimiento,
             "total": cuenta.total,
             "saldo": cuenta.saldo,

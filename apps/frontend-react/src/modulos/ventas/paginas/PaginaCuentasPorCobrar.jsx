@@ -67,9 +67,10 @@ export default function PaginaCuentasPorCobrar() {
 
       <section className="overflow-hidden rounded-xl border border-azul-150 bg-blanco">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[840px] text-left text-sm">
             <thead className="bg-azul-50 text-xs uppercase text-azul-500">
               <tr>
+                <th className="px-4 py-3">Fecha venta</th>
                 <th className="px-4 py-3">Venta</th>
                 <th className="px-4 py-3">Cliente</th>
                 <th className="px-4 py-3">Vencimiento</th>
@@ -82,6 +83,11 @@ export default function PaginaCuentasPorCobrar() {
             <tbody>
               {cuentas.map((cuenta) => (
                 <tr key={cuenta.id} className="border-t border-azul-100">
+                  <td className="px-4 py-3 text-xs text-azul-500">
+                    {cuenta.fecha_venta
+                      ? formatearFechaCorta(new Date(cuenta.fecha_venta))
+                      : 'N/D'}
+                  </td>
                   <td className="px-4 py-3 font-semibold text-azul-950">{cuenta.numero_venta}</td>
                   <td className="px-4 py-3">{cuenta.cliente}</td>
                   <td className="px-4 py-3">

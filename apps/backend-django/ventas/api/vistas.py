@@ -129,6 +129,7 @@ def cuentas_por_cobrar(request):
                 "venta_id": cuenta.venta_id,
                 "numero_venta": cuenta.venta.numero_venta or f"VEN-{cuenta.venta_id:04d}",
                 "cliente": cliente_nombre,
+                "fecha_venta": cuenta.venta.fecha,
                 "fecha_vencimiento": cuenta.fecha_vencimiento,
                 "total": cuenta.total,
                 "saldo": cuenta.saldo,

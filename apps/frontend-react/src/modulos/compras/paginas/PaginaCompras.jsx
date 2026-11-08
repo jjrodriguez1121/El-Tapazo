@@ -225,28 +225,47 @@ export default function PaginaCompras() {
         <h2 className="border-b border-azul-100 px-4 py-3 text-sm font-bold text-azul-950">Compras registradas</h2>
         <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="bg-azul-50 text-xs uppercase text-azul-500"><tr><th className="px-4 py-3">Compra</th><th>Proveedor</th><th>Estado</th><th>Pago</th><th>Productos</th><th className="px-4">Total</th><th className="px-4 text-center">Detalle</th></tr></thead>
+            <thead className="bg-azul-50 text-xs uppercase text-azul-500">
+              <tr>
+                <th className="px-4 py-3">Fecha</th>
+                <th className="px-4 py-3">Compra</th>
+                <th className="px-4 py-3">Proveedor</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Pago</th>
+                <th className="px-4 py-3 text-center">Productos</th>
+                <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3 text-center">Detalle</th>
+              </tr>
+            </thead>
             <tbody>
               {compras.map((compra) => (
                 <tr key={compra.id} className="border-t border-azul-100">
-                  <td className="px-4 py-3 font-semibold">{compra.numero_compra}</td>
-                  <td>{compra.proveedor_nombre}</td>
-                  <td>{compra.estado}</td>
-                  <td>
+                  <td className="px-4 py-3 text-xs text-azul-500">
+                    {compra.fecha_compra
+                      ? new Intl.DateTimeFormat('es-CO', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        }).format(new Date(compra.fecha_compra))
+                      : 'N/D'}
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-azul-950">{compra.numero_compra}</td>
+                  <td className="px-4 py-3">{compra.proveedor_nombre}</td>
+                  <td className="px-4 py-3">{compra.estado}</td>
+                  <td className="px-4 py-3">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${compra.condicion_pago === 'CONTADO' ? 'bg-exito-50 text-exito-700' : 'bg-alerta-50 text-alerta-700'}`}>
                       {compra.condicion_pago === 'CONTADO' ? 'Contado' : 'Crédito'}
                     </span>
                   </td>
-                  <td>{compra.detalles?.length ?? 0}</td>
-                  <td className="px-4 font-bold text-azul-950">{formatearPesos(Number(compra.total || 0))}</td>
-                  <td className="px-4 text-center">
+                  <td className="px-4 py-3 text-center text-azul-600">{compra.detalles?.length ?? 0}</td>
+                  <td className="px-4 py-3 text-right font-bold text-azul-950">{formatearPesos(Number(compra.total || 0))}</td>
+                  <td className="px-4 py-3 text-center">
                     <button type="button" onClick={() => setCompraDetalleId(compra.id)} className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50">
                       Ver detalle
                     </button>
                   </td>
                 </tr>
               ))}
-              {!compras.length && <tr><td colSpan={7} className="px-4 py-10 text-center text-azul-400">Todavía no hay compras registradas.</td></tr>}
+              {!compras.length && <tr><td colSpan={8} className="px-4 py-10 text-center text-azul-400">Todavía no hay compras registradas.</td></tr>}
             </tbody>
           </table>
         </div>
