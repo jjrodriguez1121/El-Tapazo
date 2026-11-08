@@ -3,13 +3,13 @@ import { formatearPesos } from '@/utilidades/formatos'
 import PanelDelTablero from './PanelDelTablero'
 
 /** Cuánto se vendió cada día de la semana. El día más fuerte va resaltado. */
-export default function GraficaDeVentasDeLaSemana({ dias, total }) {
+export default function GraficaDeVentasDeLaSemana({ dias, total, titulo = 'Ventas de la semana' }) {
   // Con una semana sin ventas el máximo es 0: se divide entre 1 para no pintar NaN.
   const maximo = Math.max(...dias.map((dia) => dia.total)) || 1
 
   return (
     <PanelDelTablero
-      titulo="Ventas de la semana"
+      titulo={titulo}
       accesorio={
         <span className="text-etiqueta font-semibold text-azul-600">{formatearPesos(total)}</span>
       }

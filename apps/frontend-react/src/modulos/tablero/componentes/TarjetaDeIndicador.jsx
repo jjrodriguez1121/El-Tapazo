@@ -12,7 +12,7 @@ export default function TarjetaDeIndicador({ Icono, tono, etiqueta, valor, varia
         >
           <Icono size={20} />
         </span>
-        <Insignia tono={tono}>{variacion}</Insignia>
+        {variacion && <Insignia tono={tono}>{variacion}</Insignia>}
       </div>
       <p className="mb-0.5 text-2xl font-semibold">{valor}</p>
       <p className="text-etiqueta font-medium text-azul-400">{etiqueta}</p>
