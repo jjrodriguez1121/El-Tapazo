@@ -1,13 +1,9 @@
 import { useState } from 'react'
 import {
-  ArrowDownIcon,
   ArrowLeftIcon,
-  ArrowUpIcon,
-  ArrowsClockwiseIcon,
   ImageIcon,
   PencilSimpleIcon,
   ShoppingCartSimpleIcon,
-  TruckIcon,
 } from '@phosphor-icons/react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 
@@ -20,13 +16,6 @@ import { clienteApi } from '@/librerias/clienteApi'
 import EsqueletoDeProductos from '../componentes/EsqueletoDeProductos'
 import ModalNuevoProducto from '../componentes/ModalNuevoProducto'
 import { useCatalogoDeProductos } from '../hooks/useCatalogoDeProductos'
-import { CATEGORIAS_DE_EJEMPLO, PRODUCTOS_DE_EJEMPLO } from '../utilidades/datosDeEjemplo'
-
-const ICONO_POR_MOVIMIENTO = {
-  entrada: { Icono: ArrowDownIcon, clase: 'bg-exito-50 text-exito-700' },
-  salida: { Icono: ArrowUpIcon, clase: 'bg-error-50 text-error-700' },
-  ajuste: { Icono: ArrowsClockwiseIcon, clase: 'bg-azul-50 text-azul-600' },
-}
 
 function ImagenDeProducto({ src, className = '' }) {
   return src ? (
@@ -53,10 +42,7 @@ export default function PaginaDetalleProducto() {
   const productoDesdeCatalogo = catalogo.data?.productos.find(
     (producto) => String(producto.id) === productoId
   )
-  const productoDeEjemplo = PRODUCTOS_DE_EJEMPLO.find(
-    (producto) => String(producto.id) === productoId
-  )
-  const producto = productoEditado ?? productoDesdeRuta ?? productoDesdeCatalogo ?? productoDeEjemplo
+  const producto = productoEditado ?? productoDesdeRuta ?? productoDesdeCatalogo
 
   if (!producto && catalogo.isPending) return <EsqueletoDeProductos />
 
@@ -100,11 +86,7 @@ export default function PaginaDetalleProducto() {
     : existencias.some((existencia) => existencia.esta_bajo_minimo)
       ? { etiqueta: 'Stock bajo', tono: 'alerta' }
       : { etiqueta: 'En stock', tono: 'exito' }
-  const proveedor = producto.proveedor
-  const movimientos = producto.movimientos ?? []
-  const categorias = catalogo.data?.categorias.length
-    ? catalogo.data.categorias
-    : CATEGORIAS_DE_EJEMPLO
+  const categorias = catalogo.data?.categorias ?? []
 
   async function actualizarProducto(datos) {
     const idProducto = producto.id
@@ -159,13 +141,6 @@ export default function PaginaDetalleProducto() {
         <div className="flex min-w-0 flex-col gap-2">
           <div className="aspect-[4/3] overflow-hidden rounded-xl">
             <ImagenDeProducto src={producto.imagen} />
-          </div>
-          <div className="grid grid-cols-3 gap-2" aria-label="Imágenes adicionales">
-            {[0, 1, 2].map((indice) => (
-              <div key={indice} className="aspect-[2/1] overflow-hidden rounded-lg">
-                <ImagenDeProducto src={producto.imagen} />
-              </div>
-            ))}
           </div>
         </div>
 
@@ -233,66 +208,12 @@ export default function PaginaDetalleProducto() {
         </div>
       </section>
 
-      <section className="grid gap-3 lg:grid-cols-2">
-        <article className="min-h-36 rounded-xl border border-azul-150 bg-blanco p-4">
-          <h2 className="text-sm font-bold text-azul-950">Proveedor</h2>
-          {proveedor ? (
-            <div className="mt-4 flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-lg bg-azul-50 text-azul-600">
-                <TruckIcon size={18} />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-azul-950">{proveedor.razonSocial ?? proveedor.razon_social}</p>
-                <p className="mt-0.5 text-[10px] text-azul-400">
-                  {proveedor.esDeEjemplo || producto.esDeEjemplo ? 'Proveedor de ejemplo' : 'Proveedor asociado'}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-4 text-xs text-azul-400">No hay un proveedor asociado a este producto.</p>
-          )}
-        </article>
-
-        <article className="min-h-36 rounded-xl border border-azul-150 bg-blanco p-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-bold text-azul-950">Movimientos recientes</h2>
-            {producto.esDeEjemplo && <span className="text-[10px] font-semibold text-alerta-700">Datos de ejemplo</span>}
-          </div>
-          {movimientos.length ? (
-            <ul className="mt-3 divide-y divide-azul-100">
-              {movimientos.map((movimiento) => {
-                const apariencia = ICONO_POR_MOVIMIENTO[movimiento.tipo] ?? ICONO_POR_MOVIMIENTO.ajuste
-                const Icono = apariencia.Icono
-                return (
-                  <li key={movimiento.id} className="flex items-center gap-2.5 py-2">
-                    <span className={`grid size-7 flex-none place-items-center rounded-lg ${apariencia.clase}`}>
-                      <Icono size={14} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[11px] font-semibold text-azul-950">
-                        {movimiento.titulo}
-                      </span>
-                      <span className="block truncate text-[9px] text-azul-400">
-                        {movimiento.fecha} · {movimiento.referencia}
-                      </span>
-                    </span>
-                    <span className="text-xs font-bold text-azul-600">{movimiento.cantidad}</span>
-                  </li>
-                )
-              })}
-            </ul>
-          ) : (
-            <p className="mt-4 text-xs text-azul-400">Todavía no hay movimientos registrados.</p>
-          )}
-        </article>
-      </section>
-
       {modalEdicionAbierto && (
         <ModalNuevoProducto
           categorias={categorias}
           productoParaEditar={producto}
           existencias={existencias}
-          productosExistentes={catalogo.data?.productos ?? PRODUCTOS_DE_EJEMPLO}
+          productosExistentes={catalogo.data?.productos ?? []}
           alCrear={actualizarProducto}
           alCerrar={() => setModalEdicionAbierto(false)}
         />

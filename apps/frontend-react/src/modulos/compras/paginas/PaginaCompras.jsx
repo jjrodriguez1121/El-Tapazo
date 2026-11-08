@@ -5,6 +5,7 @@ import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
 import { formatearPesos } from '@/utilidades/formatos'
 import { crearCompra, listarCompras } from '../api/apiCompras'
+import { listarMetodosPago } from '@/modulos/ventas/api/apiVentas'
 
 const lineaVacia = () => ({
   tipo: 'existente',
@@ -24,11 +25,13 @@ export default function PaginaCompras() {
   const [proveedores, setProveedores] = useState([])
   const [categorias, setCategorias] = useState([])
   const [impuestos, setImpuestos] = useState([])
+  const [metodosPago, setMetodosPago] = useState([])
   const [lineas, setLineas] = useState([lineaVacia()])
   const [datos, setDatos] = useState({
     proveedorId: '',
     numeroFactura: '',
     condicionPago: 'CONTADO',
+    metodoPagoId: '',
     fechaVencimiento: '',
   })
   const [cargando, setCargando] = useState(true)
@@ -38,18 +41,21 @@ export default function PaginaCompras() {
   async function cargarDatos() {
     setCargando(true)
     try {
-      const [listaCompras, listaProductos, listaProveedores, listaCategorias, listaImpuestos] = await Promise.all([
+      const [listaCompras, listaProductos, listaProveedores, listaCategorias, listaImpuestos, listaMetodosPago] = await Promise.all([
         listarCompras(),
         clienteApi.get('/catalogo/productos/?activo=true'),
         clienteApi.get('/catalogo/proveedores/?activo=true'),
         clienteApi.get('/catalogo/categorias/?activa=true'),
         clienteApi.get('/catalogo/impuestos/'),
+        listarMetodosPago(),
       ])
       setCompras(listaCompras)
       setProductos(Array.isArray(listaProductos.data) ? listaProductos.data : listaProductos.data.results ?? [])
       setProveedores(Array.isArray(listaProveedores.data) ? listaProveedores.data : listaProveedores.data.results ?? [])
       setCategorias(Array.isArray(listaCategorias.data) ? listaCategorias.data : listaCategorias.data.results ?? [])
       setImpuestos(Array.isArray(listaImpuestos.data) ? listaImpuestos.data : listaImpuestos.data.results ?? [])
+      setMetodosPago(listaMetodosPago)
+      setDatos((actual) => ({ ...actual, metodoPagoId: actual.metodoPagoId || String(listaMetodosPago[0]?.id ?? '') }))
     } catch (err) {
       setError(err.response?.data?.detail ?? 'No fue posible cargar los datos de compras.')
     } finally {
@@ -89,6 +95,7 @@ export default function PaginaCompras() {
         proveedor_id: Number(datos.proveedorId),
         numero_factura: datos.numeroFactura,
         condicion_pago: datos.condicionPago,
+        metodo_pago_id: datos.condicionPago === 'CONTADO' ? Number(datos.metodoPagoId) : null,
         fecha_vencimiento: datos.fechaVencimiento || null,
         estado: 'RECIBIDA',
         detalles,
@@ -107,7 +114,7 @@ export default function PaginaCompras() {
     <div className="flex flex-col gap-5">
       <header>
         <h1 className="text-titulo font-bold text-azul-950">Compras</h1>
-        <p className="mt-1 text-sm text-azul-500">Registro de mercancía recibida y nuevos productos</p>
+        <p className="mt-1 text-sm text-azul-500">Registro de mercancía recibida y nuevos productos. El IVA seleccionado es informativo y no modifica el total de la compra.</p>
       </header>
 
       {error && <Aviso>{error}</Aviso>}
@@ -143,6 +150,15 @@ export default function PaginaCompras() {
                 onChange={(e) => setDatos({ ...datos, fechaVencimiento: e.target.value })}
                 className="h-10 rounded-lg border border-azul-200 px-3 text-sm"
               />
+            </label>
+          )}
+          {datos.condicionPago === 'CONTADO' && (
+            <label className="flex flex-col gap-1 text-xs font-semibold text-azul-700">
+              Medio de pago
+              <select required value={datos.metodoPagoId} onChange={(e) => setDatos({ ...datos, metodoPagoId: e.target.value })} className="h-10 rounded-lg border border-azul-200 px-3 text-sm">
+                <option value="">Seleccione...</option>
+                {metodosPago.map((metodo) => <option key={metodo.id} value={metodo.id}>{metodo.nombre}</option>)}
+              </select>
             </label>
           )}
         </div>

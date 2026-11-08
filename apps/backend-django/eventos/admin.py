@@ -15,7 +15,7 @@ from .models import (
 
 @admin.register(Evento)
 class EventoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "negocio", "ubicacion", "fecha_inicio", "fecha_fin", "estado")
+    list_display = ("nombre", "negocio", "tipo_espacio", "fecha_inicio", "fecha_fin", "estado")
     list_filter = ("negocio", "estado", "tipo_espacio")
     search_fields = ("nombre",)
     date_hierarchy = "fecha_inicio"

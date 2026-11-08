@@ -1,7 +1,7 @@
 """Distribución: el canal mayorista.
 
 Venta a tiendas, normalmente con crédito. Mismo catálogo que el bar, otro
-precio (`producto.precio_mayorista`).
+precio (`producto.precio_venta`).
 
 Tres tablas:
 

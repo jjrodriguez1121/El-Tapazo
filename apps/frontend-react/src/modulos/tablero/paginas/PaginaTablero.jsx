@@ -10,13 +10,16 @@ import ProductosMasVendidos from '../componentes/ProductosMasVendidos'
 import TarjetaDeIndicador from '../componentes/TarjetaDeIndicador'
 import PanelDelTablero from '../componentes/PanelDelTablero'
 import { clienteApi } from '@/librerias/clienteApi'
-import {
-  ALERTAS_DE_STOCK,
-  INDICADORES,
-  PEDIDOS_RECIENTES,
-  PRODUCTOS_MAS_VENDIDOS,
-  VENTAS_DE_LA_SEMANA,
-} from '../utilidades/datosDeEjemplo'
+const INDICADORES = [
+  { id: 'ventas', etiqueta: 'Ventas de hoy', valor: 0, esDinero: true, variacion: 0 },
+  { id: 'productos', etiqueta: 'Productos', valor: 0, variacion: 0 },
+  { id: 'pedidos', etiqueta: 'Pedidos', valor: 0, variacion: 0 },
+  { id: 'stock-bajo', etiqueta: 'Stock bajo', valor: 0, variacion: 0 },
+]
+const VENTAS_DE_LA_SEMANA = { dias: [], total: 0 }
+const PRODUCTOS_MAS_VENDIDOS = []
+const ALERTAS_DE_STOCK = []
+const PEDIDOS_RECIENTES = []
 
 // Cómo se ve cada indicador. Es de la pantalla, no del dato: sigue igual cuando
 // las cifras lleguen del backend.

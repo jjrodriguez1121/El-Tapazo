@@ -44,8 +44,7 @@ def bodega(negocio):
         cantidad_disponible=Decimal("100.00"),
         producto=FabricaDeProducto(
             negocio=negocio,
-            precio_evento=Decimal("5000.00"),
-            precio_mayorista=Decimal("3500.00"),
+            precio_venta=Decimal("5000.00"),
         ),
     )
 

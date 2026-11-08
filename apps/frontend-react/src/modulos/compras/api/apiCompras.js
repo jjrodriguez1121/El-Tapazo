@@ -10,3 +10,7 @@ export async function crearCompra(datos) {
   return data
 }
 
+export async function registrarAbonoCompra(cuentaId, datos) {
+  const { data } = await clienteApi.post(`/compras/cuentas-por-pagar/${cuentaId}/abonos/`, datos)
+  return data
+}

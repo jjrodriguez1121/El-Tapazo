@@ -1,9 +1,7 @@
 """Catálogo: qué vende el negocio, de qué tipo y a quién se lo compra.
 
-Cuatro tablas: `categorias` clasifica, `proveedores` son las empresas a las
-que se compra, `productos` es lo que se vende y `productos_proveedores` une
-esas dos últimas, porque un mismo producto se le puede comprar a varios
-proveedores a precios distintos.
+`categorias` clasifica, `proveedores` son las empresas a las que se compra
+y `productos` es lo que se vende.
 """
 
 from decimal import Decimal
@@ -78,7 +76,7 @@ class Proveedor(ModeloDelNegocio):
     """Empresa a la que el negocio le compra mercancía.
 
     No es un usuario ni un cliente: no entra al sistema y no se le vende, se
-    le compra. Su relación con los productos vive en `productos_proveedores`.
+    le compra. Cada compra registra por separado el proveedor y el producto.
     """
 
     # Se redeclara el campo heredado solo para que la relación inversa se lea
@@ -145,22 +143,13 @@ class Producto(ModeloDelNegocio):
         null=True,
         blank=True,
     )
-    proveedores = models.ManyToManyField(
-        "catalogo.Proveedor",
-        through="catalogo.ProductoProveedor",
-        related_name="productos",
-        verbose_name="proveedores",
-        blank=True,
-    )
-
     costo = models.DecimalField(
         "costo",
         max_digits=12,
         decimal_places=2,
         default=0,
         help_text=(
-            "Costo de referencia con el que se calcula el margen. Lo que cobra "
-            "cada proveedor va en productos_proveedores."
+            "Costo vigente del producto."
         ),
     )
     precio_venta = models.DecimalField("precio de venta", max_digits=12, decimal_places=2)
@@ -212,73 +201,3 @@ class Producto(ModeloDelNegocio):
 
     def __str__(self) -> str:
         return f"{self.sku} — {self.nombre}"
-
-
-class ProductoProveedor(ModeloDelNegocio):
-    """A cuánto le vende cada proveedor este producto al negocio.
-
-    Existe como tabla propia, y no como una simple clave foránea en
-    `productos`, porque el mismo producto se le compra a varios proveedores a
-    precios distintos: es justo lo que hay que comparar antes de reponer.
-    """
-
-    # Igual que en `Proveedor`: solo para que la inversa se lea en español.
-    negocio = models.ForeignKey(
-        "negocios.Negocio",
-        on_delete=models.PROTECT,
-        related_name="productos_proveedores",
-        verbose_name="negocio",
-    )
-
-    producto = models.ForeignKey(
-        "catalogo.Producto",
-        on_delete=models.CASCADE,
-        related_name="ofertas_de_proveedor",
-        verbose_name="producto",
-    )
-    proveedor = models.ForeignKey(
-        "catalogo.Proveedor",
-        on_delete=models.PROTECT,
-        related_name="ofertas_de_producto",
-        verbose_name="proveedor",
-    )
-
-    precio_compra = models.DecimalField("precio de compra", max_digits=12, decimal_places=2)
-    codigo_proveedor = models.CharField(
-        "código del proveedor",
-        max_length=50,
-        blank=True,
-        help_text="Referencia con la que el proveedor identifica el producto en su catálogo.",
-    )
-    es_principal = models.BooleanField(
-        "es el proveedor habitual",
-        default=False,
-        help_text="Solo uno por producto: al que se le compra por defecto.",
-    )
-
-    class Meta:
-        db_table = "productos_proveedores"
-        ordering = ["producto", "-es_principal", "precio_compra"]
-        verbose_name = "producto por proveedor"
-        verbose_name_plural = "productos por proveedor"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["producto", "proveedor"],
-                name="producto_proveedor_sin_repetir",
-                violation_error_message="Ese proveedor ya está registrado para este producto.",
-            ),
-            models.UniqueConstraint(
-                fields=["producto"],
-                condition=models.Q(es_principal=True),
-                name="producto_con_un_solo_proveedor_principal",
-                violation_error_message="El producto ya tiene un proveedor habitual.",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(precio_compra__gte=0),
-                name="producto_proveedor_precio_no_negativo",
-                violation_error_message="El precio de compra no puede ser negativo.",
-            ),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.producto} ← {self.proveedor}"

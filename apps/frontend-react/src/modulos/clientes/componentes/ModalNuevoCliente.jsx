@@ -9,6 +9,7 @@ import {
   validarObligatorio,
   validarTelefono,
 } from '@/utilidades/validaciones'
+import { CIUDADES_PRINCIPALES_COLOMBIA } from '@/utilidades/ciudades'
 
 function CampoCliente({ etiqueta, id, error = '', className = '', ...props }) {
   return (
@@ -43,6 +44,7 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     segmento: 'tienda',
   })
   const [errores, setErrores] = useState({})
+  const [errorGuardado, setErrorGuardado] = useState('')
   const esEstablecimiento = datos.tipo === 'establecimiento'
 
   function cambiar(campo, valor) {
@@ -50,7 +52,7 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     setErrores((actuales) => ({ ...actuales, [campo]: '' }))
   }
 
-  function enviar(evento) {
+  async function enviar(evento) {
     evento.preventDefault()
     const nombre = datos.nombre.trim()
     const telefono = datos.telefono.trim()
@@ -81,7 +83,8 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     setErrores(nuevosErrores)
     if (Object.values(nuevosErrores).some(Boolean)) return
 
-    alCrear({
+    try {
+      await alCrear({
       id: `cliente-local-${Date.now()}`,
       tipo: datos.tipo,
       nombre,
@@ -95,7 +98,10 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
       segmento: esEstablecimiento ? datos.segmento : '',
       saldoPendiente: 0,
     })
-    alCerrar()
+      alCerrar()
+    } catch {
+      setErrorGuardado('No fue posible guardar el cliente. Revisa los datos e inténtalo nuevamente.')
+    }
   }
 
   return (
@@ -251,21 +257,27 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
               onChange={(evento) => cambiar('correo', evento.target.value)}
               error={errores.correo}
             />
-            <CampoCliente
-              id={`${id}-ciudad`}
-              etiqueta="Ciudad"
-              name="ciudad"
-              autoComplete="address-level2"
-              maxLength={100}
-              placeholder="Opcional"
-              value={datos.ciudad}
-              onChange={(evento) => cambiar('ciudad', evento.target.value)}
-            />
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor={`${id}-ciudad`} className="text-xs font-semibold text-azul-600">Ciudad</label>
+              <select
+                id={`${id}-ciudad`}
+                name="ciudad"
+                value={datos.ciudad}
+                onChange={(evento) => cambiar('ciudad', evento.target.value)}
+                className="h-10 w-full rounded-lg border border-azul-200 bg-blanco px-3 text-sm text-azul-950 outline-none focus:border-azul-600 focus:ring-3 focus:ring-azul-600/15"
+              >
+                <option value="">Seleccione una ciudad...</option>
+                {CIUDADES_PRINCIPALES_COLOMBIA.map((ciudad) => (
+                  <option key={ciudad} value={ciudad}>{ciudad}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {Object.values(errores).some(Boolean) && (
             <Aviso>Revisa los campos marcados antes de guardar.</Aviso>
           )}
+          {errorGuardado && <Aviso>{errorGuardado}</Aviso>}
 
           <footer className="flex justify-end gap-2">
             <button

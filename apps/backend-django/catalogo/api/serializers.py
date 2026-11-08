@@ -8,7 +8,7 @@ repetido, que la categoría sea de este negocio— viven en `servicios/`.
 
 from rest_framework import serializers
 
-from catalogo.models import Categoria, Impuesto, Producto, ProductoProveedor, Proveedor
+from catalogo.models import Categoria, Impuesto, Producto, Proveedor
 
 
 # --------------------------------------------------------------------------- #
@@ -137,28 +137,3 @@ class MargenDeVentaOutputSerializer(serializers.Serializer):
     precio_venta = serializers.DecimalField(max_digits=12, decimal_places=2)
     margen = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
 
-
-# --------------------------------------------------------------------------- #
-# Precios de proveedor
-# --------------------------------------------------------------------------- #
-class OfertaInputSerializer(serializers.Serializer):
-    proveedor_id = serializers.IntegerField()
-    precio_compra = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
-    codigo_proveedor = serializers.CharField(
-        max_length=50, required=False, allow_blank=True, default=""
-    )
-    es_principal = serializers.BooleanField(required=False, default=False)
-
-
-class ProveedorAnidadoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Proveedor
-        fields = ("id", "razon_social")
-
-
-class OfertaOutputSerializer(serializers.ModelSerializer):
-    proveedor = ProveedorAnidadoSerializer(read_only=True)
-
-    class Meta:
-        model = ProductoProveedor
-        fields = ("id", "proveedor", "precio_compra", "codigo_proveedor", "es_principal")

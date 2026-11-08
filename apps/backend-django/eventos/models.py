@@ -752,7 +752,7 @@ class PagoEvento(ModeloDelNegocio):
     recibido_por = models.ForeignKey(
         "usuarios.Usuario",
         on_delete=models.PROTECT,
-        related_name="pagos_recibidos",
+        related_name="pagos_evento_recibidos",
         verbose_name="recibido por",
     )
     fecha = models.DateTimeField(

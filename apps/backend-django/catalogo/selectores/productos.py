@@ -10,9 +10,8 @@ from decimal import Decimal
 from django.db.models import QuerySet
 
 from catalogo.dtos import MargenDeVentaDTO
-from catalogo.models import Categoria, Producto, ProductoProveedor, Proveedor
+from catalogo.models import Categoria, Producto, Proveedor
 from catalogo.repositorios import categorias as repositorio_de_categorias
-from catalogo.repositorios import ofertas as repositorio_de_ofertas
 from catalogo.repositorios import productos as repositorio
 from catalogo.repositorios import proveedores as repositorio_de_proveedores
 from catalogo.validadores import normalizar_sku
@@ -77,22 +76,6 @@ def obtener_proveedor(*, proveedor_id: int, negocio_id: int) -> Proveedor:
 
 def proveedores_del_negocio(*, negocio_id: int) -> QuerySet[Proveedor]:
     return repositorio_de_proveedores.del_negocio(negocio_id=negocio_id)
-
-
-def comparar_precios_de_proveedores(
-    *, producto_id: int, negocio_id: int
-) -> QuerySet[ProductoProveedor]:
-    """A cuánto vende cada proveedor este producto, del más barato al más caro.
-
-    Es el motivo por el que `productos_proveedores` existe: con una sola clave
-    foránea en `productos` no habría nada que comparar antes de reponer.
-    """
-    obtener_producto(producto_id=producto_id, negocio_id=negocio_id)
-    return (
-        repositorio_de_ofertas.de_un_producto(producto_id=producto_id, negocio_id=negocio_id)
-        .select_related("proveedor")
-        .order_by("precio_compra")
-    )
 
 
 def margen_de_venta(*, producto_id: int, negocio_id: int) -> MargenDeVentaDTO:

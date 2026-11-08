@@ -38,6 +38,7 @@ class Cliente(ModeloDelNegocio):
         CEDULA_EXTRANJERIA = "cedula_extranjeria", "Cédula de extranjería"
         PASAPORTE = "pasaporte", "Pasaporte"
         TARJETA_IDENTIDAD = "tarjeta_identidad", "Tarjeta de identidad"
+        NIT = "nit", "NIT"
 
     tipo_documento = models.CharField(
         "tipo de documento",
@@ -47,11 +48,14 @@ class Cliente(ModeloDelNegocio):
     )
     numero_documento = models.CharField("número de documento", max_length=30)
     nombre = models.CharField("nombre", max_length=120)
-    apellido = models.CharField("apellido", max_length=120)
+    apellido = models.CharField("apellido", max_length=120, blank=True)
     direccion = models.CharField("dirección", max_length=255, blank=True)
+    ciudad = models.CharField("ciudad", max_length=100, blank=True)
     fecha_nacimiento = models.DateField(
         "fecha de nacimiento",
         help_text="Se guarda la fecha y no la edad: la edad cambia sola cada año.",
+        null=True,
+        blank=True,
     )
     telefono = models.CharField("teléfono", max_length=20, blank=True)
     correo = models.EmailField("correo", max_length=150, blank=True)
@@ -77,7 +81,8 @@ class Cliente(ModeloDelNegocio):
             # restricción se evalúa al insertar, y quien hoy tiene 17 mañana
             # tiene 18.
             models.CheckConstraint(
-                condition=models.Q(fecha_nacimiento__gt=FECHA_NACIMIENTO_MINIMA),
+                condition=models.Q(fecha_nacimiento__isnull=True)
+                | models.Q(fecha_nacimiento__gt=FECHA_NACIMIENTO_MINIMA),
                 name="cliente_fecha_nacimiento_razonable",
                 violation_error_message="La fecha de nacimiento no es una fecha válida.",
             ),
@@ -102,6 +107,8 @@ class Cliente(ModeloDelNegocio):
     @property
     def edad(self) -> int:
         """Años cumplidos hoy, calculados sobre la fecha de nacimiento."""
+        if self.fecha_nacimiento is None:
+            return None
         hoy = timezone.localdate()
         cumplio_este_ano = (hoy.month, hoy.day) >= (
             self.fecha_nacimiento.month,
@@ -114,4 +121,4 @@ class Cliente(ModeloDelNegocio):
         """**Avisa, no bloquea.** La cuenta se abre igual y la pantalla lo pinta
         en rojo: quien decide si se le vende es la persona de la barra, no el
         sistema (decisión 7 del plan de negocio)."""
-        return self.edad < MAYORIA_DE_EDAD
+        return self.edad is not None and self.edad < MAYORIA_DE_EDAD

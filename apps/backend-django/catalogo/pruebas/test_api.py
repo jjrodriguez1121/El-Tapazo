@@ -89,7 +89,7 @@ def test_desactivar_un_producto_de_otro_negocio_devuelve_404(
 # --------------------------------------------------------------------------- #
 # Productos
 # --------------------------------------------------------------------------- #
-def test_crear_un_producto_devuelve_201_con_su_categoria(
+def test_crear_un_producto_directamente_esta_prohibido(
     cliente_api_autenticado, administrador, negocio
 ):
     categoria = FabricaDeCategoria(negocio=negocio)
@@ -101,18 +101,15 @@ def test_crear_un_producto_devuelve_201_con_su_categoria(
             "nombre": "Cerveza Águila",
             "categoria_id": categoria.id,
             "costo": "2000.00",
-            "precio_evento": "5000.00",
-            "precio_mayorista": "3500.00",
+            "precio_venta": "5000.00",
         },
         format="json",
     )
 
-    assert respuesta.status_code == 201
-    assert respuesta.data["sku"] == "CER-001"
-    assert respuesta.data["categoria"]["nombre"] == categoria.nombre
+    assert respuesta.status_code == 403
 
 
-def test_crear_un_producto_con_sku_mal_formado_devuelve_400(
+def test_no_se_valida_un_sku_si_la_creacion_directa_esta_prohibida(
     cliente_api_autenticado, administrador, negocio
 ):
     categoria = FabricaDeCategoria(negocio=negocio)
@@ -124,17 +121,17 @@ def test_crear_un_producto_con_sku_mal_formado_devuelve_400(
             "nombre": "Cerveza",
             "categoria_id": categoria.id,
             "costo": "2000.00",
-            "precio_evento": "5000.00",
-            "precio_mayorista": "3500.00",
+            "precio_venta": "5000.00",
         },
         format="json",
     )
 
-    assert respuesta.status_code == 400
-    assert respuesta.data["error"]["codigo"] == "formato_sku_invalido"
+    assert respuesta.status_code == 403
 
 
-def test_el_sku_repetido_devuelve_409(cliente_api_autenticado, administrador, negocio):
+def test_no_se_valida_sku_repetido_si_la_creacion_directa_esta_prohibida(
+    cliente_api_autenticado, administrador, negocio
+):
     categoria = FabricaDeCategoria(negocio=negocio)
     FabricaDeProducto(negocio=negocio, categoria=categoria, sku="CER-001")
 
@@ -145,29 +142,27 @@ def test_el_sku_repetido_devuelve_409(cliente_api_autenticado, administrador, ne
             "nombre": "Otra",
             "categoria_id": categoria.id,
             "costo": "2000.00",
-            "precio_evento": "5000.00",
-            "precio_mayorista": "3500.00",
+            "precio_venta": "5000.00",
         },
         format="json",
     )
 
-    assert respuesta.status_code == 409
-    assert respuesta.data["error"]["codigo"] == "sku_duplicado"
+    assert respuesta.status_code == 403
 
 
 def test_cambiar_el_precio_devuelve_el_producto_ya_cambiado(
     cliente_api_autenticado, administrador, negocio
 ):
-    producto = FabricaDeProducto(negocio=negocio, precio_evento=Decimal("5000.00"))
+    producto = FabricaDeProducto(negocio=negocio, precio_venta=Decimal("5000.00"))
 
     respuesta = cliente_api_autenticado(administrador).post(
         reverse("catalogo:producto-precio", args=[producto.id]),
-        {"precio_evento": "6000.00"},
+        {"precio_venta": "6000.00"},
         format="json",
     )
 
     assert respuesta.status_code == 200
-    assert respuesta.data["precio_evento"] == "6000.00"
+    assert respuesta.data["precio_venta"] == "6000.00"
 
 
 def test_el_cuerpo_vacio_no_es_un_cambio_de_precio(cliente_api_autenticado, administrador, negocio):
@@ -184,7 +179,7 @@ def test_el_cuerpo_vacio_no_es_un_cambio_de_precio(cliente_api_autenticado, admi
 def test_el_margen_es_nulo_cuando_el_costo_es_cero(cliente_api_autenticado, administrador, negocio):
     """Sin costo no hay margen: contestar 0 % sería inventárselo."""
     producto = FabricaDeProducto(
-        negocio=negocio, costo=Decimal("0.00"), precio_evento=Decimal("5000.00")
+        negocio=negocio, costo=Decimal("0.00"), precio_venta=Decimal("5000.00")
     )
 
     respuesta = cliente_api_autenticado(administrador).get(
@@ -192,21 +187,21 @@ def test_el_margen_es_nulo_cuando_el_costo_es_cero(cliente_api_autenticado, admi
     )
 
     assert respuesta.status_code == 200
-    assert respuesta.data["margen_evento"] is None
+    assert respuesta.data["margen"] is None
 
 
 def test_el_margen_sale_en_porcentaje_sobre_el_costo(
     cliente_api_autenticado, administrador, negocio
 ):
     producto = FabricaDeProducto(
-        negocio=negocio, costo=Decimal("2000.00"), precio_evento=Decimal("5000.00")
+        negocio=negocio, costo=Decimal("2000.00"), precio_venta=Decimal("5000.00")
     )
 
     respuesta = cliente_api_autenticado(administrador).get(
         reverse("catalogo:producto-margen", args=[producto.id])
     )
 
-    assert respuesta.data["margen_evento"] == "150.00"
+    assert respuesta.data["margen"] == "150.00"
 
 
 def test_la_busqueda_mira_el_nombre_y_el_sku(cliente_api_autenticado, administrador, negocio):
@@ -217,23 +212,6 @@ def test_la_busqueda_mira_el_nombre_y_el_sku(cliente_api_autenticado, administra
 
     assert respuesta.data["count"] == 1
     assert respuesta.data["results"][0]["nombre"] == "Ron Viejo"
-
-
-def test_comparar_precios_de_proveedores_sale_del_mas_barato_al_mas_caro(
-    cliente_api_autenticado, administrador, negocio
-):
-    producto = FabricaDeProducto(negocio=negocio)
-    caro = FabricaDeProveedor(negocio=negocio)
-    barato = FabricaDeProveedor(negocio=negocio)
-    url = reverse("catalogo:producto-proveedores", args=[producto.id])
-    cliente = cliente_api_autenticado(administrador)
-    cliente.post(url, {"proveedor_id": caro.id, "precio_compra": "1900.00"}, format="json")
-    cliente.post(url, {"proveedor_id": barato.id, "precio_compra": "1700.00"}, format="json")
-
-    respuesta = cliente.get(url)
-
-    assert respuesta.status_code == 200
-    assert [oferta["precio_compra"] for oferta in respuesta.data] == ["1700.00", "1900.00"]
 
 
 # --------------------------------------------------------------------------- #

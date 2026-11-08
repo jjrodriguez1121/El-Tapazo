@@ -44,7 +44,7 @@ def barra(negocio):
     return FabricaDeExistencia(
         negocio=negocio,
         cantidad_disponible=Decimal("100.00"),
-        producto=FabricaDeProducto(negocio=negocio, precio_evento=Decimal("5000.00")),
+        producto=FabricaDeProducto(negocio=negocio, precio_venta=Decimal("5000.00")),
     )
 
 
@@ -247,8 +247,8 @@ def test_subir_el_precio_manana_no_cambia_la_comanda_de_hoy(
     negocio, jornada, mesero, barra, cuenta
 ):
     pedido = _pedir(negocio, jornada, mesero, barra, cuenta.id)
-    barra.producto.precio_evento = Decimal("9000.00")
-    barra.producto.save(update_fields=["precio_evento"])
+    barra.producto.precio_venta = Decimal("9000.00")
+    barra.producto.save(update_fields=["precio_venta"])
 
     assert pedido.detalles.get().precio_unitario == Decimal("5000.00")
     assert consumo_de_una_cuenta(cliente_evento_id=cuenta.id, negocio_id=negocio.id) == Decimal(

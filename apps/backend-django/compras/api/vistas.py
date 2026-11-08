@@ -8,9 +8,10 @@ from rest_framework.response import Response
 
 from catalogo.models import Categoria, Impuesto, Producto, Proveedor
 from compras.api.serializers import CompraCrearSerializer, CompraOutputSerializer
-from compras.models import Compra, CuentaPorPagar, DetalleCompra
+from compras.models import Compra, CuentaPorPagar, DetalleCompra, PagoCompra
 from inventario.models import Existencia, MovimientoInventario
 from nucleo.permisos import EsAdministrador
+from ventas.models import MetodoPago
 
 
 @api_view(["GET", "POST"])
@@ -134,7 +135,9 @@ def _crear_compra(*, request, datos):
     compra.subtotal = subtotal
     compra.descuento = descuento_total
     compra.total_iva = iva_total
-    compra.total = subtotal - descuento_total + iva_total
+    # El IVA de la compra es informativo. La tarifa se conserva para futuras
+    # ventas, pero el impuesto no se suma al valor pagado por la mercancía.
+    compra.total = subtotal
     compra.save(update_fields=["subtotal", "descuento", "total_iva", "total", "actualizado_en"])
     if compra.condicion_pago == "CREDITO":
         CuentaPorPagar.objects.create(
@@ -144,7 +147,55 @@ def _crear_compra(*, request, datos):
             total=compra.total,
             saldo=compra.total,
         )
+    else:
+        metodo_pago = MetodoPago.objects.filter(
+            id=datos["metodo_pago_id"], negocio_id=negocio_id, estado=True
+        ).first()
+        if metodo_pago is None:
+            raise ValidationError({"metodo_pago_id": "Seleccione un medio de pago válido."})
+        PagoCompra.objects.create(
+            negocio_id=negocio_id,
+            compra=compra,
+            metodo_pago=metodo_pago,
+            usuario=request.user,
+            valor=compra.total,
+        )
     return CompraOutputSerializer(compra).data
+
+
+@api_view(["POST"])
+@permission_classes([EsAdministrador])
+@transaction.atomic
+def registrar_abono_cuenta_por_pagar(request, cuenta_id):
+    cuenta = CuentaPorPagar.objects.select_for_update().filter(
+        id=cuenta_id, negocio_id=request.user.negocio_id
+    ).first()
+    if cuenta is None:
+        raise ValidationError({"detail": "Cuenta por pagar no encontrada."})
+    try:
+        monto = Decimal(str(request.data["monto"]))
+        metodo_pago = MetodoPago.objects.get(
+            id=int(request.data["metodo_pago_id"]),
+            negocio_id=request.user.negocio_id,
+            estado=True,
+        )
+    except (KeyError, TypeError, ValueError, MetodoPago.DoesNotExist):
+        raise ValidationError({"detail": "Monto y medio de pago válidos son requeridos."})
+    if monto <= 0 or monto > cuenta.saldo:
+        raise ValidationError({"monto": "El abono debe ser mayor que cero y no superar el saldo."})
+
+    PagoCompra.objects.create(
+        negocio_id=request.user.negocio_id,
+        compra=cuenta.compra,
+        metodo_pago=metodo_pago,
+        usuario=request.user,
+        valor=monto,
+        referencia=str(request.data.get("referencia", "")),
+    )
+    cuenta.saldo -= monto
+    cuenta.estado = CuentaPorPagar.Estado.PAGADA if cuenta.saldo == 0 else CuentaPorPagar.Estado.PARCIAL
+    cuenta.save(update_fields=["saldo", "estado", "actualizado_en"])
+    return Response({"id": cuenta.id, "saldo": cuenta.saldo, "estado": cuenta.estado}, status=201)
 
 
 def _obtener_o_crear_producto(*, negocio_id, datos):

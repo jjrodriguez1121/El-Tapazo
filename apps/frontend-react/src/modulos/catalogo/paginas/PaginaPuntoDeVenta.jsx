@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ImageIcon,
   MinusIcon,
@@ -12,10 +12,12 @@ import {
 import Aviso from '@/componentes/ui/Aviso'
 import { formatearCantidad, formatearPesos } from '@/utilidades/formatos'
 import { mensajeDeError } from '@/utilidades/errores'
+import { clienteApi } from '@/librerias/clienteApi'
+import { crearVenta, listarMetodosPago } from '@/modulos/ventas/api/apiVentas'
+import ModalNuevoCliente from '@/modulos/clientes/componentes/ModalNuevoCliente'
 
 import EsqueletoDeProductos from '../componentes/EsqueletoDeProductos'
 import { useCatalogoDeProductos } from '../hooks/useCatalogoDeProductos'
-import { CATEGORIAS_DE_EJEMPLO, PRODUCTOS_DE_EJEMPLO } from '../utilidades/datosDeEjemplo'
 
 function ImagenProducto({ producto }) {
   return producto.imagen ? (
@@ -37,6 +39,26 @@ export default function PaginaPuntoDeVenta() {
   const [carrito, setCarrito] = useState([])
   const [porcentajeDescuento, setPorcentajeDescuento] = useState('5')
   const [avisoCobro, setAvisoCobro] = useState('')
+  const [tipoPago, setTipoPago] = useState('contado')
+  const [metodoPago, setMetodoPago] = useState('')
+  const [clienteId, setClienteId] = useState('')
+  const [fechaVencimiento, setFechaVencimiento] = useState('')
+  const [clientes, setClientes] = useState([])
+  const [modalClienteAbierto, setModalClienteAbierto] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [metodosPago, setMetodosPago] = useState([])
+
+  useEffect(() => {
+    clienteApi.get('/clientes/')
+      .then(({ data }) => setClientes(Array.isArray(data) ? data : data.results ?? []))
+      .catch(() => setClientes([]))
+    listarMetodosPago()
+      .then((metodos) => {
+        setMetodosPago(metodos)
+        setMetodoPago(String(metodos[0]?.id ?? ''))
+      })
+      .catch(() => setMetodosPago([]))
+  }, [])
 
   if (catalogo.isPending) return <EsqueletoDeProductos />
 
@@ -57,12 +79,9 @@ export default function PaginaPuntoDeVenta() {
   }
 
   const { productos: productosApi, categorias: categoriasApi, existencias: existenciasApi } = catalogo.data
-  const usandoEjemplos = productosApi.length === 0
-  const productos = usandoEjemplos ? PRODUCTOS_DE_EJEMPLO : productosApi
-  const categorias = usandoEjemplos ? CATEGORIAS_DE_EJEMPLO : categoriasApi
-  const existencias = usandoEjemplos
-    ? PRODUCTOS_DE_EJEMPLO.flatMap((producto) => producto.existencias)
-    : existenciasApi
+  const productos = productosApi
+  const categorias = categoriasApi
+  const existencias = existenciasApi
   const existenciasPorProducto = new Map()
 
   for (const existencia of existencias) {
@@ -140,8 +159,52 @@ export default function PaginaPuntoDeVenta() {
     setAvisoCobro('')
   }
 
-  function cobrar() {
-    setAvisoCobro('El cobro e impresión se conectarán cuando se integre el flujo de ventas.')
+  async function crearCliente(cliente) {
+    const partesNombre = cliente.nombre.trim().split(/\s+/)
+    const nombre = partesNombre.shift() ?? ''
+    const apellido = partesNombre.join(' ')
+    const esEstablecimiento = cliente.tipoDocumento.toLowerCase() === 'nit'
+    const { data } = await clienteApi.post('/clientes/', {
+      tipo_documento: cliente.tipoDocumento.toLowerCase(),
+      numero_documento: cliente.documento,
+      nombre: esEstablecimiento ? cliente.nombre.trim() : nombre,
+      apellido: esEstablecimiento ? '' : apellido,
+      fecha_nacimiento: cliente.fechaNacimiento || null,
+      telefono: cliente.telefono,
+      correo: cliente.correo,
+      ciudad: cliente.ciudad,
+    })
+    setClientes((actuales) => [...actuales, data])
+    setClienteId(String(data.id))
+  }
+
+  async function cobrar() {
+    if (tipoPago === 'credito' && (!clienteId || !fechaVencimiento)) {
+      setAvisoCobro('Seleccione el cliente y la fecha de vencimiento para una venta a crédito.')
+      return
+    }
+    setGuardando(true)
+    setAvisoCobro('')
+    try {
+      const venta = await crearVenta({
+        lineas: carrito.map((linea) => ({
+          producto_id: linea.producto.id,
+          cantidad: linea.cantidad,
+        })),
+        tipo_pago: tipoPago,
+        metodo_pago_id: tipoPago === 'contado' ? Number(metodoPago) : null,
+        cliente_id: clienteId ? Number(clienteId) : null,
+        fecha_vencimiento: tipoPago === 'credito' ? fechaVencimiento : null,
+        descuento_porcentaje: Number(porcentajeDescuento || 0),
+      })
+      setCarrito([])
+      await catalogo.refetch()
+      setAvisoCobro(`Venta ${venta.numero_venta} registrada por ${formatearPesos(Number(venta.total))}.`)
+    } catch (error) {
+      setAvisoCobro(mensajeDeError(error))
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
@@ -151,7 +214,6 @@ export default function PaginaPuntoDeVenta() {
           <h1 className="text-titulo font-bold text-azul-950">Punto de venta</h1>
           <p className="mt-1 text-xs font-medium text-azul-400">
             Agrega repuestos al carrito para registrar la venta
-            {usandoEjemplos && <span className="ml-2 text-alerta-700">Datos de ejemplo</span>}
           </p>
         </header>
 
@@ -344,13 +406,70 @@ export default function PaginaPuntoDeVenta() {
             <span className="text-sm font-bold text-azul-950">Total</span>
             <span className="text-sm font-bold text-azul-950">{formatearPesos(total)}</span>
           </div>
+          <div className="mt-3 grid gap-2">
+            <label className="text-[10px] font-bold text-azul-600">
+              Tipo de pago
+              <select value={tipoPago} onChange={(evento) => setTipoPago(evento.target.value)} className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs">
+                <option value="contado">Contado</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </label>
+            {tipoPago === 'contado' ? (
+              <label className="text-[10px] font-bold text-azul-600">
+                Medio de pago
+                <select value={metodoPago} onChange={(evento) => setMetodoPago(evento.target.value)} className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs">
+                  {metodosPago.map((metodo) => (
+                    <option key={metodo.id} value={metodo.id}>{metodo.nombre}</option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <label className="text-[10px] font-bold text-azul-600">
+              Cliente
+              <select
+                value={clienteId}
+                onChange={(evento) => {
+                  if (evento.target.value === 'nuevo') {
+                    setClienteId('')
+                    setModalClienteAbierto(true)
+                    return
+                  }
+                  setClienteId(evento.target.value)
+                }}
+                className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+              >
+                <option value="">Seleccione...</option>
+                {clientes.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id}>{cliente.nombre} {cliente.apellido}</option>
+                ))}
+                <option value="nuevo">+ Nuevo cliente</option>
+              </select>
+            </label>
+            {tipoPago === 'credito' && (
+                <label className="text-[10px] font-bold text-azul-600">
+                  Vencimiento
+                  <input type="date" value={fechaVencimiento} onChange={(evento) => setFechaVencimiento(evento.target.value)} className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs" />
+                </label>
+            )}
+          </div>
+          {modalClienteAbierto && (
+            <ModalNuevoCliente
+              alCerrar={() => setModalClienteAbierto(false)}
+              alCrear={crearCliente}
+              clientesExistentes={clientes.map((cliente) => ({
+                tipo: cliente.tipo_documento === 'nit' ? 'establecimiento' : 'persona',
+                tipoDocumento: cliente.tipo_documento,
+                documento: cliente.numero_documento,
+              }))}
+            />
+          )}
           <button
             type="button"
-            disabled={!carrito.length}
+            disabled={!carrito.length || guardando}
             onClick={cobrar}
             className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-azul-950 px-3 text-[10px] font-bold text-blanco hover:bg-azul-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-azul-600 disabled:cursor-not-allowed disabled:bg-azul-300"
           >
-            <PrinterIcon size={14} /> Cobrar e imprimir
+            <PrinterIcon size={14} /> {guardando ? 'Registrando...' : 'Cobrar e imprimir'}
           </button>
           {avisoCobro && <p role="status" className="mt-2 text-center text-[9px] text-azul-500">{avisoCobro}</p>}
         </section>

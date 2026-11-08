@@ -4,6 +4,8 @@ import { CalendarIcon, WalletIcon } from '@phosphor-icons/react'
 import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
 import { formatearFechaCorta, formatearPesos } from '@/utilidades/formatos'
+import { listarMetodosPago } from '@/modulos/ventas/api/apiVentas'
+import { registrarAbonoCompra } from '../api/apiCompras'
 
 const TONOS_ESTADO = {
   PENDIENTE: 'bg-alerta-50 text-alerta-700',
@@ -15,6 +17,7 @@ export default function PaginaCuentasPorPagar() {
   const [cuentas, setCuentas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [metodosPago, setMetodosPago] = useState([])
 
   async function cargarCuentas() {
     setCargando(true)
@@ -22,6 +25,7 @@ export default function PaginaCuentasPorPagar() {
     try {
       const { data } = await clienteApi.get('/compras/cuentas-por-pagar/')
       setCuentas(data)
+      setMetodosPago(await listarMetodosPago())
     } catch {
       setError('No fue posible cargar las cuentas por pagar.')
     } finally {
@@ -32,6 +36,21 @@ export default function PaginaCuentasPorPagar() {
   useEffect(() => {
     cargarCuentas()
   }, [])
+
+  async function registrarAbono(cuenta) {
+    const monto = window.prompt(`Monto del abono (saldo: ${formatearPesos(Number(cuenta.saldo))})`)
+    if (!monto) return
+    const opciones = metodosPago.map((metodo, indice) => `${indice + 1}. ${metodo.nombre}`).join('\n')
+    const seleccion = window.prompt(`Medio de pago:\n${opciones}`)
+    const metodo = metodosPago[Number(seleccion) - 1]
+    if (!metodo) return
+    try {
+      await registrarAbonoCompra(cuenta.id, { monto: Number(monto), metodo_pago_id: metodo.id })
+      await cargarCuentas()
+    } catch (err) {
+      setError(err.response?.data?.detail ?? 'No fue posible registrar el abono.')
+    }
+  }
 
   const totalPendiente = cuentas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
   const vencidas = cuentas.filter((cuenta) => cuenta.estado === 'VENCIDA')
@@ -78,6 +97,7 @@ export default function PaginaCuentasPorPagar() {
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-right">Saldo</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-center">Acción</th>
               </tr>
             </thead>
             <tbody>
@@ -96,6 +116,11 @@ export default function PaginaCuentasPorPagar() {
                     <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ESTADO[cuenta.estado] ?? TONOS_ESTADO.PENDIENTE}`}>
                       {cuenta.estado}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button type="button" onClick={() => registrarAbono(cuenta)} className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50">
+                      Registrar abono
+                    </button>
                   </td>
                 </tr>
               ))}

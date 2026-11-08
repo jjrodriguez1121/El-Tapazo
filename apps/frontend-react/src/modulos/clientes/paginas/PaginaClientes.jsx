@@ -1,25 +1,72 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MagnifyingGlassIcon, PlusIcon } from '@phosphor-icons/react'
 
 import ModalNuevoCliente from '../componentes/ModalNuevoCliente'
 import TarjetaDeCliente from '../componentes/TarjetaDeCliente'
-import { CLIENTES_DE_EJEMPLO } from '../utilidades/clientesDeEjemplo'
+import Aviso from '@/componentes/ui/Aviso'
+import { clienteApi } from '@/librerias/clienteApi'
+
+function adaptarCliente(cliente) {
+  const esEstablecimiento = cliente.tipo_documento === 'nit'
+  return {
+    ...cliente,
+    tipo: esEstablecimiento ? 'establecimiento' : 'persona',
+    nombre: cliente.nombre_completo || `${cliente.nombre ?? ''} ${cliente.apellido ?? ''}`.trim(),
+    documento: cliente.numero_documento,
+    fechaNacimiento: cliente.fecha_nacimiento,
+    tipoDocumento: cliente.tipo_documento,
+    saldoPendiente: 0,
+  }
+}
 
 export default function PaginaClientes() {
-  const [clientes, setClientes] = useState(CLIENTES_DE_EJEMPLO)
+  const [clientes, setClientes] = useState([])
   const [busqueda, setBusqueda] = useState('')
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+
+  async function cargarClientes() {
+    setCargando(true)
+    setError('')
+    try {
+      const { data } = await clienteApi.get('/clientes/')
+      setClientes((data.results ?? data).map(adaptarCliente))
+    } catch {
+      setError('No fue posible cargar los clientes.')
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  async function agregarCliente(cliente) {
+    const partesNombre = cliente.nombre.trim().split(/\s+/)
+    const nombre = partesNombre.shift() ?? ''
+    const apellido = partesNombre.join(' ')
+    const esEstablecimiento = cliente.tipoDocumento.toLowerCase() === 'nit'
+    const { data } = await clienteApi.post('/clientes/', {
+      tipo_documento: cliente.tipoDocumento.toLowerCase(),
+      numero_documento: cliente.documento,
+      nombre: esEstablecimiento ? cliente.nombre.trim() : nombre,
+      apellido: esEstablecimiento ? '' : apellido,
+      fecha_nacimiento: cliente.fechaNacimiento || null,
+      telefono: cliente.telefono,
+      correo: cliente.correo,
+      ciudad: cliente.ciudad,
+    })
+    setClientes((actuales) => [adaptarCliente(data), ...actuales])
+  }
+
+  useEffect(() => {
+    cargarClientes()
+  }, [])
 
   const textoBusqueda = busqueda.trim().toLocaleLowerCase('es-CO')
   const clientesFiltrados = clientes.filter((cliente) =>
-    [cliente.nombre, cliente.telefono, cliente.documento, cliente.contacto, cliente.correo, cliente.ciudad, cliente.segmento]
+    [cliente.nombre, cliente.telefono, cliente.documento, cliente.correo]
       .filter(Boolean)
       .some((dato) => dato.toLocaleLowerCase('es-CO').includes(textoBusqueda))
   )
-
-  function agregarCliente(cliente) {
-    setClientes((actuales) => [cliente, ...actuales])
-  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -38,6 +85,8 @@ export default function PaginaClientes() {
           <PlusIcon size={17} weight="bold" /> Nuevo cliente
         </button>
       </header>
+
+      {error && <Aviso>{error}</Aviso>}
 
       <label className="relative block max-w-md">
         <MagnifyingGlassIcon
@@ -59,7 +108,12 @@ export default function PaginaClientes() {
         {clientesFiltrados.map((cliente) => (
           <TarjetaDeCliente key={cliente.id} cliente={cliente} />
         ))}
-        {!clientesFiltrados.length && (
+        {cargando && (
+          <p className="col-span-full px-4 py-10 text-center text-sm text-azul-400">
+            Cargando clientes...
+          </p>
+        )}
+        {!cargando && !clientesFiltrados.length && (
           <p className="col-span-full rounded-xl border border-dashed border-azul-200 bg-blanco px-4 py-10 text-center text-sm text-azul-500">
             No hay clientes que coincidan con la búsqueda.
           </p>

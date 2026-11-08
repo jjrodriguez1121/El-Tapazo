@@ -39,6 +39,7 @@ class CompraCrearSerializer(serializers.Serializer):
     proveedor_id = serializers.IntegerField()
     numero_factura = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     condicion_pago = serializers.ChoiceField(choices=["CONTADO", "CREDITO"])
+    metodo_pago_id = serializers.IntegerField(required=False, allow_null=True)
     fecha_vencimiento = serializers.DateField(required=False, allow_null=True)
     detalles = DetalleCompraSerializer(many=True)
     estado = serializers.ChoiceField(
@@ -52,6 +53,10 @@ class CompraCrearSerializer(serializers.Serializer):
             })
         if datos["condicion_pago"] == "CONTADO":
             datos["fecha_vencimiento"] = None
+            if not datos.get("metodo_pago_id"):
+                raise serializers.ValidationError({
+                    "metodo_pago_id": "Las compras de contado requieren medio de pago.",
+                })
         return datos
 
     def validate_detalles(self, detalles):

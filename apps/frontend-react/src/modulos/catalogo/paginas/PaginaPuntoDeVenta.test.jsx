@@ -12,6 +12,12 @@ vi.mock('../hooks/useCatalogoDeProductos', () => ({
   useCatalogoDeProductos: vi.fn(),
 }))
 
+vi.mock('@/librerias/clienteApi', () => ({
+  clienteApi: {
+    get: vi.fn().mockResolvedValue({ data: [] }),
+  },
+}))
+
 beforeEach(() => {
   useCatalogoDeProductos.mockReturnValue({
     isPending: false,

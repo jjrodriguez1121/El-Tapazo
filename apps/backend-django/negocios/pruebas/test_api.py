@@ -142,7 +142,7 @@ def test_el_resumen_de_ventas_suma_los_dos_canales(cliente_api_autenticado, admi
     bodega = FabricaDeExistencia(
         negocio=negocio,
         cantidad_disponible=Decimal("100.00"),
-        producto=FabricaDeProducto(negocio=negocio, precio_mayorista=Decimal("3500.00")),
+        producto=FabricaDeProducto(negocio=negocio, precio_venta=Decimal("3500.00")),
     )
     tienda = FabricaDeClienteDistribucion(negocio=negocio)
     pedidos_de_mayoreo.crear_pedido(

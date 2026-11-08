@@ -11,11 +11,11 @@ class LineaDeVentaDTO:
 
 @dataclass(frozen=True)
 class DatosDeVentaDTO:
-    ubicacion_id: int
     lineas: list[LineaDeVentaDTO]
     tipo_pago: str
+    descuento_porcentaje: Decimal = Decimal("0")
     cliente_id: int | None = None
     fecha_vencimiento: date | None = None
-    metodo_pago: str | None = None
+    metodo_pago_id: int | None = None
     referencia_transaccion: str = ""
     observaciones: str = ""

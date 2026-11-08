@@ -31,10 +31,6 @@ class Migration(migrations.Migration):
                 'ordering': ['nombre'],
             },
         ),
-        migrations.AddConstraint(
-            model_name='evento',
-            constraint=models.UniqueConstraint(condition=models.Q(('estado', 'en_curso'), ('ubicacion__isnull', False)), fields=('ubicacion',), name='evento_una_sola_jornada_en_curso_por_ubicacion', violation_error_message='Esa ubicación ya tiene una jornada abierta.'),
-        ),
         migrations.AddField(
             model_name='dispositivonfc',
             name='negocio',

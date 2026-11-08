@@ -21,7 +21,6 @@ from catalogo.dtos import DatosDeProductoDTO
 from catalogo.models import Categoria, Impuesto, Producto, Proveedor
 from catalogo.selectores import productos as selector
 from catalogo.servicios import categorias as servicio_de_categorias
-from catalogo.servicios import ofertas as servicio_de_ofertas
 from catalogo.servicios import productos as servicio
 from catalogo.servicios import proveedores as servicio_de_proveedores
 from nucleo.api.vistas import MixinDelNegocio
@@ -268,68 +267,3 @@ class ProductoViewSet(_ViewSetDelCatalogo):
     def margen(self, request: Request, pk: str) -> Response:
         margen = selector.margen_de_venta(producto_id=int(pk), negocio_id=self.negocio_id)
         return Response(serializers.MargenDeVentaOutputSerializer(margen).data)
-
-    @extend_schema(
-        methods=["GET"],
-        summary="Comparar el precio de cada proveedor",
-        description="Del más barato al más caro: es para lo que existe esta lista.",
-        responses={200: serializers.OfertaOutputSerializer(many=True)},
-    )
-    @extend_schema(
-        methods=["POST"],
-        summary="Registrar el precio de un proveedor",
-        request=serializers.OfertaInputSerializer,
-        responses={201: serializers.OfertaOutputSerializer},
-    )
-    @action(detail=True, methods=["get", "post"], url_path="proveedores")
-    def proveedores(self, request: Request, pk: str) -> Response:
-        if request.method == "POST":
-            entrada = serializers.OfertaInputSerializer(data=request.data)
-            entrada.is_valid(raise_exception=True)
-
-            oferta = servicio_de_ofertas.asociar_proveedor_a_producto(
-                producto_id=int(pk), negocio_id=self.negocio_id, **entrada.validated_data
-            )
-            return Response(
-                serializers.OfertaOutputSerializer(oferta).data,
-                status=status.HTTP_201_CREATED,
-            )
-
-        ofertas = selector.comparar_precios_de_proveedores(
-            producto_id=int(pk), negocio_id=self.negocio_id
-        )
-        return Response(serializers.OfertaOutputSerializer(ofertas, many=True).data)
-
-    @extend_schema(
-        summary="Quitar el precio de un proveedor",
-        description="Esta lista dice a quién se le puede comprar hoy; la historia de "
-        "las compras vive en el kardex, así que aquí sí se borra la fila.",
-        responses={204: None},
-    )
-    @action(
-        detail=True,
-        methods=["delete"],
-        url_path=r"proveedores/(?P<proveedor_id>[0-9]+)",
-    )
-    def desasociar_proveedor(self, request: Request, pk: str, proveedor_id: str) -> Response:
-        servicio_de_ofertas.desasociar_proveedor(
-            producto_id=int(pk), proveedor_id=int(proveedor_id), negocio_id=self.negocio_id
-        )
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @extend_schema(
-        summary="Marcar el proveedor habitual",
-        description="Solo puede haber uno por producto: el anterior deja de serlo.",
-        request=None,
-        responses={200: serializers.OfertaOutputSerializer},
-    )
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path=r"proveedores/(?P<proveedor_id>[0-9]+)/principal",
-    )
-    def marcar_principal(self, request: Request, pk: str, proveedor_id: str) -> Response:
-        oferta = servicio_de_ofertas.marcar_proveedor_principal(
-            producto_id=int(pk), proveedor_id=int(proveedor_id), negocio_id=self.negocio_id
-        )
-        return Response(serializers.OfertaOutputSerializer(oferta).data)

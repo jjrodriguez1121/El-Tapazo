@@ -3,6 +3,7 @@ import { CheckIcon } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
+import { CIUDADES_PRINCIPALES_COLOMBIA } from '@/utilidades/ciudades'
 import {
   validarCorreoOpcional,
   validarDocumento,
@@ -192,16 +193,24 @@ export default function ModalNuevoProveedor({
                 onChange={(evento) => cambiar('correo', evento.target.value)}
                 error={errores.correo}
               />
-              <CampoProveedor
-                id={`${id}-ciudad`}
-                etiqueta="Ciudad"
-                name="ciudad"
-                autoComplete="address-level2"
-                maxLength={100}
-                placeholder="Opcional"
-                value={datos.ciudad}
-                onChange={(evento) => cambiar('ciudad', evento.target.value)}
-              />
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label htmlFor={`${id}-ciudad`} className="text-xs font-semibold text-azul-600">Ciudad</label>
+                <select
+                  id={`${id}-ciudad`}
+                  name="ciudad"
+                  value={datos.ciudad}
+                  onChange={(evento) => cambiar('ciudad', evento.target.value)}
+                  className="h-10 w-full rounded-lg border border-azul-200 bg-blanco px-3 text-sm text-azul-950 outline-none focus:border-azul-600 focus:ring-3 focus:ring-azul-600/15"
+                >
+                  <option value="">Seleccione una ciudad...</option>
+                  {datos.ciudad && !CIUDADES_PRINCIPALES_COLOMBIA.includes(datos.ciudad) && (
+                    <option value={datos.ciudad}>{datos.ciudad}</option>
+                  )}
+                  {CIUDADES_PRINCIPALES_COLOMBIA.map((ciudad) => (
+                    <option key={ciudad} value={ciudad}>{ciudad}</option>
+                  ))}
+                </select>
+              </div>
               <CampoProveedor
                 id={`${id}-direccion`}
                 etiqueta="Dirección"

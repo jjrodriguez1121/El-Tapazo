@@ -4,6 +4,7 @@ import { CalendarIcon, HandCoinsIcon, WalletIcon } from '@phosphor-icons/react'
 import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
 import { formatearFechaCorta, formatearPesos } from '@/utilidades/formatos'
+import { listarMetodosPago, registrarAbonoVenta } from '../api/apiVentas'
 
 const TONOS_ESTADO = {
   pendiente: 'bg-alerta-50 text-alerta-700',
@@ -18,6 +19,7 @@ export default function PaginaCuentasPorCobrar() {
   const [cuentas, setCuentas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [metodosPago, setMetodosPago] = useState([])
 
   async function cargarCuentas() {
     setCargando(true)
@@ -25,6 +27,7 @@ export default function PaginaCuentasPorCobrar() {
     try {
       const { data } = await clienteApi.get('/ventas/cuentas-por-cobrar/')
       setCuentas(data)
+      setMetodosPago(await listarMetodosPago())
     } catch {
       setError('No fue posible cargar las cuentas por cobrar.')
     } finally {
@@ -35,6 +38,21 @@ export default function PaginaCuentasPorCobrar() {
   useEffect(() => {
     cargarCuentas()
   }, [])
+
+  async function registrarAbono(cuenta) {
+    const monto = window.prompt(`Monto del abono (saldo: ${formatearPesos(Number(cuenta.saldo))})`)
+    if (!monto) return
+    const opciones = metodosPago.map((metodo, indice) => `${indice + 1}. ${metodo.nombre}`).join('\n')
+    const seleccion = window.prompt(`Medio de pago:\n${opciones}`)
+    const metodo = metodosPago[Number(seleccion) - 1]
+    if (!metodo) return
+    try {
+      await registrarAbonoVenta(cuenta.id, { monto: Number(monto), metodo_pago_id: metodo.id })
+      await cargarCuentas()
+    } catch (err) {
+      setError(err.response?.data?.detail ?? 'No fue posible registrar el abono.')
+    }
+  }
 
   const totalPendiente = cuentas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
   const vencidas = cuentas.filter((cuenta) => String(cuenta.estado).toUpperCase() === 'VENCIDA')
@@ -68,6 +86,7 @@ export default function PaginaCuentasPorCobrar() {
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-right">Saldo</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-center">Acción</th>
               </tr>
             </thead>
             <tbody>
@@ -86,6 +105,11 @@ export default function PaginaCuentasPorCobrar() {
                     <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ESTADO[cuenta.estado] ?? TONOS_ESTADO.PENDIENTE}`}>
                       {String(cuenta.estado).toUpperCase()}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <button type="button" onClick={() => registrarAbono(cuenta)} className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50">
+                      Registrar abono
+                    </button>
                   </td>
                 </tr>
               ))}

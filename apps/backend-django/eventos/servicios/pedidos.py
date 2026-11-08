@@ -197,7 +197,7 @@ def _precios_congelados(*, lineas: list[LineaDePedidoDTO], negocio_id: int) -> d
 
     ids = {linea.producto_id for linea in lineas}
     productos = repositorio_de_productos.del_negocio(negocio_id=negocio_id).filter(pk__in=ids)
-    precios = {producto.id: producto.precio_evento for producto in productos}
+    precios = {producto.id: producto.precio_venta for producto in productos}
     if len(precios) != len(ids):
         raise NoEncontradoEnEsteNegocio
     return precios

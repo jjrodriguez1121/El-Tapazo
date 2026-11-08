@@ -1,18 +1,57 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 import { renderizarEnRuta } from '@/pruebas/renderizar'
 
 import PaginaClientes from './PaginaClientes'
 
-test('muestra personas y establecimientos en el listado', () => {
+vi.mock('@/librerias/clienteApi', () => ({
+  clienteApi: {
+    get: vi.fn(async () => ({
+      data: [
+        {
+          id: 1,
+          nombre_completo: 'Carlos Ramírez',
+          nombre: 'Carlos',
+          apellido: 'Ramírez',
+          tipo_documento: 'cedula',
+          numero_documento: '1045300123',
+          fecha_nacimiento: '1992-04-18',
+          telefono: '3005551234',
+          correo: 'carlos@example.com',
+        },
+        {
+          id: 2,
+          nombre_completo: 'Andrés Patiño',
+          nombre: 'Andrés',
+          apellido: 'Patiño',
+          tipo_documento: 'cedula',
+          numero_documento: '1018774290',
+          fecha_nacimiento: '1996-01-27',
+          telefono: '3016789012',
+          correo: '',
+        },
+      ],
+    })),
+    post: vi.fn(async (_ruta, datos) => ({
+      data: {
+        id: 3,
+        nombre_completo: `${datos.nombre} ${datos.apellido}`,
+        ...datos,
+        numero_documento: datos.numero_documento,
+        tipo_documento: datos.tipo_documento,
+      },
+    })),
+  },
+}))
+
+test('muestra los clientes cargados desde el backend', async () => {
   renderizarEnRuta(<PaginaClientes />, '/clientes')
 
   expect(screen.getByRole('heading', { name: 'Clientes' })).toBeInTheDocument()
-  expect(screen.getByText('Carlos Ramírez')).toBeInTheDocument()
-  expect(screen.getByText('Taller El Rayo')).toBeInTheDocument()
-  expect(screen.getByText('Establecimiento')).toBeInTheDocument()
+  expect(await screen.findByText('Carlos Ramírez')).toBeInTheDocument()
+  expect(screen.getByText('Andrés Patiño')).toBeInTheDocument()
 })
 
 test('agrega una persona al listado local', async () => {
@@ -27,7 +66,7 @@ test('agrega una persona al listado local', async () => {
   await usuario.click(screen.getByRole('button', { name: 'Guardar cliente' }))
 
   expect(await screen.findByText('Lucía Torres')).toBeInTheDocument()
-  expect(screen.getAllByText('Al día')).toHaveLength(4)
+  expect(screen.getAllByText('Al día')).toHaveLength(3)
 })
 
 test('cambia el formulario a establecimiento y muestra contacto', async () => {

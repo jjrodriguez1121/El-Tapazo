@@ -16,7 +16,7 @@ class DatosDeClienteDTO:
     numero_documento: str
     nombre: str
     apellido: str
-    fecha_nacimiento: date
+    fecha_nacimiento: date | None
     telefono: str = ""
     correo: str = ""
     notas: str = ""

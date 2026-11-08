@@ -26,7 +26,6 @@ class Migration(migrations.Migration):
                 ('fecha_fin', models.DateTimeField(blank=True, help_text='Vacío mientras el evento no ha terminado.', null=True, verbose_name='fecha de fin')),
                 ('estado', models.CharField(choices=[('planeado', 'Planeado'), ('en_curso', 'En curso'), ('cerrado', 'Cerrado'), ('cancelado', 'Cancelado')], default='planeado', max_length=20, verbose_name='estado')),
                 ('negocio', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='%(class)ss', to='negocios.negocio', verbose_name='negocio')),
-                ('ubicacion', models.ForeignKey(blank=True, help_text='Dónde se monta la barra. Puede definirse después de planear el evento.', null=True, on_delete=django.db.models.deletion.PROTECT, related_name='eventos', to='inventario.ubicacion', verbose_name='ubicación')),
             ],
             options={
                 'verbose_name': 'evento',

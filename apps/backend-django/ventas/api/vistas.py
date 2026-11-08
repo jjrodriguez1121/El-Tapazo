@@ -1,9 +1,65 @@
+from decimal import Decimal
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from nucleo.permisos import EsAdministrador
-from ventas.models import CuentaPorCobrar
+from ventas.models import CuentaPorCobrar, MetodoPago
+from ventas.dtos import DatosDeVentaDTO, LineaDeVentaDTO
+from ventas.servicios import registrar_abono as registrar_abono_cartera, registrar_venta
+
+
+@api_view(["POST"])
+@permission_classes([EsAdministrador])
+def ventas(request):
+    lineas = request.data.get("lineas", [])
+    tipo_pago = request.data.get("tipo_pago")
+    if not isinstance(lineas, list) or not lineas:
+        raise ValidationError({"lineas": "Agregue al menos un producto."})
+    try:
+        datos = DatosDeVentaDTO(
+            lineas=[
+                LineaDeVentaDTO(
+                    producto_id=int(linea["producto_id"]),
+                    cantidad=Decimal(str(linea["cantidad"])),
+                )
+                for linea in lineas
+            ],
+            tipo_pago=tipo_pago,
+            cliente_id=request.data.get("cliente_id") or None,
+            fecha_vencimiento=request.data.get("fecha_vencimiento") or None,
+            metodo_pago_id=request.data.get("metodo_pago_id") or None,
+            referencia_transaccion=request.data.get("referencia_transaccion", ""),
+            observaciones=request.data.get("observaciones", ""),
+            descuento_porcentaje=Decimal(str(request.data.get("descuento_porcentaje", 0))),
+        )
+        venta = registrar_venta(
+            datos=datos,
+            negocio_id=request.user.negocio_id,
+            vendedor_id=request.user.id,
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValidationError({"detail": str(error)})
+    return Response({
+        "id": venta.id,
+        "numero_venta": venta.numero_venta,
+        "total": venta.total,
+        "tipo_pago": venta.tipo_pago,
+        "estado": venta.estado,
+    }, status=201)
+
+
+@api_view(["GET"])
+@permission_classes([EsAdministrador])
+def metodos_pago(request):
+    metodos = MetodoPago.objects.filter(
+        negocio_id=request.user.negocio_id, estado=True
+    ).order_by("nombre")
+    return Response([
+        {"id": metodo.id, "nombre": metodo.nombre}
+        for metodo in metodos
+    ])
 
 
 @api_view(["GET"])
@@ -45,3 +101,20 @@ def cuentas_por_cobrar(request):
             }
         )
     return Response(datos)
+
+
+@api_view(["POST"])
+@permission_classes([EsAdministrador])
+def registrar_abono(request, cuenta_id):
+    try:
+        cuenta = registrar_abono_cartera(
+            cuenta_id=cuenta_id,
+            monto=Decimal(str(request.data["monto"])),
+            metodo_pago_id=int(request.data["metodo_pago_id"]),
+            recibido_por_id=request.user.id,
+            negocio_id=request.user.negocio_id,
+            referencia_transaccion=request.data.get("referencia_transaccion", ""),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValidationError({"detail": str(error)})
+    return Response({"id": cuenta.id, "saldo": cuenta.saldo, "estado": cuenta.estado}, status=201)

@@ -9,10 +9,11 @@ class ClienteInputSerializer(serializers.Serializer):
     tipo_documento = serializers.ChoiceField(choices=Cliente.TipoDocumento.choices)
     numero_documento = serializers.CharField(max_length=30)
     nombre = serializers.CharField(max_length=120)
-    apellido = serializers.CharField(max_length=120)
-    fecha_nacimiento = serializers.DateField()
+    apellido = serializers.CharField(max_length=120, required=False, allow_blank=True, default="")
+    fecha_nacimiento = serializers.DateField(required=False, allow_null=True, default=None)
     telefono = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
     correo = serializers.EmailField(max_length=150, required=False, allow_blank=True, default="")
+    ciudad = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
     notas = serializers.CharField(required=False, allow_blank=True, default="")
 
 
@@ -40,6 +41,7 @@ class ClienteOutputSerializer(serializers.ModelSerializer):
             "es_menor_de_edad",
             "telefono",
             "correo",
+            "ciudad",
             "notas",
             "activo",
             "creado_en",
