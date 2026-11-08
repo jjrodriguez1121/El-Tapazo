@@ -28,10 +28,11 @@ function entrarComo(usuario) {
   renderizarEnRuta(<PlantillaPrincipal />, '/inicio')
 }
 
-test('el menú lleva el nombre del negocio y la barra dice quién entró', () => {
+test('el menú muestra el logo de la distribuidora y la barra dice quién entró', () => {
   entrarComo(ADMINISTRADORA)
 
-  expect(screen.getByText('Bar La Esquina')).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: 'Logo de El Tapazo' })).toBeInTheDocument()
+  expect(screen.queryByText('Bar La Esquina')).not.toBeInTheDocument()
   expect(screen.queryByText('El Tapaso')).not.toBeInTheDocument()
   expect(screen.getByText('Ana Ríos')).toBeInTheDocument()
   expect(screen.getByText('Administrador')).toBeInTheDocument()

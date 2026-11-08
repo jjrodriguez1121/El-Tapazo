@@ -1,4 +1,4 @@
-"""Alta, cambio y baja de categorías."""
+"""Alta, cambios y activación de categorías."""
 
 from catalogo.excepciones import CategoriaDuplicada
 from catalogo.models import Categoria
@@ -45,5 +45,13 @@ def desactivar_categoria(*, categoria_id: int, negocio_id: int) -> Categoria:
     """
     categoria = obtener_categoria(categoria_id=categoria_id, negocio_id=negocio_id)
     categoria.activa = False
+    categoria.save(update_fields=["activa", "actualizado_en"])
+    return categoria
+
+
+def activar_categoria(*, categoria_id: int, negocio_id: int) -> Categoria:
+    """Restaura una categoría sin alterar los productos que la usan."""
+    categoria = obtener_categoria(categoria_id=categoria_id, negocio_id=negocio_id)
+    categoria.activa = True
     categoria.save(update_fields=["activa", "actualizado_en"])
     return categoria

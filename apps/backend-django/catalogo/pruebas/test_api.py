@@ -237,6 +237,27 @@ def test_la_categoria_repetida_devuelve_409(cliente_api_autenticado, administrad
     assert respuesta.data["error"]["codigo"] == "categoria_duplicada"
 
 
+def test_un_administrador_puede_desactivar_y_reactivar_una_categoria(
+    cliente_api_autenticado, administrador, negocio
+):
+    categoria = FabricaDeCategoria(negocio=negocio)
+    cliente_autenticado = cliente_api_autenticado(administrador)
+
+    respuesta_desactivar = cliente_autenticado.post(
+        reverse("catalogo:categoria-desactivacion", args=[categoria.id])
+    )
+    assert respuesta_desactivar.status_code == 200
+    assert respuesta_desactivar.data["activa"] is False
+
+    respuesta_activar = cliente_autenticado.post(
+        reverse("catalogo:categoria-activacion", args=[categoria.id])
+    )
+    assert respuesta_activar.status_code == 200
+    assert respuesta_activar.data["activa"] is True
+    categoria.refresh_from_db()
+    assert categoria.activa is True
+
+
 def test_registrar_un_proveedor_devuelve_201(cliente_api_autenticado, administrador):
     respuesta = cliente_api_autenticado(administrador).post(
         URL_PROVEEDORES, {"razon_social": "Distribuidora S.A.S.", "nit": "900123456"}, format="json"
@@ -244,3 +265,24 @@ def test_registrar_un_proveedor_devuelve_201(cliente_api_autenticado, administra
 
     assert respuesta.status_code == 201
     assert respuesta.data["razon_social"] == "Distribuidora S.A.S."
+
+
+def test_un_administrador_puede_desactivar_y_reactivar_un_proveedor(
+    cliente_api_autenticado, administrador, negocio
+):
+    proveedor = FabricaDeProveedor(negocio=negocio)
+    cliente_autenticado = cliente_api_autenticado(administrador)
+
+    respuesta_desactivar = cliente_autenticado.post(
+        reverse("catalogo:proveedor-desactivacion", args=[proveedor.id])
+    )
+    assert respuesta_desactivar.status_code == 200
+    assert respuesta_desactivar.data["activo"] is False
+
+    respuesta_activar = cliente_autenticado.post(
+        reverse("catalogo:proveedor-activacion", args=[proveedor.id])
+    )
+    assert respuesta_activar.status_code == 200
+    assert respuesta_activar.data["activo"] is True
+    proveedor.refresh_from_db()
+    assert proveedor.activo is True

@@ -37,6 +37,7 @@ test('con el formulario vacío pide los datos y no llama al backend', async () =
   const usuario = userEvent.setup()
   renderizarEnRuta(<PaginaIniciarSesion />, '/acceso')
 
+  expect(screen.getAllByRole('img', { name: 'Logo de El Tapazo' })).toHaveLength(2)
   await usuario.click(screen.getByRole('button', { name: 'Entrar' }))
 
   expect(screen.getByText('Escribe tu correo.')).toBeInTheDocument()

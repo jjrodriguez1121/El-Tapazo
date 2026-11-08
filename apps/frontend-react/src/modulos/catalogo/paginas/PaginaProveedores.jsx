@@ -7,27 +7,33 @@ import { clienteApi } from '@/librerias/clienteApi'
 
 export default function PaginaProveedores() {
   const [proveedores, setProveedores] = useState([])
+  const [filtroEstado, setFiltroEstado] = useState('activos')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [proveedorParaEditar, setProveedorParaEditar] = useState(null)
   const [error, setError] = useState('')
 
   async function cargarProveedores() {
     try {
-      const { data } = await clienteApi.get('/catalogo/proveedores/?activo=true')
-      const registros = Array.isArray(data) ? data : data.results ?? []
-      setProveedores(registros.map((proveedor) => ({
-        ...proveedor,
-        razonSocial: proveedor.razon_social,
-        nombreContacto: proveedor.nombre_contacto,
-        cantidadProductos: proveedor.cantidadProductos ?? 0,
-      })))
+      const { data } = await clienteApi.get('/catalogo/proveedores/')
+      const registros = Array.isArray(data) ? data : (data.results ?? [])
+      setProveedores(
+        registros.map((proveedor) => ({
+          ...proveedor,
+          razonSocial: proveedor.razon_social,
+          nombreContacto: proveedor.nombre_contacto,
+          cantidadProductos: proveedor.cantidadProductos ?? 0,
+          activo: proveedor.activo ?? true,
+        }))
+      )
       setError('')
     } catch {
       setError('No fue posible cargar los proveedores.')
     }
   }
 
-  useEffect(() => { cargarProveedores() }, [])
+  useEffect(() => {
+    cargarProveedores()
+  }, [])
 
   function agregarProveedor(proveedor) {
     setProveedores((actuales) => [proveedor, ...actuales])
@@ -35,9 +41,9 @@ export default function PaginaProveedores() {
 
   function guardarProveedor(proveedor) {
     if (proveedorParaEditar) {
-      setProveedores((actuales) => actuales.map((actual) =>
-        actual.id === proveedor.id ? proveedor : actual
-      ))
+      setProveedores((actuales) =>
+        actuales.map((actual) => (actual.id === proveedor.id ? proveedor : actual))
+      )
     } else {
       agregarProveedor(proveedor)
     }
@@ -45,15 +51,31 @@ export default function PaginaProveedores() {
     setModalAbierto(false)
   }
 
-  async function eliminarProveedor(proveedor) {
-    if (!window.confirm(`¿Eliminar el proveedor ${proveedor.razonSocial}?`)) return
+  async function cambiarEstadoProveedor(proveedor) {
+    const activar = !proveedor.activo
+    const accion = activar ? 'activacion' : 'desactivacion'
+    const confirmacion = activar
+      ? `¿Activar el proveedor ${proveedor.razonSocial}?`
+      : `¿Desactivar el proveedor ${proveedor.razonSocial}? Las compras históricas se conservarán.`
+    if (!window.confirm(confirmacion)) return
+    setError('')
     try {
-      await clienteApi.post(`/catalogo/proveedores/${proveedor.id}/desactivacion/`)
-      setProveedores((actuales) => actuales.filter((actual) => actual.id !== proveedor.id))
+      const { data } = await clienteApi.post(`/catalogo/proveedores/${proveedor.id}/${accion}/`)
+      setProveedores((actuales) =>
+        actuales.map((actual) =>
+          actual.id === proveedor.id
+            ? { ...actual, ...data, activo: data.activo ?? activar }
+            : actual
+        )
+      )
     } catch {
-      setError('No fue posible eliminar el proveedor.')
+      setError(`No fue posible ${activar ? 'activar' : 'desactivar'} el proveedor.`)
     }
   }
+
+  const proveedoresFiltrados = proveedores.filter(
+    (proveedor) => filtroEstado === 'todos' || proveedor.activo === (filtroEstado === 'activos')
+  )
 
   return (
     <div className="flex flex-col gap-5">
@@ -66,27 +88,56 @@ export default function PaginaProveedores() {
         </div>
         <button
           type="button"
-          onClick={() => { setProveedorParaEditar(null); setModalAbierto(true) }}
+          onClick={() => {
+            setProveedorParaEditar(null)
+            setModalAbierto(true)
+          }}
           className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-xl bg-azul-950 px-4 text-sm font-bold text-blanco transition-colors hover:bg-azul-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-azul-600"
         >
           <PlusIcon size={17} weight="bold" /> Nuevo proveedor
         </button>
       </header>
 
-      {error && <p role="alert" className="text-sm text-error-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-error-600">
+          {error}
+        </p>
+      )}
+
+      <label className="flex items-center gap-2 self-start text-xs font-semibold text-azul-600">
+        Estado
+        <select
+          aria-label="Estado de los proveedores"
+          value={filtroEstado}
+          onChange={(evento) => setFiltroEstado(evento.target.value)}
+          className="h-9 rounded-lg border border-azul-150 bg-blanco px-3 text-xs text-azul-800 outline-none focus:border-azul-600 focus:ring-3 focus:ring-azul-600/15"
+        >
+          <option value="activos">Activos</option>
+          <option value="inactivos">Inactivos</option>
+          <option value="todos">Todos</option>
+        </select>
+      </label>
 
       <section
         aria-label="Listado de proveedores"
         className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
       >
-        {proveedores.map((proveedor) => (
+        {proveedoresFiltrados.map((proveedor) => (
           <TarjetaDeProveedor
             key={proveedor.id}
             proveedor={proveedor}
-            alEditar={(seleccionado) => { setProveedorParaEditar(seleccionado); setModalAbierto(true) }}
-            alEliminar={eliminarProveedor}
+            alEditar={(seleccionado) => {
+              setProveedorParaEditar(seleccionado)
+              setModalAbierto(true)
+            }}
+            alCambiarEstado={cambiarEstadoProveedor}
           />
         ))}
+        {!proveedoresFiltrados.length && (
+          <p className="col-span-full rounded-xl border border-dashed border-azul-200 bg-blanco px-4 py-10 text-center text-sm text-azul-500">
+            No hay proveedores en este estado.
+          </p>
+        )}
       </section>
 
       {modalAbierto && (

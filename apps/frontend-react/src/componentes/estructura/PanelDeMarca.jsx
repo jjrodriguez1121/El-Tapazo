@@ -1,20 +1,34 @@
-/** El panel azul de la izquierda en escritorio. En el celular no hay sitio, y no aparece. */
+import logoTapazo from '@/recursos/imagenes/logo-tapazo.png'
+
+/** El panel de marca azul, a la derecha en escritorio y fuera de vista en celular. */
 export default function PanelDeMarca() {
   return (
-    <div className="relative hidden w-[44%] flex-col overflow-hidden bg-azul-950 px-10 py-11 lg:flex">
+    <aside className="relative order-2 hidden w-[44%] flex-col overflow-hidden bg-azul-950 px-10 py-11 lg:order-2 lg:flex">
+      <img
+        src={logoTapazo}
+        alt="Logo de El Tapazo"
+        className="relative z-10 mx-auto w-full max-w-65 rounded-2xl bg-blanco p-2 shadow-xl ring-1 ring-blanco/30"
+      />
+
       <div className="relative z-10 my-auto flex max-w-85 flex-col gap-3.5">
-        <p className="text-titulo leading-tight font-bold tracking-[-0.02em] text-pretty text-blanco">
-          Inventario y ventas para bares y distribuidoras.
+        <p className="font-mono text-antetitulo font-bold tracking-[0.16em] text-azul-300 uppercase">
+          Distribuidora El Tapazo
         </p>
-        <p className="text-sm leading-relaxed font-medium text-pretty text-azul-300">
-          El acceso lo abre el administrador de tu negocio. Nadie se registra por su cuenta.
+        <p className="text-3xl leading-tight font-extrabold tracking-[-0.03em] text-pretty text-blanco">
+          Tu inventario y tus ventas, bajo control.
+        </p>
+        <p className="max-w-80 text-sm leading-relaxed font-medium text-pretty text-azul-200">
+          Administra productos, existencias y ventas desde un solo lugar. Información clara para
+          abastecer mejor y hacer crecer tu distribuidora.
         </p>
       </div>
 
-      <div aria-hidden="true" className="relative z-10 flex gap-1.75">
-        <span className="block h-1.5 w-9.5 rounded-full bg-azul-600" />
-        <span className="block h-1.5 w-9.5 rounded-full bg-azul-400" />
-        <span className="block h-1.5 w-9.5 rounded-full bg-azul-300" />
+      <div className="relative z-10 flex items-center gap-2 border-t border-blanco/15 pt-5 text-xs font-semibold tracking-wide text-azul-200">
+        <span>Inventario</span>
+        <span aria-hidden="true" className="size-1 rounded-full bg-azul-400" />
+        <span>Ventas</span>
+        <span aria-hidden="true" className="size-1 rounded-full bg-azul-400" />
+        <span>Distribución</span>
       </div>
 
       <div
@@ -25,6 +39,6 @@ export default function PanelDeMarca() {
         aria-hidden="true"
         className="absolute -right-10 -bottom-17.5 size-45 rounded-full bg-azul-900"
       />
-    </div>
+    </aside>
   )
 }

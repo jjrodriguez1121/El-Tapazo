@@ -138,6 +138,18 @@ def test_no_se_repite_el_nombre_de_categoria_en_el_mismo_negocio(negocio):
         servicio_de_categorias.crear_categoria(negocio_id=negocio.id, nombre="cervezas")
 
 
+def test_desactivar_y_reactivar_categoria(negocio):
+    categoria = FabricaDeCategoria(negocio=negocio)
+
+    servicio_de_categorias.desactivar_categoria(categoria_id=categoria.id, negocio_id=negocio.id)
+    categoria.refresh_from_db()
+    assert categoria.activa is False
+
+    servicio_de_categorias.activar_categoria(categoria_id=categoria.id, negocio_id=negocio.id)
+    categoria.refresh_from_db()
+    assert categoria.activa is True
+
+
 def test_varios_proveedores_pueden_ir_sin_nit(negocio):
     """El NIT es opcional, y la restricción de la base es parcial por eso mismo."""
     servicio_de_proveedores.crear_proveedor(negocio_id=negocio.id, razon_social="Don Pepe")
@@ -146,6 +158,18 @@ def test_varios_proveedores_pueden_ir_sin_nit(negocio):
     )
 
     assert segundo.nit == ""
+
+
+def test_desactivar_y_reactivar_proveedor(negocio):
+    proveedor = FabricaDeProveedor(negocio=negocio)
+
+    servicio_de_proveedores.desactivar_proveedor(proveedor_id=proveedor.id, negocio_id=negocio.id)
+    proveedor.refresh_from_db()
+    assert proveedor.activo is False
+
+    servicio_de_proveedores.activar_proveedor(proveedor_id=proveedor.id, negocio_id=negocio.id)
+    proveedor.refresh_from_db()
+    assert proveedor.activo is True
 
 
 def test_no_se_repite_el_nit_de_proveedor_en_el_mismo_negocio(negocio):

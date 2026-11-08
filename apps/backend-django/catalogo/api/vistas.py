@@ -116,6 +116,18 @@ class CategoriaViewSet(_ViewSetDelCatalogo):
         )
         return Response(serializers.CategoriaOutputSerializer(categoria).data)
 
+    @extend_schema(
+        summary="Activar una categoría previamente desactivada",
+        request=None,
+        responses={200: serializers.CategoriaOutputSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="activacion")
+    def activacion(self, request: Request, pk: str) -> Response:
+        categoria = servicio_de_categorias.activar_categoria(
+            categoria_id=int(pk), negocio_id=self.negocio_id
+        )
+        return Response(serializers.CategoriaOutputSerializer(categoria).data)
+
 
 # --------------------------------------------------------------------------- #
 # Proveedores
@@ -177,6 +189,18 @@ class ProveedorViewSet(_ViewSetDelCatalogo):
     @action(detail=True, methods=["post"], url_path="desactivacion")
     def desactivacion(self, request: Request, pk: str) -> Response:
         proveedor = servicio_de_proveedores.desactivar_proveedor(
+            proveedor_id=int(pk), negocio_id=self.negocio_id
+        )
+        return Response(serializers.ProveedorOutputSerializer(proveedor).data)
+
+    @extend_schema(
+        summary="Activar un proveedor previamente desactivado",
+        request=None,
+        responses={200: serializers.ProveedorOutputSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="activacion")
+    def activacion(self, request: Request, pk: str) -> Response:
+        proveedor = servicio_de_proveedores.activar_proveedor(
             proveedor_id=int(pk), negocio_id=self.negocio_id
         )
         return Response(serializers.ProveedorOutputSerializer(proveedor).data)

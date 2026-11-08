@@ -1,26 +1,14 @@
-import { iniciales } from '@/utilidades/iniciales'
+import logoTapazo from '@/recursos/imagenes/logo-tapazo.png'
 
-/**
- * El negocio de quien entró, arriba del menú. El staff de la plataforma no
- * pertenece a ningún negocio, y se dice así.
- */
-export default function MarcaDelNegocio({ negocio }) {
-  const nombre = negocio?.nombreComercial ?? 'Staff de la plataforma'
-
+/** Marca de la distribuidora en la cabecera del menú principal. */
+export default function MarcaDelNegocio() {
   return (
-    <div className="flex items-center gap-2.75 px-2 pt-1 pb-5.5">
-      <span
-        aria-hidden="true"
-        className="grid size-10 flex-none place-items-center rounded-xl bg-blanco text-sm font-bold text-azul-950"
-      >
-        {iniciales(nombre)}
-      </span>
-      <p
-        title={nombre}
-        className="min-w-0 truncate text-base leading-tight font-semibold text-blanco"
-      >
-        {nombre}
-      </p>
+    <div className="flex justify-center px-2 pt-1 pb-7">
+      <img
+        src={logoTapazo}
+        alt="Logo de El Tapazo"
+        className="w-full max-w-44 rounded-2xl bg-blanco object-contain p-1.5 shadow-lg ring-1 ring-blanco/20"
+      />
     </div>
   )
 }

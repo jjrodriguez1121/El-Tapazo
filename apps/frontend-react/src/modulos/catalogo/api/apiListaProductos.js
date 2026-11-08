@@ -31,5 +31,7 @@ export async function obtenerCatalogoDeProductos() {
   return { productos, categorias: categoriasConCantidad, existencias }
 }
 
+export const obtenerTodasLasCategorias = () => listarTodasLasPaginas('/catalogo/categorias/')
+
 export const crearProducto = (datos) =>
   clienteApi.post('/catalogo/productos/', datos).then((respuesta) => respuesta.data)

@@ -21,8 +21,9 @@ from nucleo.api.vistas import MixinDelNegocio
 from nucleo.permisos import EsAdministrador, EsDelEquipo
 
 # Lo que solo puede hacer el administrador. Lo demás lo hace cualquiera del
-# equipo: quien registra al cliente es quien está en la barra.
-ACCIONES_DE_ADMINISTRADOR = frozenset({"desactivacion"})
+# equipo: quien registra al cliente es quien está en la barra. Activar y
+# desactivar son acciones administrativas para proteger el historial.
+ACCIONES_DE_ADMINISTRADOR = frozenset({"desactivacion", "activacion"})
 
 
 class ClienteViewSet(
@@ -30,7 +31,6 @@ class ClienteViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
     GenericViewSet,
 ):
     """/api/v1/clientes/"""
@@ -100,14 +100,6 @@ class ClienteViewSet(
         return self.update(request, pk)
 
     @extend_schema(
-        summary="Eliminar un cliente sin ventas",
-        responses={204: None},
-    )
-    def destroy(self, request: Request, pk: str) -> Response:
-        servicio.eliminar_cliente(cliente_id=int(pk), negocio_id=self.negocio_id)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @extend_schema(
         summary="Desactivar una ficha",
         description="No se borra: sus cuentas y comandas la siguen necesitando.",
         request=None,
@@ -116,6 +108,16 @@ class ClienteViewSet(
     @action(detail=True, methods=["post"], url_path="desactivacion")
     def desactivacion(self, request: Request, pk: str) -> Response:
         cliente = servicio.desactivar_cliente(cliente_id=int(pk), negocio_id=self.negocio_id)
+        return Response(serializers.ClienteOutputSerializer(cliente).data)
+
+    @extend_schema(
+        summary="Activar una ficha previamente desactivada",
+        request=None,
+        responses={200: serializers.ClienteOutputSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="activacion")
+    def activacion(self, request: Request, pk: str) -> Response:
+        cliente = servicio.activar_cliente(cliente_id=int(pk), negocio_id=self.negocio_id)
         return Response(serializers.ClienteOutputSerializer(cliente).data)
 
     @extend_schema(

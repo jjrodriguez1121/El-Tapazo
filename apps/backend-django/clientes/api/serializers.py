@@ -1,5 +1,7 @@
 """Traducción JSON ↔ Python de las fichas de cliente."""
 
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from clientes.models import Cliente
@@ -26,6 +28,9 @@ class ClienteOutputSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.CharField(read_only=True)
     edad = serializers.IntegerField(read_only=True)
     es_menor_de_edad = serializers.BooleanField(read_only=True)
+    saldo_pendiente = serializers.DecimalField(
+        max_digits=14, decimal_places=2, read_only=True, default=Decimal("0.00")
+    )
 
     class Meta:
         model = Cliente
@@ -39,6 +44,7 @@ class ClienteOutputSerializer(serializers.ModelSerializer):
             "fecha_nacimiento",
             "edad",
             "es_menor_de_edad",
+            "saldo_pendiente",
             "telefono",
             "correo",
             "ciudad",

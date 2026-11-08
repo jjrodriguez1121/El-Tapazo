@@ -1,7 +1,7 @@
-"""Alta, cambio y baja de fichas de cliente."""
+"""Alta, cambios y activación de fichas de cliente."""
 
 from clientes.dtos import DatosDeClienteDTO
-from clientes.excepciones import ClienteConVentas, DocumentoDuplicado
+from clientes.excepciones import DocumentoDuplicado
 from clientes.models import Cliente
 from clientes.repositorios import clientes as repositorio
 from clientes.selectores import obtener_cliente
@@ -68,15 +68,12 @@ def desactivar_cliente(*, cliente_id: int, negocio_id: int) -> Cliente:
     return cliente
 
 
-def eliminar_cliente(*, cliente_id: int, negocio_id: int) -> None:
-    """Elimina una ficha solo si nunca participó en una venta."""
+def activar_cliente(*, cliente_id: int, negocio_id: int) -> Cliente:
+    """Restaura una ficha desactivada, conservando su historial."""
     cliente = obtener_cliente(cliente_id=cliente_id, negocio_id=negocio_id)
-    # La venta conserva el cliente para informes, cartera y comprobantes.
-    from ventas.models import Venta
-
-    if Venta.objects.filter(cliente_id=cliente.id, negocio_id=negocio_id).exists():
-        raise ClienteConVentas
-    cliente.delete()
+    cliente.activo = True
+    cliente.save(update_fields=["activo", "actualizado_en"])
+    return cliente
 
 
 def _limpiar(datos: DatosDeClienteDTO) -> dict:

@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, test, vi } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 
 import { renderizarEnRuta } from '@/pruebas/renderizar'
 
@@ -10,18 +10,47 @@ vi.mock('@/librerias/clienteApi', () => ({
   clienteApi: {
     get: vi.fn(async () => ({
       data: [
-        { id: 1, razon_social: 'Bavaria S.A.', nit: '', nombre_contacto: '', cantidadProductos: 0 },
-        { id: 2, razon_social: 'Postobón S.A.', nit: '', nombre_contacto: '', cantidadProductos: 0 },
-        { id: 3, razon_social: 'Coca-Cola FEMSA', nit: '', nombre_contacto: '', cantidadProductos: 0 },
+        {
+          id: 1,
+          razon_social: 'Bavaria S.A.',
+          nit: '',
+          nombre_contacto: '',
+          cantidadProductos: 0,
+          activo: true,
+        },
+        {
+          id: 2,
+          razon_social: 'Postobón S.A.',
+          nit: '',
+          nombre_contacto: '',
+          cantidadProductos: 0,
+          activo: true,
+        },
+        {
+          id: 3,
+          razon_social: 'Coca-Cola FEMSA',
+          nit: '',
+          nombre_contacto: '',
+          cantidadProductos: 0,
+          activo: true,
+        },
       ],
     })),
-    post: vi.fn(async (_ruta, datos) => ({
-      data: {
-        id: 4,
-        ...datos,
-        activo: true,
-      },
-    })),
+    post: vi.fn(async (ruta, datos) => {
+      if (ruta.includes('/desactivacion/')) {
+        return { data: { id: Number(ruta.match(/(\d+)/)?.[1]), activo: false } }
+      }
+      if (ruta.includes('/activacion/')) {
+        return { data: { id: Number(ruta.match(/(\d+)/)?.[1]), activo: true } }
+      }
+      return {
+        data: {
+          id: 4,
+          ...datos,
+          activo: true,
+        },
+      }
+    }),
     put: vi.fn(async (ruta, datos) => ({
       data: {
         id: Number(ruta.match(/(\d+)/)?.[1]),
@@ -31,6 +60,8 @@ vi.mock('@/librerias/clienteApi', () => ({
     })),
   },
 }))
+
+afterEach(() => vi.restoreAllMocks())
 
 test('muestra los proveedores de ejemplo', async () => {
   renderizarEnRuta(<PaginaProveedores />, '/proveedores')
@@ -69,7 +100,7 @@ test('impide repetir razón social y valida correo inválido', async () => {
   expect(screen.getByText('Ese correo no parece válido.')).toBeInTheDocument()
 })
 
-test('edita y desactiva un proveedor desde sus acciones', async () => {
+test('edita, desactiva y reactiva un proveedor desde sus acciones', async () => {
   const usuario = userEvent.setup()
   vi.spyOn(window, 'confirm').mockReturnValue(true)
   renderizarEnRuta(<PaginaProveedores />, '/proveedores')
@@ -81,7 +112,18 @@ test('edita y desactiva un proveedor desde sus acciones', async () => {
   await usuario.click(screen.getByRole('button', { name: 'Guardar proveedor' }))
   expect(await screen.findByText('Bavaria Editada')).toBeInTheDocument()
 
-  await usuario.click(screen.getByRole('button', { name: 'Eliminar Bavaria Editada' }))
+  await usuario.click(screen.getByRole('button', { name: 'Desactivar Bavaria Editada' }))
   expect(await screen.findByText('Postobón S.A.')).toBeInTheDocument()
   expect(screen.queryByText('Bavaria Editada')).not.toBeInTheDocument()
+
+  await usuario.selectOptions(
+    screen.getByRole('combobox', { name: 'Estado de los proveedores' }),
+    'inactivos'
+  )
+  await usuario.click(await screen.findByRole('button', { name: 'Activar Bavaria Editada' }))
+  await usuario.selectOptions(
+    screen.getByRole('combobox', { name: 'Estado de los proveedores' }),
+    'activos'
+  )
+  expect(await screen.findByText('Bavaria Editada')).toBeInTheDocument()
 })

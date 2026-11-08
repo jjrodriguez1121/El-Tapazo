@@ -16,12 +16,15 @@ hasta la fila de `clientes_evento` activa y de ahí a esta ficha.
 
 ## Qué se puede hacer
 
-`/api/v1/clientes/` — CRUD, más `POST {id}/desactivacion/`,
+`/api/v1/clientes/` — registro y actualización, más `POST {id}/desactivacion/`
+y `POST {id}/activacion/`. Las fichas se conservan para no perder sus ventas,
+cuentas y comandas históricas.
 `GET por-documento/` y `GET {id}/historial/`.
 
 **Los permisos no son los mismos para todo.** El mesero y el cajero registran y
-buscan clientes, porque es lo que hacen en la barra toda la noche; desactivar
-una ficha es de administrador.
+buscan clientes, porque es lo que hacen en la barra toda la noche; activar o
+desactivar una ficha es tarea del administrador. El borrado definitivo no está
+habilitado: una ficha conserva sus ventas y cuentas históricas.
 
 **Ser menor de edad avisa, no bloquea** (decisión 7 del plan de negocio). La
 ficha se crea igual y la respuesta trae `es_menor_de_edad` para que la pantalla

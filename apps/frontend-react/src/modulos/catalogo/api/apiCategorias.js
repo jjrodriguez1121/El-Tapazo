@@ -8,3 +8,6 @@ export const actualizarCategoria = (id, datos) =>
 
 export const desactivarCategoria = (id) =>
   clienteApi.post(`/catalogo/categorias/${id}/desactivacion/`).then((respuesta) => respuesta.data)
+
+export const activarCategoria = (id) =>
+  clienteApi.post(`/catalogo/categorias/${id}/activacion/`).then((respuesta) => respuesta.data)
