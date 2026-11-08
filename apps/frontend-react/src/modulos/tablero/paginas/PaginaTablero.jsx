@@ -7,6 +7,7 @@ import { formatearFechaLarga, formatearPesos } from '@/utilidades/formatos'
 
 import AlertasDeStock from '../componentes/AlertasDeStock'
 import GraficaDeVentasDeLaSemana from '../componentes/GraficaDeVentasDeLaSemana'
+import GraficaProductosMasVendidos from '../componentes/GraficaProductosMasVendidos'
 import PanelDelTablero from '../componentes/PanelDelTablero'
 import TarjetaDeIndicador from '../componentes/TarjetaDeIndicador'
 
@@ -17,6 +18,7 @@ const APARIENCIA_DE_INDICADORES = {
   cobrar: { Icono: WalletIcon, tono: 'alerta' },
   pagar: { Icono: WalletIcon, tono: 'error' },
   pedidos: { Icono: CalendarIcon, tono: 'alerta' },
+  registradas: { Icono: CalendarIcon, tono: 'info' },
   contado: { Icono: WalletIcon, tono: 'exito' },
   credito: { Icono: WalletIcon, tono: 'alerta' },
   'stock-bajo': { Icono: WarningIcon, tono: 'error' },
@@ -32,6 +34,7 @@ const RESUMEN_VACIO = {
   ventas_registradas: 0,
   ventas_contado: 0,
   ventas_credito: 0,
+  productos_mas_vendidos: [],
   entregas_pendientes: 0,
   stock_bajo: 0,
 }
@@ -144,6 +147,7 @@ export default function PaginaTablero() {
     { id: 'credito', etiqueta: 'Ventas a crédito', valor: String(resumen.ventas_credito) },
     { id: 'pedidos', etiqueta: 'Entregas pendientes', valor: String(resumen.entregas_pendientes) },
     { id: 'stock-bajo', etiqueta: 'Stock bajo', valor: String(resumen.stock_bajo) },
+    { id: 'registradas', etiqueta: 'Ventas registradas', valor: String(resumen.ventas_registradas) },
   ]
 
   function enviarFormulario(evento) {
@@ -183,7 +187,10 @@ export default function PaginaTablero() {
       </div>
 
       <div className="grid gap-4.5 lg:grid-cols-[1.55fr_1fr]">
-        <GraficaDeVentasDeLaSemana dias={dias} total={totalVendido} titulo="Ventas por día" />
+        <div className="flex min-w-0 flex-col gap-4.5">
+          <GraficaDeVentasDeLaSemana dias={dias} total={totalVendido} titulo="Ventas por día" />
+          <GraficaProductosMasVendidos productos={resumen.productos_mas_vendidos ?? []} />
+        </div>
         <div className="flex min-w-0 flex-col gap-4.5">
           <AlertasDeStock alertas={alertas} />
           <PanelDelTablero titulo="Cuentas por pagar" accesorio={<WalletIcon size={20} className="text-alerta-600" />}>

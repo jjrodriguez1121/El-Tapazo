@@ -76,5 +76,6 @@ class ResumenDashboardOutputSerializer(serializers.Serializer):
     ventas_registradas = serializers.IntegerField()
     ventas_contado = serializers.IntegerField()
     ventas_credito = serializers.IntegerField()
+    productos_mas_vendidos = serializers.ListField(child=serializers.DictField())
     entregas_pendientes = serializers.IntegerField()
     stock_bajo = serializers.IntegerField()

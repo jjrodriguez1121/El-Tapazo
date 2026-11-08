@@ -72,6 +72,15 @@ def resumen_del_dashboard(*, negocio_id: int, desde: date, hasta: date) -> dict:
             output_field=IMPORTE,
         )
     )["total"]
+    productos_mas_vendidos = list(
+        DetalleVenta.objects.filter(venta__in=ventas)
+        .values("producto_id", "producto__nombre")
+        .annotate(
+            unidades=Coalesce(Sum("cantidad"), CERO, output_field=IMPORTE),
+            total=Coalesce(Sum("subtotal"), CERO, output_field=IMPORTE),
+        )
+        .order_by("-unidades", "producto__nombre")[:5]
+    )
     ventas_netas = totales["facturado"] - totales["impuestos"]
     utilidad_bruta = ventas_netas - costo_ventas
     por_cobrar = CuentaPorCobrar.objects.filter(negocio_id=negocio_id).exclude(
@@ -106,6 +115,15 @@ def resumen_del_dashboard(*, negocio_id: int, desde: date, hasta: date) -> dict:
         "ventas_registradas": ventas.count(),
         "ventas_contado": ventas.filter(tipo_pago=Venta.TipoPago.CONTADO).count(),
         "ventas_credito": ventas.filter(tipo_pago=Venta.TipoPago.CREDITO).count(),
+        "productos_mas_vendidos": [
+            {
+                "id": producto["producto_id"],
+                "nombre": producto["producto__nombre"],
+                "unidades": producto["unidades"],
+                "total": producto["total"],
+            }
+            for producto in productos_mas_vendidos
+        ],
         "entregas_pendientes": ventas.filter(
             estado_entrega=Venta.EstadoEntrega.PENDIENTE
         ).count(),
