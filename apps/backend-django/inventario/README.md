@@ -23,6 +23,9 @@ entrada y cada salida. Si los dos discrepan, manda el kardex.
 Las operaciones cuelgan de `movimientos/`: `entradas/`, `salidas/`, `mermas/`,
 `traslados/`, `ajustes/`, `reconstruccion/` y `{id}/anulacion/`.
 
+Las alertas incluyen productos agotados y existencias bajo el mínimo
+configurado. Un mínimo de cero no alerta mientras quede inventario.
+
 **Los meseros leen existencias pero no las mueven a mano**: al vender se mueven
 solas, desde `servicios/consumo.py`.
 

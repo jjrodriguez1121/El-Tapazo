@@ -73,7 +73,10 @@ class ExistenciaViewSet(_ViewSetDeLectura):
 
     @extend_schema(
         summary="Ver qué hay que reponer",
-        description="Solo lo que tiene mínimo puesto: un cero es «sin alerta».",
+        description=(
+            "Incluye existencias agotadas y las que están por debajo del mínimo "
+            "configurado. Un mínimo de cero no alerta mientras quede inventario."
+        ),
         responses={200: serializers.ExistenciaOutputSerializer(many=True)},
     )
     @action(detail=False, methods=["get"], url_path="bajo-minimo")

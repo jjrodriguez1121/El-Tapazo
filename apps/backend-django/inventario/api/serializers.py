@@ -16,7 +16,7 @@ class ProductoAnidadoSerializer(serializers.ModelSerializer):
 
 
 class ExistenciaOutputSerializer(serializers.ModelSerializer):
-    """`esta_bajo_minimo` sale calculado: con la mínima en 0 nunca lo está."""
+    """`esta_bajo_minimo` también marca como alerta las existencias agotadas."""
 
     producto = ProductoAnidadoSerializer(read_only=True)
     esta_bajo_minimo = serializers.BooleanField(read_only=True)
@@ -34,7 +34,7 @@ class ExistenciaOutputSerializer(serializers.ModelSerializer):
 
 
 class CantidadMinimaInputSerializer(serializers.Serializer):
-    """Un cero es «sin alerta», no «alerta siempre»."""
+    """Un cero desactiva la alerta por mínimo; los productos agotados siguen alertando."""
 
     producto_id = serializers.IntegerField()
     ubicacion_id = serializers.IntegerField()

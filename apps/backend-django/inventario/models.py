@@ -56,7 +56,7 @@ class Existencia(ModeloDelNegocio):
         max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="Por debajo de esto hay que reponer. 0 = sin alerta, no «alerta siempre».",
+        help_text="Por debajo de esto hay que reponer; 0 desactiva el mínimo, no la alerta por agotado.",
     )
 
     class Meta:
@@ -84,9 +84,8 @@ class Existencia(ModeloDelNegocio):
             ),
         ]
         indexes = [
-            # Índice parcial: el informe de reposición no tiene por qué
-            # escanear la tabla entera cuando la inmensa mayoría de las filas
-            # tendrá 0, que es «sin alerta».
+            # Índice parcial para evaluar mínimos configurados; las existencias
+            # agotadas también alertan aunque su mínimo sea cero.
             models.Index(
                 fields=["negocio"],
                 condition=models.Q(cantidad_minima__gt=0),
@@ -99,8 +98,10 @@ class Existencia(ModeloDelNegocio):
 
     @property
     def esta_bajo_minimo(self) -> bool:
-        """Hay que reponer. Con la mínima en 0 nunca lo está: ese es el «sin alerta»."""
-        return self.cantidad_minima > 0 and self.cantidad_disponible < self.cantidad_minima
+        """Hay que reponer si se agotó o si bajó del punto de reposición."""
+        return self.cantidad_disponible == 0 or (
+            self.cantidad_minima > 0 and self.cantidad_disponible < self.cantidad_minima
+        )
 
 
 class MovimientoInventario(ModeloDelNegocio):

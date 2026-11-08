@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from django.db.models import DecimalField, F, QuerySet
+from django.db.models import DecimalField, F, Q, QuerySet
 
 from inventario.models import Existencia, MovimientoInventario
 from inventario.repositorios import existencias as repositorio
@@ -22,13 +22,15 @@ def existencias_del_negocio(*, negocio_id: int) -> QuerySet[Existencia]:
 def productos_bajo_minimo(*, negocio_id: int) -> QuerySet[Existencia]:
     """Lo que hay que reponer, por sitio.
 
-    Solo mira las filas con mínimo puesto: un cero es "sin alerta", no "alerta
-    siempre". Las escoge el índice parcial `existencia_con_minimo_idx`, que
-    existe justo para que este informe no escanee la tabla entera.
+    Incluye siempre las existencias agotadas, además de las que tienen un
+    mínimo configurado y están por debajo de él.
     """
     return (
         repositorio.del_negocio(negocio_id=negocio_id)
-        .filter(cantidad_minima__gt=0, cantidad_disponible__lt=F("cantidad_minima"))
+        .filter(
+            Q(cantidad_disponible=0)
+            | Q(cantidad_minima__gt=0, cantidad_disponible__lt=F("cantidad_minima"))
+        )
         .select_related("producto")
     )
 

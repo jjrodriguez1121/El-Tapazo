@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   CheckCircleIcon,
+  PrinterIcon,
   ImageIcon,
   MinusIcon,
   PackageIcon,
@@ -13,8 +14,9 @@ import {
 import Aviso from '@/componentes/ui/Aviso'
 import { formatearCantidad, formatearPesos } from '@/utilidades/formatos'
 import { mensajeDeError } from '@/utilidades/errores'
+import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
 import { clienteApi } from '@/librerias/clienteApi'
-import { crearVenta, listarMetodosPago } from '@/modulos/ventas/api/apiVentas'
+import { crearVenta, listarMetodosPago, obtenerDetalleVenta } from '@/modulos/ventas/api/apiVentas'
 import ModalNuevoCliente from '@/modulos/clientes/componentes/ModalNuevoCliente'
 
 import EsqueletoDeProductos from '../componentes/EsqueletoDeProductos'
@@ -27,7 +29,9 @@ function ImagenProducto({ producto }) {
     <div
       aria-hidden="true"
       className="grid h-full w-full place-items-center text-azul-300"
-      style={{ backgroundImage: 'repeating-linear-gradient(45deg, #f3f5f5 0 7px, #e8ebec 7px 14px)' }}
+      style={{
+        backgroundImage: 'repeating-linear-gradient(45deg, #f3f5f5 0 7px, #e8ebec 7px 14px)',
+      }}
     >
       <ImageIcon size={24} />
     </div>
@@ -50,10 +54,12 @@ export default function PaginaPuntoDeVenta() {
   const [modalClienteAbierto, setModalClienteAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [metodosPago, setMetodosPago] = useState([])
+  const [ventaParaImprimir, setVentaParaImprimir] = useState(null)
 
   useEffect(() => {
-    clienteApi.get('/clientes/')
-      .then(({ data }) => setClientes(Array.isArray(data) ? data : data.results ?? []))
+    clienteApi
+      .get('/clientes/')
+      .then(({ data }) => setClientes(Array.isArray(data) ? data : (data.results ?? [])))
       .catch(() => setClientes([]))
     listarMetodosPago()
       .then((metodos) => {
@@ -81,7 +87,11 @@ export default function PaginaPuntoDeVenta() {
     )
   }
 
-  const { productos: productosApi, categorias: categoriasApi, existencias: existenciasApi } = catalogo.data
+  const {
+    productos: productosApi,
+    categorias: categoriasApi,
+    existencias: existenciasApi,
+  } = catalogo.data
   const productos = productosApi
   const categorias = categoriasApi
   const existencias = existenciasApi
@@ -101,7 +111,8 @@ export default function PaginaPuntoDeVenta() {
   const cantidadArticulos = carrito.reduce((total, linea) => total + linea.cantidad, 0)
   const subtotal = carrito.reduce(
     (total, linea) =>
-      total + Number(linea.producto.precio_venta ?? linea.producto.precio_evento ?? 0) * linea.cantidad,
+      total +
+      Number(linea.producto.precio_venta ?? linea.producto.precio_evento ?? 0) * linea.cantidad,
     0
   )
   const descuento = Math.round(subtotal * (Number(porcentajeDescuento || 0) / 100))
@@ -112,16 +123,16 @@ export default function PaginaPuntoDeVenta() {
       const porcentaje = Number(linea.producto.impuesto?.porcentaje ?? 0)
       const importeLinea = Math.round(precio * linea.cantidad)
       const importeLineaConDescuento =
-        subtotal > 0 ? importeLinea - Math.round(importeLinea * descuento / subtotal) : 0
+        subtotal > 0 ? importeLinea - Math.round((importeLinea * descuento) / subtotal) : 0
       if (!porcentaje) return totalImpuesto
-      return totalImpuesto + Math.round(importeLineaConDescuento * porcentaje / (100 + porcentaje))
+      return (
+        totalImpuesto + Math.round((importeLineaConDescuento * porcentaje) / (100 + porcentaje))
+      )
     }, 0)
   )
   const baseGravable = totalConDescuento - impuesto
   const tasasDeImpuesto = [
-    ...new Set(
-      carrito.map((linea) => Number(linea.producto.impuesto?.porcentaje ?? 0))
-    ),
+    ...new Set(carrito.map((linea) => Number(linea.producto.impuesto?.porcentaje ?? 0))),
   ]
   const etiquetaImpuesto =
     tasasDeImpuesto.length === 1 ? `IVA (${tasasDeImpuesto[0]}%)` : 'IVA (mixto)'
@@ -130,7 +141,9 @@ export default function PaginaPuntoDeVenta() {
   function agregarAlCarrito(producto) {
     setAvisoCobro('')
     setCarrito((actual) => {
-      const lineaExistente = actual.find((linea) => String(linea.producto.id) === String(producto.id))
+      const lineaExistente = actual.find(
+        (linea) => String(linea.producto.id) === String(producto.id)
+      )
       if (lineaExistente) {
         return actual.map((linea) =>
           String(linea.producto.id) === String(producto.id)
@@ -204,14 +217,43 @@ export default function PaginaPuntoDeVenta() {
         descuento_porcentaje: Number(porcentajeDescuento || 0),
       })
       setCarrito([])
-      await catalogo.refetch()
       setTipoAviso('exito')
-      setAvisoCobro(`Venta ${venta.numero_venta} registrada por ${formatearPesos(Number(venta.total))}.`)
+      setAvisoCobro(
+        `Venta ${venta.numero_venta} registrada por ${formatearPesos(Number(venta.total))}.`
+      )
+      const resultadoDetalle = await obtenerDetalleVenta(venta.id).then(
+        (detalle) => ({ detalle }),
+        (errorDetalle) => ({ error: errorDetalle })
+      )
+      if (resultadoDetalle.detalle) {
+        setVentaParaImprimir(resultadoDetalle.detalle)
+      } else {
+        setTipoAviso('error')
+        setAvisoCobro(
+          `La venta ${venta.numero_venta} se registró, pero no fue posible cargar el comprobante: ${mensajeDeError(resultadoDetalle.error)}`
+        )
+      }
+      catalogo.refetch().catch(() => {
+        setTipoAviso('error')
+        setAvisoCobro(
+          `La venta ${venta.numero_venta} se registró, pero no fue posible actualizar el catálogo.`
+        )
+      })
     } catch (error) {
       setTipoAviso('error')
       setAvisoCobro(mensajeDeError(error))
     } finally {
       setGuardando(false)
+    }
+  }
+
+  function imprimirVenta() {
+    try {
+      imprimirComprobanteVenta(ventaParaImprimir)
+      setVentaParaImprimir(null)
+    } catch (errorImpresion) {
+      setTipoAviso('error')
+      setAvisoCobro(errorImpresion.message || 'No fue posible preparar el comprobante PDF.')
     }
   }
 
@@ -225,7 +267,10 @@ export default function PaginaPuntoDeVenta() {
           </p>
         </header>
 
-        <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar productos por categoría">
+        <div
+          className="flex gap-2 overflow-x-auto pb-1"
+          aria-label="Filtrar productos por categoría"
+        >
           <button
             type="button"
             aria-pressed={categoriaActiva === 'todas'}
@@ -255,7 +300,8 @@ export default function PaginaPuntoDeVenta() {
               0
             )
             const cantidadEnCarrito =
-              carrito.find((linea) => String(linea.producto.id) === String(producto.id))?.cantidad ?? 0
+              carrito.find((linea) => String(linea.producto.id) === String(producto.id))
+                ?.cantidad ?? 0
             const ubicacion = stockDelProducto
               .map((existencia) => existencia.ubicacion?.nombre)
               .filter(Boolean)
@@ -272,7 +318,10 @@ export default function PaginaPuntoDeVenta() {
                     {producto.sku}
                   </span>
                 </div>
-                <h2 className="mt-2 truncate text-[11px] font-semibold text-azul-950" title={producto.nombre}>
+                <h2
+                  className="mt-2 truncate text-[11px] font-semibold text-azul-950"
+                  title={producto.nombre}
+                >
                   {producto.nombre}
                 </h2>
                 <p className="mt-0.5 truncate text-[9px] text-azul-400">
@@ -332,7 +381,9 @@ export default function PaginaPuntoDeVenta() {
                   <ImagenProducto producto={producto} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-[10px] font-semibold text-azul-950">{producto.nombre}</h3>
+                  <h3 className="truncate text-[10px] font-semibold text-azul-950">
+                    {producto.nombre}
+                  </h3>
                   <p className="text-[9px] font-medium text-azul-600">
                     {formatearPesos(Number(producto.precio_venta ?? producto.precio_evento ?? 0))}
                   </p>
@@ -346,7 +397,9 @@ export default function PaginaPuntoDeVenta() {
                   >
                     <MinusIcon size={12} />
                   </button>
-                  <span className="w-3 text-center text-[10px] font-semibold text-azul-950">{cantidad}</span>
+                  <span className="w-3 text-center text-[10px] font-semibold text-azul-950">
+                    {cantidad}
+                  </span>
                   <button
                     type="button"
                     aria-label={`Sumar ${producto.nombre}`}
@@ -381,15 +434,19 @@ export default function PaginaPuntoDeVenta() {
         <section className="overflow-y-auto border-t border-azul-100 px-3.5 py-3">
           <dl className="flex flex-col gap-2 text-[10px]">
             <div className="flex justify-between gap-3 text-azul-500">
-              <dt>Subtotal</dt><dd>{formatearPesos(baseGravable)}</dd>
+              <dt>Subtotal</dt>
+              <dd>{formatearPesos(baseGravable)}</dd>
             </div>
             <div className="flex justify-between gap-3 text-azul-500">
-              <dt>{etiquetaImpuesto}</dt><dd>{formatearPesos(impuesto)}</dd>
+              <dt>{etiquetaImpuesto}</dt>
+              <dd>{formatearPesos(impuesto)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3 text-azul-500">
               <dt className="flex items-center gap-1.5">
                 Descuento
-                <label className="sr-only" htmlFor="porcentaje-descuento">Descuento porcentual</label>
+                <label className="sr-only" htmlFor="porcentaje-descuento">
+                  Descuento porcentual
+                </label>
                 <input
                   id="porcentaje-descuento"
                   aria-label="Descuento porcentual"
@@ -398,7 +455,9 @@ export default function PaginaPuntoDeVenta() {
                   max="100"
                   value={porcentajeDescuento}
                   onChange={(evento) =>
-                    setPorcentajeDescuento(String(Math.min(100, Math.max(0, Number(evento.target.value)))))
+                    setPorcentajeDescuento(
+                      String(Math.min(100, Math.max(0, Number(evento.target.value))))
+                    )
                   }
                   className="h-6 w-10 rounded border border-azul-150 text-center text-[9px] text-azul-700 outline-none focus:border-azul-600"
                 />
@@ -417,7 +476,11 @@ export default function PaginaPuntoDeVenta() {
           <div className="mt-3 grid gap-2">
             <label className="text-[10px] font-bold text-azul-600">
               Tipo de pago
-              <select value={tipoPago} onChange={(evento) => setTipoPago(evento.target.value)} className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs">
+              <select
+                value={tipoPago}
+                onChange={(evento) => setTipoPago(evento.target.value)}
+                className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+              >
                 <option value="contado">Contado</option>
                 <option value="credito">Crédito</option>
               </select>
@@ -436,9 +499,15 @@ export default function PaginaPuntoDeVenta() {
             {tipoPago === 'contado' ? (
               <label className="text-[10px] font-bold text-azul-600">
                 Medio de pago
-                <select value={metodoPago} onChange={(evento) => setMetodoPago(evento.target.value)} className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs">
+                <select
+                  value={metodoPago}
+                  onChange={(evento) => setMetodoPago(evento.target.value)}
+                  className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+                >
                   {metodosPago.map((metodo) => (
-                    <option key={metodo.id} value={metodo.id}>{metodo.nombre}</option>
+                    <option key={metodo.id} value={metodo.id}>
+                      {metodo.nombre}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -459,16 +528,23 @@ export default function PaginaPuntoDeVenta() {
               >
                 <option value="">Seleccione...</option>
                 {clientes.map((cliente) => (
-                  <option key={cliente.id} value={cliente.id}>{cliente.nombre} {cliente.apellido}</option>
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.nombre} {cliente.apellido}
+                  </option>
                 ))}
                 <option value="nuevo">+ Nuevo cliente</option>
               </select>
             </label>
             {tipoPago === 'credito' && (
-                <label className="text-[10px] font-bold text-azul-600">
-                  Vencimiento
-                  <input type="date" value={fechaVencimiento} onChange={(evento) => setFechaVencimiento(evento.target.value)} className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs" />
-                </label>
+              <label className="text-[10px] font-bold text-azul-600">
+                Vencimiento
+                <input
+                  type="date"
+                  value={fechaVencimiento}
+                  onChange={(evento) => setFechaVencimiento(evento.target.value)}
+                  className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+                />
+              </label>
             )}
           </div>
           {modalClienteAbierto && (
@@ -488,7 +564,8 @@ export default function PaginaPuntoDeVenta() {
             onClick={cobrar}
             className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-azul-950 px-3 text-[10px] font-bold text-blanco hover:bg-azul-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-azul-600 disabled:cursor-not-allowed disabled:bg-azul-300"
           >
-            <CheckCircleIcon size={14} weight="bold" /> {guardando ? 'Registrando...' : 'Finalizar Venta'}
+            <CheckCircleIcon size={14} weight="bold" />{' '}
+            {guardando ? 'Registrando...' : 'Finalizar Venta'}
           </button>
           {avisoCobro && (
             <div
@@ -505,6 +582,33 @@ export default function PaginaPuntoDeVenta() {
                 <WarningCircleIcon size={14} weight="fill" className="flex-none text-red-500" />
               )}
               {avisoCobro}
+            </div>
+          )}
+          {ventaParaImprimir && (
+            <div className="mt-3 rounded-lg border border-exito-200 bg-exito-50 p-3">
+              <p className="text-[11px] font-semibold text-exito-800">
+                Venta {ventaParaImprimir.numero_venta} registrada correctamente.
+              </p>
+              <p className="mt-1 text-[10px] text-exito-700">
+                ¿Deseas imprimir o guardar el comprobante en PDF?
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVentaParaImprimir(null)}
+                  className="h-8 rounded-lg border border-exito-300 bg-blanco px-3 text-[10px] font-semibold text-exito-800 hover:bg-exito-100"
+                >
+                  Ahora no
+                </button>
+                <button
+                  type="button"
+                  onClick={imprimirVenta}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-exito-700 px-3 text-[10px] font-semibold text-blanco hover:bg-exito-800"
+                >
+                  <PrinterIcon size={14} />
+                  Imprimir / Guardar PDF
+                </button>
+              </div>
             </div>
           )}
         </section>

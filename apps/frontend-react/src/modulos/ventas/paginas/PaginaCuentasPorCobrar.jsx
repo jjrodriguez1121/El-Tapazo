@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { CalendarIcon, HandCoinsIcon, WalletIcon } from '@phosphor-icons/react'
+import { CalendarIcon, DownloadSimpleIcon, HandCoinsIcon, WalletIcon } from '@phosphor-icons/react'
 import { useNavigate } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
+import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
 import { clienteApi } from '@/librerias/clienteApi'
+import { estaEnRangoDeFechas } from '@/utilidades/fechas'
+import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
 import { formatearFechaCorta, formatearPesos } from '@/utilidades/formatos'
 import ModalDetalleVenta from '../componentes/ModalDetalleVenta'
 
@@ -34,6 +37,7 @@ export default function PaginaCuentasPorCobrar() {
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [filtroEntrega, setFiltroEntrega] = useState('todos')
+  const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
 
   async function cargarCuentas() {
     setCargando(true)
@@ -56,16 +60,64 @@ export default function PaginaCuentasPorCobrar() {
     navegar(`/cartera/${cuenta.id}/abono`)
   }
 
-  const totalPendiente = cuentas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
-  const vencidas = cuentas.filter((cuenta) => String(cuenta.estado).toUpperCase() === 'VENCIDA')
-  const totalVencido = vencidas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
   const cuentasFiltradas = cuentas.filter((cuenta) => {
-    const coincideEstado = (
-      filtroEstado === 'todos' || String(cuenta.estado).toLowerCase() === filtroEstado
+    const coincideVencimiento = estaEnRangoDeFechas(
+      cuenta.fecha_vencimiento,
+      rangoFechas.desde,
+      rangoFechas.hasta
     )
+    const coincideEstado =
+      filtroEstado === 'todos' || String(cuenta.estado).toLowerCase() === filtroEstado
     const estadoEntrega = cuenta.estado_entrega ?? 'pendiente_entrega'
-    return coincideEstado && (filtroEntrega === 'todos' || estadoEntrega === filtroEntrega)
+    return (
+      coincideVencimiento &&
+      coincideEstado &&
+      (filtroEntrega === 'todos' || estadoEntrega === filtroEntrega)
+    )
   })
+
+  function descargarReporte() {
+    setError('')
+    try {
+      imprimirReportePdf({
+        titulo: 'Cuentas por cobrar',
+        descripcion: `Fecha de vencimiento: ${rangoFechas.desde || 'sin límite'} a ${rangoFechas.hasta || 'sin límite'}. Se incluyen los filtros seleccionados en el listado.`,
+        columnas: [
+          'Fecha venta',
+          'Venta',
+          'Cliente',
+          'Vencimiento',
+          'Total',
+          'Saldo',
+          'Estado',
+          'Entrega',
+        ],
+        filas: cuentasFiltradas.map((cuenta) => [
+          cuenta.fecha_venta ? formatearFechaCorta(new Date(cuenta.fecha_venta)) : 'N/D',
+          cuenta.numero_venta,
+          cuenta.cliente,
+          cuenta.fecha_vencimiento
+            ? formatearFechaCorta(new Date(`${cuenta.fecha_vencimiento}T00:00:00`))
+            : 'N/D',
+          formatearPesos(Number(cuenta.total)),
+          formatearPesos(Number(cuenta.saldo)),
+          String(cuenta.estado).toUpperCase(),
+          ETIQUETAS_ENTREGA[cuenta.estado_entrega] ?? 'Pendiente de entrega',
+        ]),
+      })
+    } catch (errorReporte) {
+      setError(errorReporte.message || 'No fue posible preparar el reporte PDF.')
+    }
+  }
+
+  const totalPendiente = cuentasFiltradas.reduce(
+    (total, cuenta) => total + Number(cuenta.saldo || 0),
+    0
+  )
+  const vencidas = cuentasFiltradas.filter(
+    (cuenta) => String(cuenta.estado).toUpperCase() === 'VENCIDA'
+  )
+  const totalVencido = vencidas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
 
   return (
     <div className="flex flex-col gap-5">
@@ -79,13 +131,42 @@ export default function PaginaCuentasPorCobrar() {
       {error && <Aviso>{error}</Aviso>}
 
       <section className="grid gap-3 sm:grid-cols-3" aria-label="Resumen de cuentas por cobrar">
-        <Resumen Icono={WalletIcon} etiqueta="Saldo pendiente" valor={formatearPesos(totalPendiente)} />
-        <Resumen Icono={CalendarIcon} etiqueta="Saldo vencido" valor={formatearPesos(totalVencido)} alerta />
-        <Resumen Icono={HandCoinsIcon} etiqueta="Ventas pendientes" valor={String(cuentas.length)} />
+        <Resumen
+          Icono={WalletIcon}
+          etiqueta="Saldo pendiente"
+          valor={formatearPesos(totalPendiente)}
+        />
+        <Resumen
+          Icono={CalendarIcon}
+          etiqueta="Saldo vencido"
+          valor={formatearPesos(totalVencido)}
+          alerta
+        />
+        <Resumen
+          Icono={HandCoinsIcon}
+          etiqueta="Ventas pendientes"
+          valor={String(cuentasFiltradas.length)}
+        />
       </section>
 
       <section className="overflow-hidden rounded-xl border border-azul-150 bg-blanco">
-        <div className="flex flex-wrap gap-2 border-b border-azul-100 p-4">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-azul-100 p-4">
+          <FiltroRangoFechas
+            titulo="Filtrar por fecha de vencimiento"
+            desde={rangoFechas.desde}
+            hasta={rangoFechas.hasta}
+            alCambiar={setRangoFechas}
+          />
+          <button
+            type="button"
+            onClick={descargarReporte}
+            disabled={cargando}
+            title="Se abrirá la impresión del navegador; selecciona Guardar como PDF."
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-azul-950 px-3 text-xs font-semibold text-blanco hover:bg-azul-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <DownloadSimpleIcon size={16} />
+            Descargar PDF
+          </button>
           <select
             aria-label="Filtrar cuentas por estado"
             value={filtroEstado}
@@ -127,9 +208,7 @@ export default function PaginaCuentasPorCobrar() {
               {cuentasFiltradas.map((cuenta) => (
                 <tr key={cuenta.id} className="border-t border-azul-100">
                   <td className="px-4 py-3 text-xs text-azul-500">
-                    {cuenta.fecha_venta
-                      ? formatearFechaCorta(new Date(cuenta.fecha_venta))
-                      : 'N/D'}
+                    {cuenta.fecha_venta ? formatearFechaCorta(new Date(cuenta.fecha_venta)) : 'N/D'}
                   </td>
                   <td className="px-4 py-3 font-semibold text-azul-950">{cuenta.numero_venta}</td>
                   <td className="px-4 py-3">{cuenta.cliente}</td>
@@ -141,12 +220,16 @@ export default function PaginaCuentasPorCobrar() {
                     {formatearPesos(Number(cuenta.saldo))}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ESTADO[cuenta.estado] ?? TONOS_ESTADO.PENDIENTE}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ESTADO[cuenta.estado] ?? TONOS_ESTADO.PENDIENTE}`}
+                    >
                       {String(cuenta.estado).toUpperCase()}
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ENTREGA[cuenta.estado_entrega] ?? TONOS_ENTREGA.pendiente_entrega}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ENTREGA[cuenta.estado_entrega] ?? TONOS_ENTREGA.pendiente_entrega}`}
+                    >
                       {ETIQUETAS_ENTREGA[cuenta.estado_entrega] ?? 'Pendiente de entrega'}
                     </span>
                   </td>
@@ -173,7 +256,9 @@ export default function PaginaCuentasPorCobrar() {
               {!cargando && !cuentasFiltradas.length && (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-azul-400">
-                    {cuentas.length ? 'No hay cuentas que coincidan con los filtros.' : 'No hay cuentas por cobrar pendientes.'}
+                    {cuentas.length
+                      ? 'No hay cuentas que coincidan con los filtros.'
+                      : 'No hay cuentas por cobrar pendientes.'}
                   </td>
                 </tr>
               )}
@@ -184,10 +269,7 @@ export default function PaginaCuentasPorCobrar() {
       </section>
 
       {ventaDetalleId && (
-        <ModalDetalleVenta
-          ventaId={ventaDetalleId}
-          alCerrar={() => setVentaDetalleId(null)}
-        />
+        <ModalDetalleVenta ventaId={ventaDetalleId} alCerrar={() => setVentaDetalleId(null)} />
       )}
     </div>
   )
@@ -197,7 +279,9 @@ function Resumen({ Icono, etiqueta, valor, alerta = false }) {
   return (
     <article className="rounded-xl border border-azul-150 bg-blanco p-4">
       <div className="flex items-center gap-3">
-        <div className={`grid size-10 place-items-center rounded-lg ${alerta ? 'bg-error-50 text-error-700' : 'bg-azul-50 text-azul-700'}`}>
+        <div
+          className={`grid size-10 place-items-center rounded-lg ${alerta ? 'bg-error-50 text-error-700' : 'bg-azul-50 text-azul-700'}`}
+        >
           <Icono size={20} />
         </div>
         <div>

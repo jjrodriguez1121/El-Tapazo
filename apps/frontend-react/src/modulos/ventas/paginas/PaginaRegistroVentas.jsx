@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react'
-import { CalendarIcon, ReceiptIcon, ShoppingCartSimpleIcon } from '@phosphor-icons/react'
+import {
+  CalendarIcon,
+  DownloadSimpleIcon,
+  ReceiptIcon,
+  ShoppingCartSimpleIcon,
+} from '@phosphor-icons/react'
 import { Link } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
+import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
 import { RUTAS } from '@/configuracion/rutas'
+import { estaEnRangoDeFechas } from '@/utilidades/fechas'
+import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
 import { formatearPesos } from '@/utilidades/formatos'
 import { confirmarEntregaVenta, listarVentas } from '../api/apiVentas'
 import ModalDetalleVenta from '../componentes/ModalDetalleVenta'
@@ -37,6 +45,7 @@ export default function PaginaRegistroVentas() {
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [filtroTipoPago, setFiltroTipoPago] = useState('todos')
   const [filtroEntrega, setFiltroEntrega] = useState('todos')
+  const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
 
   async function marcarComoEntregada(venta) {
@@ -71,6 +80,7 @@ export default function PaginaRegistroVentas() {
   }, [])
 
   const ventasFiltradas = ventas.filter((v) => {
+    const coincideFecha = estaEnRangoDeFechas(v.fecha_venta, rangoFechas.desde, rangoFechas.hasta)
     const coincideEstado = filtroEstado === 'todos' || v.estado === filtroEstado
     const coincideTipoPago = filtroTipoPago === 'todos' || v.tipo_pago === filtroTipoPago
     const estadoEntrega = v.estado_entrega ?? 'pendiente_entrega'
@@ -81,14 +91,50 @@ export default function PaginaRegistroVentas() {
       v.numero_venta.toLowerCase().includes(texto) ||
       v.cliente_nombre.toLowerCase().includes(texto) ||
       (v.vendedor && v.vendedor.toLowerCase().includes(texto))
-    return coincideEstado && coincideTipoPago && coincideEntrega && coincideTexto
+    return coincideFecha && coincideEstado && coincideTipoPago && coincideEntrega && coincideTexto
   })
+
+  function descargarReporte() {
+    setError('')
+    try {
+      const fechaVenta = new Intl.DateTimeFormat('es-CO', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+      imprimirReportePdf({
+        titulo: 'Registro de ventas',
+        descripcion: `Fecha de venta: ${rangoFechas.desde || 'sin límite'} a ${rangoFechas.hasta || 'sin límite'}. Se incluyen los filtros seleccionados en el listado.`,
+        columnas: [
+          'Fecha',
+          'Venta',
+          'Cliente',
+          'Tipo de pago',
+          'Estado de pago',
+          'Entrega',
+          'Ítems',
+          'Total',
+        ],
+        filas: ventasFiltradas.map((venta) => [
+          fechaVenta.format(new Date(venta.fecha_venta)),
+          venta.numero_venta,
+          venta.cliente_nombre,
+          venta.tipo_pago === 'contado' ? 'Contado' : 'Crédito',
+          String(venta.estado).toUpperCase(),
+          ETIQUETAS_ENTREGA[venta.estado_entrega] ?? 'Pendiente de entrega',
+          venta.cantidad_items,
+          formatearPesos(Number(venta.total)),
+        ]),
+      })
+    } catch (errorReporte) {
+      setError(errorReporte.message || 'No fue posible preparar el reporte PDF.')
+    }
+  }
 
   function estaPendienteDeEntrega(venta) {
     return !venta.estado_entrega || venta.estado_entrega === 'pendiente_entrega'
   }
 
-  const ventasVigentes = ventas.filter((venta) => venta.estado !== 'anulada')
+  const ventasVigentes = ventasFiltradas.filter((venta) => venta.estado !== 'anulada')
   const totalVendido = ventasVigentes.reduce((total, v) => total + Number(v.total || 0), 0)
   const ventasContado = ventasVigentes.filter((v) => v.tipo_pago === 'contado').length
   const ventasCredito = ventasVigentes.filter((v) => v.tipo_pago === 'credito').length
@@ -132,8 +178,26 @@ export default function PaginaRegistroVentas() {
       </section>
 
       <section className="overflow-hidden rounded-xl border border-azul-150 bg-blanco">
-        <div className="flex flex-col gap-3 border-b border-azul-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-azul-100 p-4">
           <h2 className="text-sm font-bold text-azul-950">Ventas registradas</h2>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <FiltroRangoFechas
+              titulo="Filtrar por fecha de venta"
+              desde={rangoFechas.desde}
+              hasta={rangoFechas.hasta}
+              alCambiar={setRangoFechas}
+            />
+            <button
+              type="button"
+              onClick={descargarReporte}
+              disabled={cargando}
+              title="Se abrirá la impresión del navegador; selecciona Guardar como PDF."
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-azul-950 px-3 text-xs font-semibold text-blanco hover:bg-azul-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <DownloadSimpleIcon size={16} />
+              Descargar PDF
+            </button>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <input
               type="search"
@@ -271,7 +335,9 @@ export default function PaginaRegistroVentas() {
             </tbody>
           </table>
         </div>
-        {cargando && <p className="px-4 py-10 text-center text-sm text-azul-400">Cargando ventas...</p>}
+        {cargando && (
+          <p className="px-4 py-10 text-center text-sm text-azul-400">Cargando ventas...</p>
+        )}
       </section>
 
       {ventaDetalleId && (

@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { CalendarIcon, WalletIcon } from '@phosphor-icons/react'
+import { CalendarIcon, DownloadSimpleIcon, WalletIcon } from '@phosphor-icons/react'
 import { useNavigate } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
+import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
 import { clienteApi } from '@/librerias/clienteApi'
+import { estaEnRangoDeFechas } from '@/utilidades/fechas'
+import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
 import { formatearFechaCorta, formatearPesos } from '@/utilidades/formatos'
 import ModalDetalleCompra from '../componentes/ModalDetalleCompra'
 
@@ -20,6 +23,7 @@ export default function PaginaCuentasPorPagar() {
   const [error, setError] = useState('')
   const [compraDetalleId, setCompraDetalleId] = useState(null)
   const [filtroEstado, setFiltroEstado] = useState('todos')
+  const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
 
   async function cargarCuentas() {
     setCargando(true)
@@ -42,12 +46,55 @@ export default function PaginaCuentasPorPagar() {
     navegar(`/cuentas-por-pagar/${cuenta.id}/abono`)
   }
 
-  const totalPendiente = cuentas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
-  const vencidas = cuentas.filter((cuenta) => cuenta.estado === 'VENCIDA')
+  const cuentasFiltradas = cuentas.filter((cuenta) => {
+    const coincideVencimiento = estaEnRangoDeFechas(
+      cuenta.fecha_vencimiento,
+      rangoFechas.desde,
+      rangoFechas.hasta
+    )
+    return (
+      coincideVencimiento &&
+      (filtroEstado === 'todos' || String(cuenta.estado).toLowerCase() === filtroEstado)
+    )
+  })
+  const totalPendiente = cuentasFiltradas.reduce(
+    (total, cuenta) => total + Number(cuenta.saldo || 0),
+    0
+  )
+  const vencidas = cuentasFiltradas.filter((cuenta) => cuenta.estado === 'VENCIDA')
   const totalVencido = vencidas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
-  const cuentasFiltradas = cuentas.filter((cuenta) => (
-    filtroEstado === 'todos' || String(cuenta.estado).toLowerCase() === filtroEstado
-  ))
+
+  function descargarReporte() {
+    setError('')
+    try {
+      imprimirReportePdf({
+        titulo: 'Cuentas por pagar',
+        descripcion: `Fecha de vencimiento: ${rangoFechas.desde || 'sin límite'} a ${rangoFechas.hasta || 'sin límite'}. Se incluyen los filtros seleccionados en el listado.`,
+        columnas: [
+          'Fecha compra',
+          'Compra',
+          'Proveedor',
+          'Vencimiento',
+          'Total',
+          'Saldo',
+          'Estado',
+        ],
+        filas: cuentasFiltradas.map((cuenta) => [
+          cuenta.fecha_compra ? formatearFechaCorta(new Date(cuenta.fecha_compra)) : 'N/D',
+          cuenta.numero_compra,
+          cuenta.proveedor,
+          cuenta.fecha_vencimiento
+            ? formatearFechaCorta(new Date(`${cuenta.fecha_vencimiento}T00:00:00`))
+            : 'N/D',
+          formatearPesos(Number(cuenta.total)),
+          formatearPesos(Number(cuenta.saldo)),
+          cuenta.estado,
+        ]),
+      })
+    } catch (errorReporte) {
+      setError(errorReporte.message || 'No fue posible preparar el reporte PDF.')
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -75,12 +122,28 @@ export default function PaginaCuentasPorPagar() {
         <Resumen
           Icono={WalletIcon}
           etiqueta="Facturas pendientes"
-          valor={String(cuentas.length)}
+          valor={String(cuentasFiltradas.length)}
         />
       </section>
 
       <section className="overflow-hidden rounded-xl border border-azul-150 bg-blanco">
-        <div className="border-b border-azul-100 p-4">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-azul-100 p-4">
+          <FiltroRangoFechas
+            titulo="Filtrar por fecha de vencimiento"
+            desde={rangoFechas.desde}
+            hasta={rangoFechas.hasta}
+            alCambiar={setRangoFechas}
+          />
+          <button
+            type="button"
+            onClick={descargarReporte}
+            disabled={cargando}
+            title="Se abrirá la impresión del navegador; selecciona Guardar como PDF."
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-azul-950 px-3 text-xs font-semibold text-blanco hover:bg-azul-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <DownloadSimpleIcon size={16} />
+            Descargar PDF
+          </button>
           <select
             aria-label="Filtrar cuentas por estado"
             value={filtroEstado}
@@ -125,16 +188,26 @@ export default function PaginaCuentasPorPagar() {
                     {formatearPesos(Number(cuenta.saldo))}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ESTADO[cuenta.estado] ?? TONOS_ESTADO.PENDIENTE}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ESTADO[cuenta.estado] ?? TONOS_ESTADO.PENDIENTE}`}
+                    >
                       {cuenta.estado}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-2">
-                      <button type="button" onClick={() => setCompraDetalleId(cuenta.compra_id)} className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50">
+                      <button
+                        type="button"
+                        onClick={() => setCompraDetalleId(cuenta.compra_id)}
+                        className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50"
+                      >
                         Ver detalle
                       </button>
-                      <button type="button" onClick={() => registrarAbono(cuenta)} className="rounded-lg bg-azul-950 px-3 py-1.5 text-xs font-semibold text-blanco hover:bg-azul-800">
+                      <button
+                        type="button"
+                        onClick={() => registrarAbono(cuenta)}
+                        className="rounded-lg bg-azul-950 px-3 py-1.5 text-xs font-semibold text-blanco hover:bg-azul-800"
+                      >
                         Registrar abono
                       </button>
                     </div>
@@ -144,7 +217,9 @@ export default function PaginaCuentasPorPagar() {
               {!cargando && !cuentasFiltradas.length && (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-azul-400">
-                    {cuentas.length ? 'No hay cuentas que coincidan con los filtros.' : 'No hay cuentas por pagar pendientes.'}
+                    {cuentas.length
+                      ? 'No hay cuentas que coincidan con los filtros.'
+                      : 'No hay cuentas por pagar pendientes.'}
                   </td>
                 </tr>
               )}
@@ -164,7 +239,9 @@ function Resumen({ Icono, etiqueta, valor, alerta = false }) {
   return (
     <article className="rounded-xl border border-azul-150 bg-blanco p-4">
       <div className="flex items-center gap-3">
-        <div className={`grid size-10 place-items-center rounded-lg ${alerta ? 'bg-error-50 text-error-700' : 'bg-azul-50 text-azul-700'}`}>
+        <div
+          className={`grid size-10 place-items-center rounded-lg ${alerta ? 'bg-error-50 text-error-700' : 'bg-azul-50 text-azul-700'}`}
+        >
           <Icono size={20} />
         </div>
         <div>

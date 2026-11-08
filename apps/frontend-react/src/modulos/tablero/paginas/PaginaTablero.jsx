@@ -50,6 +50,22 @@ function coleccion(datos) {
   return Array.isArray(datos) ? datos : datos?.results ?? []
 }
 
+async function obtenerTodasLasAlertasDeStock() {
+  const alertas = []
+  let pagina = 1
+
+  while (true) {
+    const { data } = await clienteApi.get('/inventario/existencias/bajo-minimo/', {
+      params: { page: pagina },
+    })
+    if (Array.isArray(data)) return data
+
+    alertas.push(...coleccion(data))
+    if (!data.next) return alertas
+    pagina += 1
+  }
+}
+
 function fechaDeVenta(venta) {
   return venta.fecha_venta?.slice(0, 10) ?? ''
 }
@@ -99,10 +115,15 @@ export default function PaginaTablero() {
 
     setCargando(true)
     setError('')
-    const [respuestaResumen, respuestaVentas, respuestaStock, respuestaCuentas] = await Promise.allSettled([
+    const [
+      respuestaResumen,
+      respuestaVentas,
+      respuestaStock,
+      respuestaCuentas,
+    ] = await Promise.allSettled([
       clienteApi.get('/negocios/informes/dashboard/', { params: rango }),
       clienteApi.get('/ventas/'),
-      clienteApi.get('/inventario/existencias/bajo-minimo/'),
+      obtenerTodasLasAlertasDeStock(),
       clienteApi.get('/compras/cuentas-por-pagar/'),
     ])
 
@@ -118,12 +139,19 @@ export default function PaginaTablero() {
       setVentas([])
       setError('No fue posible cargar las ventas del periodo.')
     }
-    setAlertas(respuestaStock.status === 'fulfilled' ? coleccion(respuestaStock.value.data).map((existencia) => ({
-      id: existencia.id,
-      producto: existencia.producto?.nombre ?? 'Producto',
-      ubicacion: 'Inventario',
-      disponible: Number(existencia.cantidad_disponible ?? 0),
-    })) : [])
+    if (respuestaStock.status === 'fulfilled') {
+      setAlertas(
+        respuestaStock.value.map((existencia) => ({
+          id: existencia.id,
+          producto: existencia.producto?.nombre ?? 'Producto',
+          ubicacion: 'Inventario',
+          disponible: Number(existencia.cantidad_disponible ?? 0),
+        }))
+      )
+    } else {
+      setAlertas([])
+      setError('No fue posible cargar las alertas de stock.')
+    }
     setCuentasPorPagar(respuestaCuentas.status === 'fulfilled' ? coleccion(respuestaCuentas.value.data) : [])
     setCargando(false)
   }
