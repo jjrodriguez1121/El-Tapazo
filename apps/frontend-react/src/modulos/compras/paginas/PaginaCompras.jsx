@@ -5,6 +5,7 @@ import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
 import { formatearPesos } from '@/utilidades/formatos'
 import { imprimirComprobanteCompra } from '@/utilidades/imprimirComprobanteCompra'
+import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
 import { crearCompra, listarCompras } from '../api/apiCompras'
 import { listarMetodosPago } from '@/modulos/ventas/api/apiVentas'
 import ModalDetalleCompra from '../componentes/ModalDetalleCompra'
@@ -107,6 +108,13 @@ export default function PaginaCompras() {
 
   async function guardar(evento) {
     evento.preventDefault()
+    if (
+      datos.condicionPago === 'CREDITO' &&
+      datos.fechaVencimiento < obtenerFechaMinimaVencimiento()
+    ) {
+      setError('La fecha de vencimiento debe ser a partir de mañana.')
+      return
+    }
     setGuardando(true)
     setError('')
     try {
@@ -208,16 +216,29 @@ export default function PaginaCompras() {
             </select>
           </label>
           {datos.condicionPago === 'CREDITO' && (
-            <label className="flex flex-col gap-1 text-xs font-semibold text-azul-700">
-              Fecha de vencimiento
-              <input
-                required
-                type="date"
-                value={datos.fechaVencimiento}
-                onChange={(e) => setDatos({ ...datos, fechaVencimiento: e.target.value })}
-                className="h-10 rounded-lg border border-azul-200 px-3 text-sm"
-              />
-            </label>
+            <div>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-azul-700">
+                Fecha de vencimiento
+                <input
+                  required
+                  type="date"
+                  min={obtenerFechaMinimaVencimiento()}
+                  value={datos.fechaVencimiento}
+                  aria-invalid={
+                    Boolean(datos.fechaVencimiento) &&
+                    datos.fechaVencimiento < obtenerFechaMinimaVencimiento()
+                  }
+                  onChange={(e) => {
+                    setDatos({ ...datos, fechaVencimiento: e.target.value })
+                    setError('')
+                  }}
+                  className="h-10 rounded-lg border border-azul-200 px-3 text-sm aria-[invalid=true]:border-error-600"
+                />
+              </label>
+              <p className="mt-1 text-[11px] font-normal text-azul-500">
+                Para compras a crédito, el vencimiento debe ser como mínimo mañana.
+              </p>
+            </div>
           )}
           {datos.condicionPago === 'CONTADO' && (
             <label className="flex flex-col gap-1 text-xs font-semibold text-azul-700">
@@ -349,7 +370,8 @@ export default function PaginaCompras() {
                 min="0"
                 step="0.01"
                 aria-label="Costo unitario"
-                placeholder="Costo"
+                placeholder="Costo unitario"
+                title="Costo unitario"
                 value={linea.costoUnitario}
                 onChange={(e) => cambiarLinea(indice, 'costoUnitario', e.target.value)}
                 className="h-9 rounded-lg border border-azul-200 px-2 text-sm"

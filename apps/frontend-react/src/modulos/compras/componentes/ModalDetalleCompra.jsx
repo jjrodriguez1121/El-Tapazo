@@ -46,7 +46,7 @@ export default function ModalDetalleCompra({ compraId, alCerrar }) {
                     <tr>
                       <th className="px-3 py-3">Producto</th>
                       <th className="px-3 py-3 text-right">Cantidad</th>
-                      <th className="px-3 py-3 text-right">Costo</th>
+                      <th className="px-3 py-3 text-right">Costo unitario</th>
                       <th className="px-3 py-3 text-right">Subtotal</th>
                     </tr>
                   </thead>

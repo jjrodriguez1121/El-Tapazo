@@ -3,11 +3,10 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils import timezone
 
 from catalogo.models import Producto
 from clientes.models import Cliente
-from django.utils import timezone
-
 from inventario.models import Existencia, MovimientoInventario
 from ventas.dtos import DatosDeVentaDTO
 from ventas.models import CuentaPorCobrar, DetalleVenta, MetodoPago, PagoVenta, Venta
@@ -24,6 +23,11 @@ def registrar_venta(*, datos: DatosDeVentaDTO, negocio_id: int, vendedor_id: int
         raise ValueError("Una venta a crédito requiere cliente.")
     if datos.tipo_pago == Venta.TipoPago.CREDITO and not datos.fecha_vencimiento:
         raise ValueError("Una venta a crédito requiere fecha de vencimiento.")
+    if (
+        datos.tipo_pago == Venta.TipoPago.CREDITO
+        and datos.fecha_vencimiento <= timezone.localdate()
+    ):
+        raise ValueError("La fecha de vencimiento debe ser posterior a hoy.")
     if datos.tipo_pago == Venta.TipoPago.CONTADO and not datos.metodo_pago_id:
         raise ValueError("Una venta de contado requiere medio de pago.")
     if datos.estado_entrega not in Venta.EstadoEntrega.values:

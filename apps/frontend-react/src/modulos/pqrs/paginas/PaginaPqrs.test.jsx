@@ -66,7 +66,46 @@ test('carga el historial persistido y los indicadores de PQR', async () => {
   expect(await screen.findByText('Inconsistencia en factura de entrega')).toBeInTheDocument()
   expect(screen.getByText('PQR-000008')).toBeInTheDocument()
   expect(screen.getByText('Pendientes').nextElementSibling).toHaveTextContent('1')
-  expect(listarPqrs).toHaveBeenCalledWith({ page: 1, ambito: '', search: '' })
+  expect(listarPqrs).toHaveBeenCalledWith({
+    page: 1,
+    ambito: '',
+    search: '',
+    respuesta: '',
+  })
+})
+
+test('filtra PQRs que tienen respuesta registrada', async () => {
+  const usuario = userEvent.setup()
+  listarPqrs.mockResolvedValue(paginaVacia)
+  renderizarEnRuta(<PaginaPqrs />, '/pqrs')
+
+  await usuario.selectOptions(screen.getByLabelText('Filtrar por respuesta'), 'si')
+
+  await waitFor(() =>
+    expect(listarPqrs).toHaveBeenLastCalledWith({
+      page: 1,
+      ambito: '',
+      search: '',
+      respuesta: 'si',
+    })
+  )
+})
+
+test('filtra PQRs que aún no tienen respuesta', async () => {
+  const usuario = userEvent.setup()
+  listarPqrs.mockResolvedValue(paginaVacia)
+  renderizarEnRuta(<PaginaPqrs />, '/pqrs')
+
+  await usuario.selectOptions(screen.getByLabelText('Filtrar por respuesta'), 'no')
+
+  await waitFor(() =>
+    expect(listarPqrs).toHaveBeenLastCalledWith({
+      page: 1,
+      ambito: '',
+      search: '',
+      respuesta: 'no',
+    })
+  )
 })
 
 test('radica la PQR con la API y muestra el radicado persistente', async () => {
@@ -109,6 +148,22 @@ test('radica la PQR con la API y muestra el radicado persistente', async () => {
     })
   )
   expect(await screen.findByText('PQR-000008')).toBeInTheDocument()
+})
+
+test('muestra errores útiles y no envía una PQR con nombre sin contenido', async () => {
+  const usuario = userEvent.setup()
+  renderizarEnRuta(<PaginaPqrs />, '/pqrs')
+
+  await usuario.type(screen.getByLabelText(/Nombre completo o Razón social/i), '   ')
+  await usuario.type(screen.getByLabelText(/Asunto \/ Resumen/i), 'Factura')
+  await usuario.type(
+    screen.getByLabelText(/Descripción detallada de la solicitud/i),
+    'Descripción válida de la solicitud'
+  )
+  await usuario.click(screen.getByRole('button', { name: /Radicar PQR/i }))
+
+  expect(await screen.findByText('Escribe al menos 3 caracteres.')).toBeInTheDocument()
+  expect(crearPqr).not.toHaveBeenCalled()
 })
 
 test('registra una respuesta en el historial y refresca el estado', async () => {

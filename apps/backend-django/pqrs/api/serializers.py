@@ -64,6 +64,10 @@ class PqrOutputSerializer(serializers.ModelSerializer):
 
 
 class PqrInputSerializer(serializers.ModelSerializer):
+    nombre_solicitante = serializers.CharField(min_length=3, max_length=180)
+    asunto = serializers.CharField(min_length=4, max_length=180)
+    descripcion = serializers.CharField(min_length=10)
+
     cliente = serializers.PrimaryKeyRelatedField(
         queryset=Cliente.objects.none(), required=False, allow_null=True
     )

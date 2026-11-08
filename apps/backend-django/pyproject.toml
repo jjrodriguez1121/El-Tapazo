@@ -33,7 +33,17 @@ addopts = "-ra --strict-markers"
 markers = [
     "lento: pruebas que tardan de más (concurrencia con transaction=True, por ejemplo)",
 ]
-testpaths = ["nucleo", "negocios", "usuarios", "clientes", "catalogo", "inventario", "ventas", "pqrs"]
+testpaths = [
+    "nucleo",
+    "negocios",
+    "usuarios",
+    "clientes",
+    "catalogo",
+    "inventario",
+    "ventas",
+    "compras",
+    "pqrs",
+]
 
 [tool.coverage.run]
 omit = ["*/migrations/*", "*/tests/*", "config/*", "manage.py"]

@@ -10,6 +10,12 @@ export function obtenerFechaLocalIso(valor) {
   return `${anio}-${mes}-${dia}`
 }
 
+export function obtenerFechaMinimaVencimiento() {
+  const manana = new Date()
+  manana.setDate(manana.getDate() + 1)
+  return obtenerFechaLocalIso(manana)
+}
+
 export function estaEnRangoDeFechas(fecha, desde, hasta) {
   const fechaIso = obtenerFechaLocalIso(fecha)
   return Boolean(fechaIso && (!desde || fechaIso >= desde) && (!hasta || fechaIso <= hasta))

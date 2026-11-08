@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { renderizarEnRuta } from '@/pruebas/renderizar'
+import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
 
 import { useCatalogoDeProductos } from '../hooks/useCatalogoDeProductos'
 import { crearVenta, listarMetodosPago, obtenerDetalleVenta } from '@/modulos/ventas/api/apiVentas'
@@ -65,6 +66,18 @@ test('lista los productos disponibles y filtra por categoría', async () => {
   expect(screen.getByText('Bujía NGK')).toBeInTheDocument()
   await usuario.click(screen.getByRole('button', { name: 'Eléctrico' }))
   expect(screen.getByText('Bujía NGK')).toBeInTheDocument()
+})
+
+test('el vencimiento de una venta a crédito empieza mañana', async () => {
+  const usuario = userEvent.setup()
+  renderizarEnRuta(<PaginaPuntoDeVenta />, '/punto-de-venta')
+
+  await usuario.selectOptions(screen.getByLabelText('Tipo de pago'), 'credito')
+
+  expect(screen.getByLabelText('Vencimiento')).toHaveAttribute(
+    'min',
+    obtenerFechaMinimaVencimiento()
+  )
 })
 
 test('agrega productos, cambia cantidades y calcula los totales', async () => {

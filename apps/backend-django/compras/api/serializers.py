@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from compras.models import Compra
@@ -50,6 +51,13 @@ class CompraCrearSerializer(serializers.Serializer):
         if datos["condicion_pago"] == "CREDITO" and not datos.get("fecha_vencimiento"):
             raise serializers.ValidationError({
                 "fecha_vencimiento": "Las compras a crédito requieren fecha de vencimiento.",
+            })
+        if (
+            datos["condicion_pago"] == "CREDITO"
+            and datos["fecha_vencimiento"] <= timezone.localdate()
+        ):
+            raise serializers.ValidationError({
+                "fecha_vencimiento": "La fecha de vencimiento debe ser posterior a hoy.",
             })
         if datos["condicion_pago"] == "CONTADO":
             datos["fecha_vencimiento"] = None

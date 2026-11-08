@@ -48,6 +48,15 @@ class PqrViewSet(
             valor = self.request.query_params.get(campo)
             if valor:
                 queryset = queryset.filter(**{campo: valor})
+        respuesta = self.request.query_params.get("respuesta")
+        if respuesta == "si":
+            queryset = queryset.filter(
+                seguimientos__tipo=PqrSeguimiento.Tipo.RESPUESTA
+            ).distinct()
+        elif respuesta == "no":
+            queryset = queryset.exclude(
+                seguimientos__tipo=PqrSeguimiento.Tipo.RESPUESTA
+            )
         return queryset
 
     def get_serializer_class(self):

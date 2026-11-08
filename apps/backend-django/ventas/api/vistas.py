@@ -1,17 +1,21 @@
 from decimal import Decimal
+
 from django.utils import timezone
+from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from nucleo.permisos import EsAdministrador, EsCajeroOAdministrador
-from ventas.models import CuentaPorCobrar, MetodoPago, PagoVenta, Venta
+from nucleo.permisos import EsCajeroOAdministrador
 from ventas.dtos import DatosDeVentaDTO, LineaDeVentaDTO
+from ventas.models import CuentaPorCobrar, MetodoPago, PagoVenta, Venta
 from ventas.servicios import (
     anular_venta,
     confirmar_entrega,
-    registrar_abono as registrar_abono_cartera,
     registrar_venta,
+)
+from ventas.servicios import (
+    registrar_abono as registrar_abono_cartera,
 )
 
 
@@ -54,10 +58,23 @@ def ventas(request):
             })
         return Response(datos)
 
-    lineas = request.data.get("lineas", [])
     tipo_pago = request.data.get("tipo_pago")
+    lineas = request.data.get("lineas", [])
     if not isinstance(lineas, list) or not lineas:
         raise ValidationError("Agregue al menos un producto.")
+    fecha_vencimiento = request.data.get("fecha_vencimiento") or None
+    if tipo_pago == Venta.TipoPago.CREDITO:
+        if not fecha_vencimiento:
+            raise ValidationError({
+                "fecha_vencimiento": "Las ventas a crédito requieren fecha de vencimiento.",
+            })
+        fecha_vencimiento = serializers.DateField().run_validation(fecha_vencimiento)
+        if fecha_vencimiento <= timezone.localdate():
+            raise ValidationError({
+                "fecha_vencimiento": "La fecha de vencimiento debe ser posterior a hoy.",
+            })
+    else:
+        fecha_vencimiento = None
     try:
         datos = DatosDeVentaDTO(
             lineas=[
@@ -69,7 +86,7 @@ def ventas(request):
             ],
             tipo_pago=tipo_pago,
             cliente_id=request.data.get("cliente_id") or None,
-            fecha_vencimiento=request.data.get("fecha_vencimiento") or None,
+            fecha_vencimiento=fecha_vencimiento,
             metodo_pago_id=request.data.get("metodo_pago_id") or None,
             referencia_transaccion=request.data.get("referencia_transaccion", ""),
             observaciones=request.data.get("observaciones", ""),

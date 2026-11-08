@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { BroomIcon, CheckCircleIcon, PaperPlaneRightIcon, UserIcon } from '@phosphor-icons/react'
 
 import { AMBITOS_PQR, CANALES_RECEPCION, TIPOS_PQR } from '../utilidades/opcionesPqrs'
-import { mensajeDeError } from '@/utilidades/errores'
+import { erroresDeCampo, mensajeDeError } from '@/utilidades/errores'
+import { validarCorreoOpcional, validarTelefono } from '@/utilidades/validaciones'
 
 /**
  * Formulario para radicar PQRs generadas a solicitud de un cliente
@@ -20,6 +21,18 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
   const [canal, setCanal] = useState('telefonico')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
+  const [erroresCampos, setErroresCampos] = useState({})
+
+  function cambiarCampo(setter, campo) {
+    return (evento) => {
+      setter(evento.target.value)
+      setErroresCampos((actuales) => {
+        const siguientes = { ...actuales }
+        delete siguientes[campo]
+        return siguientes
+      })
+    }
+  }
 
   function limpiarFormulario() {
     setNombreCliente('')
@@ -32,6 +45,7 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
     setDescripcion('')
     setCanal('telefonico')
     setError('')
+    setErroresCampos({})
     alLimpiarExito?.()
   }
 
@@ -39,7 +53,36 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
     evento.preventDefault()
     setEnviando(true)
     setError('')
+    setErroresCampos({})
     alLimpiarExito?.()
+    const erroresLocales = {}
+    if (nombreCliente.trim().length < 3) {
+      erroresLocales.nombre_solicitante = ['Escribe al menos 3 caracteres.']
+    }
+    if (nombreCliente.trim().length > 180) {
+      erroresLocales.nombre_solicitante = ['El nombre no puede superar 180 caracteres.']
+    }
+    if (asunto.trim().length < 4) {
+      erroresLocales.asunto = ['Escribe un asunto de al menos 4 caracteres.']
+    }
+    if (asunto.trim().length > 180) {
+      erroresLocales.asunto = ['El asunto no puede superar 180 caracteres.']
+    }
+    if (descripcion.trim().length < 10) {
+      erroresLocales.descripcion = ['La descripción debe tener al menos 10 caracteres.']
+    }
+    const errorCorreo = validarCorreoOpcional(correoCliente)
+    if (errorCorreo) erroresLocales.correo_solicitante = [errorCorreo]
+    if (telefonoCliente.trim()) {
+      const errorTelefono = validarTelefono(telefonoCliente)
+      if (errorTelefono) erroresLocales.telefono_solicitante = [errorTelefono]
+    }
+    if (Object.keys(erroresLocales).length) {
+      setErroresCampos(erroresLocales)
+      setError('Revisa los campos indicados antes de radicar la solicitud.')
+      setEnviando(false)
+      return
+    }
     try {
       await alRadicar?.({
         nombre_solicitante: nombreCliente.trim(),
@@ -63,9 +106,15 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
       setCanal('telefonico')
     } catch (errorDeRadicacion) {
       setError(mensajeDeError(errorDeRadicacion))
+      setErroresCampos(erroresDeCampo(errorDeRadicacion))
     } finally {
       setEnviando(false)
     }
+  }
+
+  function mensajeCampo(campo) {
+    const errorCampo = erroresCampos[campo]
+    return Array.isArray(errorCampo) ? errorCampo[0] : errorCampo
   }
 
   return (
@@ -119,11 +168,20 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
               id="pqr-nombre-cliente"
               type="text"
               required
+              minLength={3}
+              maxLength={180}
+              aria-invalid={Boolean(mensajeCampo('nombre_solicitante'))}
+              aria-describedby={mensajeCampo('nombre_solicitante') ? 'pqr-error-nombre' : undefined}
               value={nombreCliente}
-              onChange={(e) => setNombreCliente(e.target.value)}
+              onChange={cambiarCampo(setNombreCliente, 'nombre_solicitante')}
               placeholder="Ej. Minimercado La 70 / Don Pedro Gómez"
               className="mt-1.5 h-10 w-full rounded-xl border border-azul-200 bg-azul-50 px-3 text-sm text-azul-950 placeholder-azul-300 outline-none transition-colors focus:border-azul-600 focus:bg-blanco focus:ring-2 focus:ring-azul-600/15"
             />
+            {mensajeCampo('nombre_solicitante') && (
+              <p id="pqr-error-nombre" className="mt-1 text-xs text-error-700">
+                {mensajeCampo('nombre_solicitante')}
+              </p>
+            )}
           </div>
 
           <div>
@@ -136,6 +194,7 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
             <input
               id="pqr-documento-cliente"
               type="text"
+              maxLength={30}
               value={documentoCliente}
               onChange={(e) => setDocumentoCliente(e.target.value)}
               placeholder="NIT o cédula del cliente"
@@ -153,11 +212,21 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
             <input
               id="pqr-telefono-cliente"
               type="tel"
+              maxLength={30}
+              aria-invalid={Boolean(mensajeCampo('telefono_solicitante'))}
+              aria-describedby={
+                mensajeCampo('telefono_solicitante') ? 'pqr-error-telefono' : undefined
+              }
               value={telefonoCliente}
-              onChange={(e) => setTelefonoCliente(e.target.value)}
+              onChange={cambiarCampo(setTelefonoCliente, 'telefono_solicitante')}
               placeholder="Ej. 310 123 4567"
               className="mt-1.5 h-10 w-full rounded-xl border border-azul-200 bg-azul-50 px-3 text-sm text-azul-950 placeholder-azul-300 outline-none transition-colors focus:border-azul-600 focus:bg-blanco focus:ring-2 focus:ring-azul-600/15"
             />
+            {mensajeCampo('telefono_solicitante') && (
+              <p id="pqr-error-telefono" className="mt-1 text-xs text-error-700">
+                {mensajeCampo('telefono_solicitante')}
+              </p>
+            )}
           </div>
 
           <div>
@@ -170,11 +239,19 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
             <input
               id="pqr-correo-cliente"
               type="email"
+              maxLength={150}
+              aria-invalid={Boolean(mensajeCampo('correo_solicitante'))}
+              aria-describedby={mensajeCampo('correo_solicitante') ? 'pqr-error-correo' : undefined}
               value={correoCliente}
-              onChange={(e) => setCorreoCliente(e.target.value)}
+              onChange={cambiarCampo(setCorreoCliente, 'correo_solicitante')}
               placeholder="cliente@ejemplo.com"
               className="mt-1.5 h-10 w-full rounded-xl border border-azul-200 bg-azul-50 px-3 text-sm text-azul-950 placeholder-azul-300 outline-none transition-colors focus:border-azul-600 focus:bg-blanco focus:ring-2 focus:ring-azul-600/15"
             />
+            {mensajeCampo('correo_solicitante') && (
+              <p id="pqr-error-correo" className="mt-1 text-xs text-error-700">
+                {mensajeCampo('correo_solicitante')}
+              </p>
+            )}
           </div>
         </div>
       </fieldset>
@@ -259,11 +336,20 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
               id="pqr-asunto"
               type="text"
               required
+              minLength={4}
+              maxLength={180}
+              aria-invalid={Boolean(mensajeCampo('asunto'))}
+              aria-describedby={mensajeCampo('asunto') ? 'pqr-error-asunto' : undefined}
               value={asunto}
-              onChange={(e) => setAsunto(e.target.value)}
+              onChange={cambiarCampo(setAsunto, 'asunto')}
               placeholder="Ej. Botellas rotas en canastilla / Retraso en entrega de ruta / Error en factura"
               className="mt-1.5 h-10 w-full rounded-xl border border-azul-200 bg-azul-50 px-3 text-sm text-azul-950 placeholder-azul-300 outline-none transition-colors focus:border-azul-600 focus:bg-blanco focus:ring-2 focus:ring-azul-600/15"
             />
+            {mensajeCampo('asunto') && (
+              <p id="pqr-error-asunto" className="mt-1 text-xs text-error-700">
+                {mensajeCampo('asunto')}
+              </p>
+            )}
           </div>
 
           <div>
@@ -292,12 +378,20 @@ export default function FormularioPqr({ alRadicar, alLimpiarExito, radicadoExito
           <textarea
             id="pqr-descripcion"
             required
+            minLength={10}
+            aria-invalid={Boolean(mensajeCampo('descripcion'))}
+            aria-describedby={mensajeCampo('descripcion') ? 'pqr-error-descripcion' : undefined}
             rows={4}
             value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
+            onChange={cambiarCampo(setDescripcion, 'descripcion')}
             placeholder="Escribe con detalle lo manifestado por el cliente, incluyendo número de factura/pedido si aplica, fecha de entrega o unidades afectadas..."
             className="mt-1.5 w-full resize-none rounded-xl border border-azul-200 bg-azul-50 p-3 text-sm text-azul-950 placeholder-azul-300 outline-none transition-colors focus:border-azul-600 focus:bg-blanco focus:ring-2 focus:ring-azul-600/15"
           />
+          {mensajeCampo('descripcion') && (
+            <p id="pqr-error-descripcion" className="mt-1 text-xs text-error-700">
+              {mensajeCampo('descripcion')}
+            </p>
+          )}
         </div>
       </div>
 

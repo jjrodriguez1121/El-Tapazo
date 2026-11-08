@@ -1,11 +1,12 @@
 import { clienteApi } from '@/librerias/clienteApi'
 
-export async function listarPqrs({ page = 1, ambito, search } = {}) {
+export async function listarPqrs({ page = 1, ambito, search, respuesta } = {}) {
   const { data } = await clienteApi.get('/pqrs/', {
     params: {
       page,
       ...(ambito && { ambito }),
       ...(search && { search }),
+      ...(respuesta && { respuesta }),
     },
   })
   return data

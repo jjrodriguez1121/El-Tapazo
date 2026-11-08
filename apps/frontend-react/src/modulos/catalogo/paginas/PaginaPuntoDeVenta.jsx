@@ -15,6 +15,7 @@ import Aviso from '@/componentes/ui/Aviso'
 import { formatearCantidad, formatearPesos } from '@/utilidades/formatos'
 import { mensajeDeError } from '@/utilidades/errores'
 import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
+import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
 import { clienteApi } from '@/librerias/clienteApi'
 import { crearVenta, listarMetodosPago, obtenerDetalleVenta } from '@/modulos/ventas/api/apiVentas'
 import ModalNuevoCliente from '@/modulos/clientes/componentes/ModalNuevoCliente'
@@ -198,6 +199,11 @@ export default function PaginaPuntoDeVenta() {
     if (tipoPago === 'credito' && (!clienteId || !fechaVencimiento)) {
       setTipoAviso('error')
       setAvisoCobro('Seleccione el cliente y la fecha de vencimiento para una venta a crédito.')
+      return
+    }
+    if (tipoPago === 'credito' && fechaVencimiento < obtenerFechaMinimaVencimiento()) {
+      setTipoAviso('error')
+      setAvisoCobro('La fecha de vencimiento debe ser a partir de mañana.')
       return
     }
     setGuardando(true)
@@ -536,15 +542,29 @@ export default function PaginaPuntoDeVenta() {
               </select>
             </label>
             {tipoPago === 'credito' && (
-              <label className="text-[10px] font-bold text-azul-600">
-                Vencimiento
-                <input
-                  type="date"
-                  value={fechaVencimiento}
-                  onChange={(evento) => setFechaVencimiento(evento.target.value)}
-                  className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
-                />
-              </label>
+              <div>
+                <label className="text-[10px] font-bold text-azul-600">
+                  Vencimiento
+                  <input
+                    required
+                    type="date"
+                    min={obtenerFechaMinimaVencimiento()}
+                    value={fechaVencimiento}
+                    aria-invalid={
+                      Boolean(fechaVencimiento) &&
+                      fechaVencimiento < obtenerFechaMinimaVencimiento()
+                    }
+                    onChange={(evento) => {
+                      setFechaVencimiento(evento.target.value)
+                      setAvisoCobro('')
+                    }}
+                    className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs aria-[invalid=true]:border-error-600"
+                  />
+                </label>
+                <p className="mt-1 text-[9px] font-normal text-azul-500">
+                  Selecciona mañana o una fecha posterior.
+                </p>
+              </div>
             )}
           </div>
           {modalClienteAbierto && (

@@ -41,6 +41,27 @@ def test_radicar_pqr_crea_radicado_y_evento_inicial(
     assert Pqr.objects.filter(negocio=negocio).count() == 1
 
 
+@pytest.mark.parametrize(
+    ("campo", "valor"),
+    [
+        ("nombre_solicitante", "  "),
+        ("nombre_solicitante", "AB"),
+        ("asunto", "abc"),
+        ("descripcion", "Muy corto"),
+        ("correo_solicitante", "correo-invalido"),
+    ],
+)
+def test_radicar_pqr_rechaza_datos_invalidos(
+    cliente_api_autenticado, cajero, campo, valor
+):
+    respuesta = cliente_api_autenticado(cajero).post(
+        URL_PQRS, DATOS_PQR | {campo: valor}, format="json"
+    )
+
+    assert respuesta.status_code == 400
+    assert campo in respuesta.data["error"]["detalles"]
+
+
 def test_listado_y_resumen_solo_muestran_pqrs_del_negocio(
     cliente_api_autenticado, cajero, negocio
 ):
@@ -113,6 +134,31 @@ def test_respuesta_cambia_a_respondida_y_se_guarda_en_historial(
     assert respuesta.data["estado"] == Pqr.Estado.RESPONDIDA
     assert respuesta.data["seguimientos"][-1]["visible_solicitante"] is True
     assert respuesta.data["seguimientos"][-1]["contenido"].startswith("Repondremos")
+
+
+def test_filtrar_pqrs_con_o_sin_respuesta(cliente_api_autenticado, cajero):
+    cliente = cliente_api_autenticado(cajero)
+    pqr_con_respuesta = cliente.post(URL_PQRS, DATOS_PQR, format="json").data
+    pqr_sin_respuesta = cliente.post(
+        URL_PQRS,
+        DATOS_PQR | {"asunto": "Otra solicitud pendiente"},
+        format="json",
+    ).data
+    cliente.post(
+        reverse("pqrs:pqr-seguimientos", args=[pqr_con_respuesta["id"]]),
+        {"tipo": "respuesta", "contenido": "Respuesta de prueba registrada."},
+        format="json",
+    )
+
+    filtradas_con_respuesta = cliente.get(URL_PQRS, {"respuesta": "si"})
+    filtradas_sin_respuesta = cliente.get(URL_PQRS, {"respuesta": "no"})
+
+    assert [pqr["id"] for pqr in filtradas_con_respuesta.data["results"]] == [
+        pqr_con_respuesta["id"]
+    ]
+    assert [pqr["id"] for pqr in filtradas_sin_respuesta.data["results"]] == [
+        pqr_sin_respuesta["id"]
+    ]
 
 
 def test_pqr_se_puede_asignar_al_usuario_actual(

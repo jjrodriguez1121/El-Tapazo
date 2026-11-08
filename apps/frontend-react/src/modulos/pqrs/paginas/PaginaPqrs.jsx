@@ -13,6 +13,7 @@ export default function PaginaPqrs() {
   const [listaPqrs, setListaPqrs] = useState([])
   const [resumen, setResumen] = useState(RESUMEN_VACIO)
   const [filtroAmbito, setFiltroAmbito] = useState('')
+  const [filtroRespuesta, setFiltroRespuesta] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
   const [hayAnterior, setHayAnterior] = useState(false)
@@ -26,7 +27,12 @@ export default function PaginaPqrs() {
     setError('')
     try {
       const [respuesta, conteo] = await Promise.all([
-        listarPqrs({ page: pagina, ambito: filtroAmbito, search: busqueda.trim() }),
+        listarPqrs({
+          page: pagina,
+          ambito: filtroAmbito,
+          search: busqueda.trim(),
+          respuesta: filtroRespuesta,
+        }),
         obtenerResumenPqrs(),
       ])
       setListaPqrs(respuesta.results ?? respuesta)
@@ -38,7 +44,7 @@ export default function PaginaPqrs() {
     } finally {
       setCargando(false)
     }
-  }, [pagina, filtroAmbito, busqueda])
+  }, [pagina, filtroAmbito, filtroRespuesta, busqueda])
 
   useEffect(() => {
     const temporizador = window.setTimeout(cargarDatos, 250)
@@ -65,6 +71,11 @@ export default function PaginaPqrs() {
 
   function cambiarBusqueda(valor) {
     setBusqueda(valor)
+    setPagina(1)
+  }
+
+  function cambiarFiltroRespuesta(valor) {
+    setFiltroRespuesta(valor)
     setPagina(1)
   }
 
@@ -140,6 +151,19 @@ export default function PaginaPqrs() {
                 </button>
               ))}
             </div>
+            <label className="flex items-center gap-2 text-xs font-medium text-azul-600">
+              Filtrar por respuesta
+              <select
+                aria-label="Filtrar por respuesta"
+                value={filtroRespuesta}
+                onChange={(evento) => cambiarFiltroRespuesta(evento.target.value)}
+                className="h-9 rounded-lg border border-azul-200 bg-blanco px-2 text-xs text-azul-950"
+              >
+                <option value="">Todas</option>
+                <option value="si">Con respuesta</option>
+                <option value="no">Sin respuesta</option>
+              </select>
+            </label>
           </div>
 
           {error && (
