@@ -3,6 +3,7 @@ import {
   GearSixIcon,
   HandCoinsIcon,
   PackageIcon,
+  ReceiptIcon,
   ShoppingCartIcon,
   SquaresFourIcon,
   TagIcon,
@@ -27,6 +28,7 @@ export const SECCIONES_DEL_MENU = [
     elementos: [
       { ruta: RUTAS.inicio, etiqueta: 'Dashboard', Icono: SquaresFourIcon },
       { ruta: RUTAS.puntoDeVenta, etiqueta: 'Punto de venta', Icono: ShoppingCartIcon },
+      { ruta: RUTAS.ventas, etiqueta: 'Ventas', Icono: ReceiptIcon },
     ],
   },
   {

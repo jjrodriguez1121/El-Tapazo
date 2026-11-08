@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { CalendarIcon, HandCoinsIcon, WalletIcon } from '@phosphor-icons/react'
+import { useNavigate } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
 import { formatearFechaCorta, formatearPesos } from '@/utilidades/formatos'
-import { listarMetodosPago, registrarAbonoVenta } from '../api/apiVentas'
+import ModalDetalleVenta from '../componentes/ModalDetalleVenta'
 
 const TONOS_ESTADO = {
   pendiente: 'bg-alerta-50 text-alerta-700',
@@ -16,10 +17,11 @@ const TONOS_ESTADO = {
 }
 
 export default function PaginaCuentasPorCobrar() {
+  const navegar = useNavigate()
   const [cuentas, setCuentas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
-  const [metodosPago, setMetodosPago] = useState([])
+  const [ventaDetalleId, setVentaDetalleId] = useState(null)
 
   async function cargarCuentas() {
     setCargando(true)
@@ -27,7 +29,6 @@ export default function PaginaCuentasPorCobrar() {
     try {
       const { data } = await clienteApi.get('/ventas/cuentas-por-cobrar/')
       setCuentas(data)
-      setMetodosPago(await listarMetodosPago())
     } catch {
       setError('No fue posible cargar las cuentas por cobrar.')
     } finally {
@@ -39,19 +40,8 @@ export default function PaginaCuentasPorCobrar() {
     cargarCuentas()
   }, [])
 
-  async function registrarAbono(cuenta) {
-    const monto = window.prompt(`Monto del abono (saldo: ${formatearPesos(Number(cuenta.saldo))})`)
-    if (!monto) return
-    const opciones = metodosPago.map((metodo, indice) => `${indice + 1}. ${metodo.nombre}`).join('\n')
-    const seleccion = window.prompt(`Medio de pago:\n${opciones}`)
-    const metodo = metodosPago[Number(seleccion) - 1]
-    if (!metodo) return
-    try {
-      await registrarAbonoVenta(cuenta.id, { monto: Number(monto), metodo_pago_id: metodo.id })
-      await cargarCuentas()
-    } catch (err) {
-      setError(err.response?.data?.detail ?? 'No fue posible registrar el abono.')
-    }
+  function registrarAbono(cuenta) {
+    navegar(`/cartera/${cuenta.id}/abono`)
   }
 
   const totalPendiente = cuentas.reduce((total, cuenta) => total + Number(cuenta.saldo || 0), 0)
@@ -86,7 +76,7 @@ export default function PaginaCuentasPorCobrar() {
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-right">Saldo</th>
                 <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-center">Acción</th>
+                <th className="px-4 py-3 text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -107,15 +97,28 @@ export default function PaginaCuentasPorCobrar() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button type="button" onClick={() => registrarAbono(cuenta)} className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50">
-                      Registrar abono
-                    </button>
+                    <div className="flex justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setVentaDetalleId(cuenta.venta_id)}
+                        className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50"
+                      >
+                        Ver detalle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => registrarAbono(cuenta)}
+                        className="rounded-lg bg-azul-950 px-3 py-1.5 text-xs font-semibold text-blanco hover:bg-azul-800"
+                      >
+                        Registrar abono
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {!cargando && !cuentas.length && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-azul-400">
+                  <td colSpan={7} className="px-4 py-10 text-center text-azul-400">
                     No hay cuentas por cobrar pendientes.
                   </td>
                 </tr>
@@ -125,6 +128,13 @@ export default function PaginaCuentasPorCobrar() {
         </div>
         {cargando && <p className="px-4 py-10 text-center text-sm text-azul-400">Cargando...</p>}
       </section>
+
+      {ventaDetalleId && (
+        <ModalDetalleVenta
+          ventaId={ventaDetalleId}
+          alCerrar={() => setVentaDetalleId(null)}
+        />
+      )}
     </div>
   )
 }

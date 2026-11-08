@@ -49,6 +49,12 @@ const PaginaRegistrarAbonoCompra = lazy(
 const PaginaCuentasPorCobrar = lazy(
   () => import('@/modulos/ventas/paginas/PaginaCuentasPorCobrar')
 )
+const PaginaRegistrarAbonoVenta = lazy(
+  () => import('@/modulos/ventas/paginas/PaginaRegistrarAbonoVenta')
+)
+const PaginaRegistroVentas = lazy(
+  () => import('@/modulos/ventas/paginas/PaginaRegistroVentas')
+)
 const PaginaProveedores = lazy(() => import('@/modulos/catalogo/paginas/PaginaProveedores'))
 const PaginaDetalleProducto = lazy(() => import('@/modulos/catalogo/paginas/PaginaDetalleProducto'))
 const PaginaPqrs = lazy(() => import('@/modulos/pqrs/paginas/PaginaPqrs'))
@@ -165,6 +171,14 @@ export default function Rutas() {
           }
         />
         <Route
+          path={RUTAS.ventas}
+          element={
+            <Suspense fallback={<EsqueletoDeProductos />}>
+              <PaginaRegistroVentas />
+            </Suspense>
+          }
+        />
+        <Route
           path={RUTAS.compras}
           element={
             <Suspense fallback={<EsqueletoDeProductos />}>
@@ -193,6 +207,14 @@ export default function Rutas() {
           element={
             <Suspense fallback={<EsqueletoDeProductos />}>
               <PaginaCuentasPorCobrar />
+            </Suspense>
+          }
+        />
+        <Route
+          path={RUTAS.registrarAbonoVenta}
+          element={
+            <Suspense fallback={<EsqueletoDeProductos />}>
+              <PaginaRegistrarAbonoVenta />
             </Suspense>
           }
         />
