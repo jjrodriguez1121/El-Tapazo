@@ -67,6 +67,54 @@ def cuentas_por_pagar(request):
     return Response(datos)
 
 
+@api_view(["GET"])
+@permission_classes([EsAdministrador])
+def cuenta_por_pagar_detalle(request, cuenta_id):
+    cuenta = (
+        CuentaPorPagar.objects.select_related("compra__proveedor")
+        .filter(id=cuenta_id, negocio_id=request.user.negocio_id)
+        .first()
+    )
+    if cuenta is None:
+        return Response({"detail": "Cuenta por pagar no encontrada."}, status=404)
+
+    hoy = timezone.localdate()
+    estado = (
+        "VENCIDA"
+        if cuenta.fecha_vencimiento < hoy and cuenta.saldo > 0
+        else cuenta.estado
+    )
+    pagos = (
+        PagoCompra.objects.filter(
+            compra=cuenta.compra,
+            negocio_id=request.user.negocio_id,
+            estado="CONFIRMADO",
+        )
+        .select_related("metodo_pago")
+        .order_by("-fecha_pago")
+    )
+    return Response({
+        "id": cuenta.id,
+        "compra_id": cuenta.compra_id,
+        "numero_compra": cuenta.compra.numero_compra,
+        "numero_factura": cuenta.compra.numero_factura,
+        "proveedor": cuenta.compra.proveedor.razon_social,
+        "fecha_compra": cuenta.compra.fecha_compra,
+        "fecha_vencimiento": cuenta.fecha_vencimiento,
+        "total": cuenta.total,
+        "saldo": cuenta.saldo,
+        "abonado": cuenta.total - cuenta.saldo,
+        "estado": estado,
+        "abonos": [{
+            "id": pago.id,
+            "fecha_pago": pago.fecha_pago,
+            "valor": pago.valor,
+            "metodo_pago": pago.metodo_pago.nombre,
+            "referencia": pago.referencia,
+        } for pago in pagos],
+    })
+
+
 @transaction.atomic
 def _crear_compra(*, request, datos):
     negocio_id = request.user.negocio_id

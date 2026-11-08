@@ -6,6 +6,7 @@ import { clienteApi } from '@/librerias/clienteApi'
 import { formatearPesos } from '@/utilidades/formatos'
 import { crearCompra, listarCompras } from '../api/apiCompras'
 import { listarMetodosPago } from '@/modulos/ventas/api/apiVentas'
+import ModalDetalleCompra from '../componentes/ModalDetalleCompra'
 
 const lineaVacia = () => ({
   tipo: 'existente',
@@ -37,6 +38,7 @@ export default function PaginaCompras() {
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  const [compraDetalleId, setCompraDetalleId] = useState(null)
 
   async function cargarDatos() {
     setCargando(true)
@@ -214,7 +216,7 @@ export default function PaginaCompras() {
         <button type="button" onClick={() => setLineas((actuales) => [...actuales, lineaVacia()])} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-azul-200 px-3 py-2 text-xs font-bold text-azul-700">
           <PlusIcon size={16} /> Agregar producto
         </button>
-        <button type="submit" disabled={guardando || cargando || !proveedores.length} className="mt-4 block rounded-lg bg-azul-950 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+        <button type="submit" disabled={guardando || cargando || !proveedores.length} className="mt-4 block rounded-lg bg-azul-950 px-5 py-2.5 text-sm font-bold text-blanco disabled:opacity-50">
           {guardando ? 'Guardando...' : 'Registrar compra'}
         </button>
       </form>
@@ -222,23 +224,36 @@ export default function PaginaCompras() {
       <section className="overflow-hidden rounded-xl border border-azul-150 bg-blanco">
         <h2 className="border-b border-azul-100 px-4 py-3 text-sm font-bold text-azul-950">Compras registradas</h2>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="bg-azul-50 text-xs uppercase text-azul-500"><tr><th className="px-4 py-3">Compra</th><th>Proveedor</th><th>Estado</th><th>Productos</th><th className="px-4">Total</th></tr></thead>
+            <table className="w-full min-w-[820px] text-left text-sm">
+            <thead className="bg-azul-50 text-xs uppercase text-azul-500"><tr><th className="px-4 py-3">Compra</th><th>Proveedor</th><th>Estado</th><th>Pago</th><th>Productos</th><th className="px-4">Total</th><th className="px-4 text-center">Detalle</th></tr></thead>
             <tbody>
               {compras.map((compra) => (
                 <tr key={compra.id} className="border-t border-azul-100">
                   <td className="px-4 py-3 font-semibold">{compra.numero_compra}</td>
                   <td>{compra.proveedor_nombre}</td>
                   <td>{compra.estado}</td>
+                  <td>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${compra.condicion_pago === 'CONTADO' ? 'bg-exito-50 text-exito-700' : 'bg-alerta-50 text-alerta-700'}`}>
+                      {compra.condicion_pago === 'CONTADO' ? 'Contado' : 'Crédito'}
+                    </span>
+                  </td>
                   <td>{compra.detalles?.length ?? 0}</td>
                   <td className="px-4 font-bold text-azul-950">{formatearPesos(Number(compra.total || 0))}</td>
+                  <td className="px-4 text-center">
+                    <button type="button" onClick={() => setCompraDetalleId(compra.id)} className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50">
+                      Ver detalle
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {!compras.length && <tr><td colSpan={5} className="px-4 py-10 text-center text-azul-400">Todavía no hay compras registradas.</td></tr>}
+              {!compras.length && <tr><td colSpan={7} className="px-4 py-10 text-center text-azul-400">Todavía no hay compras registradas.</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
+      {compraDetalleId && (
+        <ModalDetalleCompra compraId={compraDetalleId} alCerrar={() => setCompraDetalleId(null)} />
+      )}
     </div>
   )
 }

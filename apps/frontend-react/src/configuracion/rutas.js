@@ -17,6 +17,7 @@ export const RUTAS = {
   proveedores: '/proveedores',
   cartera: '/cartera',
   cuentasPorPagar: '/cuentas-por-pagar',
+  registrarAbonoCompra: '/cuentas-por-pagar/:cuentaId/abono',
   clientes: '/clientes',
   pqrs: '/pqrs',
   configuracion: '/configuracion',

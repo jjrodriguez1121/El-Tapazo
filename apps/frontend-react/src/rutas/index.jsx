@@ -43,6 +43,9 @@ const PaginaCompras = lazy(() => import('@/modulos/compras/paginas/PaginaCompras
 const PaginaCuentasPorPagar = lazy(
   () => import('@/modulos/compras/paginas/PaginaCuentasPorPagar')
 )
+const PaginaRegistrarAbonoCompra = lazy(
+  () => import('@/modulos/compras/paginas/PaginaRegistrarAbonoCompra')
+)
 const PaginaCuentasPorCobrar = lazy(
   () => import('@/modulos/ventas/paginas/PaginaCuentasPorCobrar')
 )
@@ -174,6 +177,14 @@ export default function Rutas() {
           element={
             <Suspense fallback={<EsqueletoDeProductos />}>
               <PaginaCuentasPorPagar />
+            </Suspense>
+          }
+        />
+        <Route
+          path={RUTAS.registrarAbonoCompra}
+          element={
+            <Suspense fallback={<EsqueletoDeProductos />}>
+              <PaginaRegistrarAbonoCompra />
             </Suspense>
           }
         />

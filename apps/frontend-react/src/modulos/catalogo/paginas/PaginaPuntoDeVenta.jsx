@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
+  CheckCircleIcon,
   ImageIcon,
   MinusIcon,
   PackageIcon,
   PlusIcon,
-  PrinterIcon,
   ShoppingCartSimpleIcon,
   TrashIcon,
+  WarningCircleIcon,
 } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
@@ -39,6 +40,7 @@ export default function PaginaPuntoDeVenta() {
   const [carrito, setCarrito] = useState([])
   const [porcentajeDescuento, setPorcentajeDescuento] = useState('5')
   const [avisoCobro, setAvisoCobro] = useState('')
+  const [tipoAviso, setTipoAviso] = useState('') // 'exito' | 'error'
   const [tipoPago, setTipoPago] = useState('contado')
   const [metodoPago, setMetodoPago] = useState('')
   const [clienteId, setClienteId] = useState('')
@@ -180,11 +182,13 @@ export default function PaginaPuntoDeVenta() {
 
   async function cobrar() {
     if (tipoPago === 'credito' && (!clienteId || !fechaVencimiento)) {
+      setTipoAviso('error')
       setAvisoCobro('Seleccione el cliente y la fecha de vencimiento para una venta a crédito.')
       return
     }
     setGuardando(true)
     setAvisoCobro('')
+    setTipoAviso('')
     try {
       const venta = await crearVenta({
         lineas: carrito.map((linea) => ({
@@ -199,8 +203,10 @@ export default function PaginaPuntoDeVenta() {
       })
       setCarrito([])
       await catalogo.refetch()
+      setTipoAviso('exito')
       setAvisoCobro(`Venta ${venta.numero_venta} registrada por ${formatearPesos(Number(venta.total))}.`)
     } catch (error) {
+      setTipoAviso('error')
       setAvisoCobro(mensajeDeError(error))
     } finally {
       setGuardando(false)
@@ -469,9 +475,25 @@ export default function PaginaPuntoDeVenta() {
             onClick={cobrar}
             className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-azul-950 px-3 text-[10px] font-bold text-blanco hover:bg-azul-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-azul-600 disabled:cursor-not-allowed disabled:bg-azul-300"
           >
-            <PrinterIcon size={14} /> {guardando ? 'Registrando...' : 'Cobrar e imprimir'}
+            <CheckCircleIcon size={14} weight="bold" /> {guardando ? 'Registrando...' : 'Finalizar Venta'}
           </button>
-          {avisoCobro && <p role="status" className="mt-2 text-center text-[9px] text-azul-500">{avisoCobro}</p>}
+          {avisoCobro && (
+            <div
+              role="status"
+              className={`mt-2 flex items-center gap-1.5 rounded-lg p-2 text-[10px] font-semibold ${
+                tipoAviso === 'exito'
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}
+            >
+              {tipoAviso === 'exito' ? (
+                <CheckCircleIcon size={14} weight="fill" className="flex-none text-green-500" />
+              ) : (
+                <WarningCircleIcon size={14} weight="fill" className="flex-none text-red-500" />
+              )}
+              {avisoCobro}
+            </div>
+          )}
         </section>
       </aside>
     </div>
