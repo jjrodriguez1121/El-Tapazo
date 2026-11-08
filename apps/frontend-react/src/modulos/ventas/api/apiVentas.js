@@ -29,3 +29,13 @@ export async function obtenerDetalleVenta(ventaId) {
   const { data } = await clienteApi.get(`/ventas/${ventaId}/`)
   return data
 }
+
+export async function confirmarEntregaVenta(ventaId) {
+  const { data } = await clienteApi.post(`/ventas/${ventaId}/confirmar-entrega/`)
+  return data
+}
+
+export async function anularVenta(ventaId) {
+  const { data } = await clienteApi.post(`/ventas/${ventaId}/anular/`)
+  return data
+}

@@ -42,6 +42,7 @@ export default function PaginaPuntoDeVenta() {
   const [avisoCobro, setAvisoCobro] = useState('')
   const [tipoAviso, setTipoAviso] = useState('') // 'exito' | 'error'
   const [tipoPago, setTipoPago] = useState('contado')
+  const [estadoEntrega, setEstadoEntrega] = useState('pendiente_entrega')
   const [metodoPago, setMetodoPago] = useState('')
   const [clienteId, setClienteId] = useState('')
   const [fechaVencimiento, setFechaVencimiento] = useState('')
@@ -196,6 +197,7 @@ export default function PaginaPuntoDeVenta() {
           cantidad: linea.cantidad,
         })),
         tipo_pago: tipoPago,
+        estado_entrega: estadoEntrega,
         metodo_pago_id: tipoPago === 'contado' ? Number(metodoPago) : null,
         cliente_id: clienteId ? Number(clienteId) : null,
         fecha_vencimiento: tipoPago === 'credito' ? fechaVencimiento : null,
@@ -420,6 +422,17 @@ export default function PaginaPuntoDeVenta() {
                 <option value="credito">Crédito</option>
               </select>
             </label>
+            <label className="text-[10px] font-bold text-azul-600">
+              Estado de entrega
+              <select
+                value={estadoEntrega}
+                onChange={(evento) => setEstadoEntrega(evento.target.value)}
+                className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+              >
+                <option value="pendiente_entrega">Pendiente de entrega</option>
+                <option value="entregada">Entregada</option>
+              </select>
+            </label>
             {tipoPago === 'contado' ? (
               <label className="text-[10px] font-bold text-azul-600">
                 Medio de pago
@@ -461,7 +474,7 @@ export default function PaginaPuntoDeVenta() {
           {modalClienteAbierto && (
             <ModalNuevoCliente
               alCerrar={() => setModalClienteAbierto(false)}
-              alCrear={crearCliente}
+              alGuardar={crearCliente}
               clientesExistentes={clientes.map((cliente) => ({
                 tipo: cliente.tipo_documento === 'nit' ? 'establecimiento' : 'persona',
                 tipoDocumento: cliente.tipo_documento,

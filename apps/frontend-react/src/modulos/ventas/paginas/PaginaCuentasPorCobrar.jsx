@@ -16,6 +16,16 @@ const TONOS_ESTADO = {
   VENCIDA: 'bg-error-50 text-error-700',
 }
 
+const TONOS_ENTREGA = {
+  pendiente_entrega: 'bg-alerta-50 text-alerta-700',
+  entregada: 'bg-exito-50 text-exito-700',
+}
+
+const ETIQUETAS_ENTREGA = {
+  pendiente_entrega: 'Pendiente de entrega',
+  entregada: 'Entregada',
+}
+
 export default function PaginaCuentasPorCobrar() {
   const navegar = useNavigate()
   const [cuentas, setCuentas] = useState([])
@@ -77,6 +87,7 @@ export default function PaginaCuentasPorCobrar() {
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-right">Saldo</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Entrega</th>
                 <th className="px-4 py-3 text-center">Acciones</th>
               </tr>
             </thead>
@@ -102,6 +113,11 @@ export default function PaginaCuentasPorCobrar() {
                       {String(cuenta.estado).toUpperCase()}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TONOS_ENTREGA[cuenta.estado_entrega] ?? TONOS_ENTREGA.pendiente_entrega}`}>
+                      {ETIQUETAS_ENTREGA[cuenta.estado_entrega] ?? 'Pendiente de entrega'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-2">
                       <button
@@ -124,7 +140,7 @@ export default function PaginaCuentasPorCobrar() {
               ))}
               {!cargando && !cuentas.length && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-azul-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-azul-400">
                     No hay cuentas por cobrar pendientes.
                   </td>
                 </tr>

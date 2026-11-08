@@ -27,6 +27,8 @@ def resumen_de_ventas(*, negocio_id: int, desde: date | None = None, hasta: date
     )["total"]
     cobrado = PagoVenta.objects.filter(
         negocio_id=negocio_id, fecha__date__range=(desde, hasta)
+    ).exclude(
+        venta__estado=Venta.Estado.ANULADA
     ).aggregate(total=Coalesce(Sum("monto"), 0, output_field=IMPORTE))["total"]
     return {"desde": desde, "hasta": hasta, "vendido_total": vendido, "cobrado_total": cobrado}
 

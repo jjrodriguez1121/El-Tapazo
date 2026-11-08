@@ -26,6 +26,8 @@ def registrar_venta(*, datos: DatosDeVentaDTO, negocio_id: int, vendedor_id: int
         raise ValueError("Una venta a crédito requiere fecha de vencimiento.")
     if datos.tipo_pago == Venta.TipoPago.CONTADO and not datos.metodo_pago_id:
         raise ValueError("Una venta de contado requiere medio de pago.")
+    if datos.estado_entrega not in Venta.EstadoEntrega.values:
+        raise ValueError("El estado de entrega no es válido.")
 
     cantidades_por_producto = {}
     for linea in datos.lineas:
@@ -58,6 +60,7 @@ def registrar_venta(*, datos: DatosDeVentaDTO, negocio_id: int, vendedor_id: int
         vendedor_id=vendedor_id,
         tipo_pago=datos.tipo_pago,
         estado=estado,
+        estado_entrega=datos.estado_entrega,
         fecha_vencimiento=datos.fecha_vencimiento,
         numero_venta=f"VEN-{timezone.localtime().strftime('%Y%m%d')}-{Venta.objects.filter(negocio_id=negocio_id).count() + 1:04d}",
         observaciones=datos.observaciones.strip(),
@@ -155,6 +158,8 @@ def registrar_abono(*, cuenta_id: int, monto: Decimal, metodo_pago_id: int, reci
     ).first()
     if cuenta is None:
         raise ValueError("La cuenta por cobrar no existe.")
+    if cuenta.estado == CuentaPorCobrar.Estado.ANULADA:
+        raise ValueError("No se pueden registrar abonos a una cuenta anulada.")
     if monto <= 0 or monto > cuenta.saldo:
         raise ValueError("El abono debe ser mayor que cero y no superar el saldo.")
     metodo_pago = MetodoPago.objects.filter(
@@ -179,3 +184,78 @@ def registrar_abono(*, cuenta_id: int, monto: Decimal, metodo_pago_id: int, reci
         cuenta.venta.estado = Venta.Estado.PAGADA
         cuenta.venta.save(update_fields=["estado", "actualizado_en"])
     return cuenta
+
+
+@transaction.atomic
+def confirmar_entrega(*, venta_id: int, negocio_id: int) -> Venta:
+    """Confirma una venta ya separada del inventario para su entrega."""
+    venta = Venta.objects.select_for_update().filter(
+        pk=venta_id, negocio_id=negocio_id
+    ).first()
+    if venta is None:
+        raise ValueError("La venta no existe.")
+    if venta.estado_entrega != Venta.EstadoEntrega.PENDIENTE:
+        raise ValueError("Solo se pueden confirmar ventas pendientes de entrega.")
+
+    venta.estado_entrega = Venta.EstadoEntrega.ENTREGADA
+    venta.save(update_fields=["estado_entrega", "actualizado_en"])
+    return venta
+
+
+@transaction.atomic
+def anular_venta(*, venta_id: int, negocio_id: int, usuario_id: int) -> Venta:
+    """Anula una venta pendiente, devuelve sus unidades y conserva el kardex."""
+    venta = (
+        Venta.objects.select_for_update()
+        .prefetch_related("detalles")
+        .filter(pk=venta_id, negocio_id=negocio_id)
+        .first()
+    )
+    if venta is None:
+        raise ValueError("La venta no existe.")
+    if venta.estado_entrega != Venta.EstadoEntrega.PENDIENTE:
+        raise ValueError("Solo se pueden anular ventas pendientes de entrega.")
+
+    cuenta = (
+        CuentaPorCobrar.objects.select_for_update()
+        .filter(venta=venta, negocio_id=negocio_id)
+        .first()
+    )
+    if cuenta and cuenta.abonos.exists():
+        raise ValueError(
+            "No se puede anular una venta a crédito que ya tiene abonos registrados."
+        )
+
+    for detalle in venta.detalles.all():
+        existencia = Existencia.objects.select_for_update().filter(
+            negocio_id=negocio_id, producto_id=detalle.producto_id
+        ).first()
+        if existencia is None:
+            raise ValueError("No se encontró la existencia de uno de los productos vendidos.")
+        existencia.cantidad_disponible += detalle.cantidad
+        existencia.cantidad_actual = max(0, int(existencia.cantidad_disponible))
+        existencia.save(update_fields=["cantidad_disponible", "cantidad_actual", "actualizado_en"])
+        MovimientoInventario.objects.create(
+            negocio_id=negocio_id,
+            producto_id=detalle.producto_id,
+            detalle_venta=detalle,
+            tipo_movimiento="ANULACION_VENTA",
+            tipo=MovimientoInventario.Tipo.ENTRADA,
+            cantidad=detalle.cantidad,
+            costo_unitario=detalle.costo_unitario,
+            costo_total=detalle.costo_unitario * detalle.cantidad,
+            referencia_tipo=MovimientoInventario.ReferenciaTipo.VENTA,
+            referencia_id=venta.id,
+            usuario_id=usuario_id,
+            nota="Devolución automática por anulación de venta pendiente de entrega.",
+        )
+
+    if cuenta:
+        cuenta.saldo = Decimal("0")
+        cuenta.estado = CuentaPorCobrar.Estado.ANULADA
+        cuenta.save(update_fields=["saldo", "estado", "actualizado_en"])
+
+    venta.estado = Venta.Estado.ANULADA
+    venta.estado_entrega = Venta.EstadoEntrega.ANULADA
+    venta.save(update_fields=["estado", "estado_entrega", "actualizado_en"])
+    return venta

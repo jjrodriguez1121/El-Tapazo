@@ -1,19 +1,52 @@
 import { useEffect, useState } from 'react'
-import { XIcon } from '@phosphor-icons/react'
+import { CheckCircleIcon, TrashIcon, XIcon } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
 import { formatearPesos } from '@/utilidades/formatos'
-import { obtenerDetalleVenta } from '../api/apiVentas'
+import { anularVenta, confirmarEntregaVenta, obtenerDetalleVenta } from '../api/apiVentas'
 
-export default function ModalDetalleVenta({ ventaId, alCerrar }) {
+export default function ModalDetalleVenta({ ventaId, alCerrar, alActualizar }) {
   const [venta, setVenta] = useState(null)
   const [error, setError] = useState('')
+  const [procesando, setProcesando] = useState(false)
 
   useEffect(() => {
     obtenerDetalleVenta(ventaId)
       .then(setVenta)
       .catch(() => setError('No fue posible cargar el detalle de la venta.'))
   }, [ventaId])
+
+  async function confirmarEntrega() {
+    setProcesando(true)
+    setError('')
+    try {
+      await confirmarEntregaVenta(ventaId)
+      const actualizada = await obtenerDetalleVenta(ventaId)
+      setVenta(actualizada)
+      alActualizar?.()
+    } catch (errorSolicitud) {
+      setError(errorSolicitud.response?.data?.[0] ?? 'No fue posible confirmar la entrega.')
+    } finally {
+      setProcesando(false)
+    }
+  }
+
+  async function anular() {
+    if (!window.confirm('¿Anular esta venta? Los productos regresarán al inventario.')) return
+
+    setProcesando(true)
+    setError('')
+    try {
+      await anularVenta(ventaId)
+      const actualizada = await obtenerDetalleVenta(ventaId)
+      setVenta(actualizada)
+      alActualizar?.()
+    } catch (errorSolicitud) {
+      setError(errorSolicitud.response?.data?.[0] ?? 'No fue posible anular la venta.')
+    } finally {
+      setProcesando(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-azul-950/45 px-4 py-6">
@@ -57,7 +90,30 @@ export default function ModalDetalleVenta({ ventaId, alCerrar }) {
                   etiqueta="Tipo de pago"
                   valor={venta.tipo_pago === 'contado' ? 'Contado' : 'Crédito'}
                 />
+                <Dato etiqueta="Entrega" valor={etiquetaEntrega(venta.estado_entrega)} />
               </dl>
+
+              {venta.estado_entrega === 'pendiente_entrega' && (
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={procesando}
+                    onClick={anular}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-error-200 px-3 py-2 text-xs font-bold text-error-700 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <TrashIcon size={16} /> Anular venta
+                  </button>
+                  <button
+                    type="button"
+                    disabled={procesando}
+                    onClick={confirmarEntrega}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-exito-700 px-3 py-2 text-xs font-bold text-blanco hover:bg-exito-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <CheckCircleIcon size={16} weight="bold" />
+                    {procesando ? 'Guardando...' : 'Confirmar entrega'}
+                  </button>
+                </div>
+              )}
 
               <div className="mt-5 overflow-x-auto rounded-lg border border-azul-150">
                 <table className="w-full min-w-[560px] text-left text-sm">
@@ -126,4 +182,12 @@ function Dato({ etiqueta, valor }) {
       <dd className="mt-1 text-sm font-bold text-azul-950">{valor}</dd>
     </div>
   )
+}
+
+function etiquetaEntrega(estado) {
+  return {
+    pendiente_entrega: 'Pendiente de entrega',
+    entregada: 'Entregada',
+    anulada: 'Anulada',
+  }[estado] ?? 'Pendiente de entrega'
 }

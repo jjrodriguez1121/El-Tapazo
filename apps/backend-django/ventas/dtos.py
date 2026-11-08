@@ -19,3 +19,4 @@ class DatosDeVentaDTO:
     metodo_pago_id: int | None = None
     referencia_transaccion: str = ""
     observaciones: str = ""
+    estado_entrega: str = "pendiente_entrega"

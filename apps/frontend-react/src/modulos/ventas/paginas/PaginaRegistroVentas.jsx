@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import Aviso from '@/componentes/ui/Aviso'
 import { RUTAS } from '@/configuracion/rutas'
 import { formatearPesos } from '@/utilidades/formatos'
-import { listarVentas } from '../api/apiVentas'
+import { confirmarEntregaVenta, listarVentas } from '../api/apiVentas'
 import ModalDetalleVenta from '../componentes/ModalDetalleVenta'
 
 const TONOS_ESTADO = {
@@ -17,6 +17,18 @@ const TONOS_ESTADO = {
   ANULADA: 'bg-error-50 text-error-700',
 }
 
+const TONOS_ENTREGA = {
+  pendiente_entrega: 'bg-alerta-50 text-alerta-700',
+  entregada: 'bg-exito-50 text-exito-700',
+  anulada: 'bg-error-50 text-error-700',
+}
+
+const ETIQUETAS_ENTREGA = {
+  pendiente_entrega: 'Pendiente de entrega',
+  entregada: 'Entregada',
+  anulada: 'Anulada',
+}
+
 export default function PaginaRegistroVentas() {
   const [ventas, setVentas] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -24,6 +36,20 @@ export default function PaginaRegistroVentas() {
   const [filtroTexto, setFiltroTexto] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
+
+  async function marcarComoEntregada(venta) {
+    if (!window.confirm(`¿Confirmar la entrega de ${venta.numero_venta}?`)) return
+
+    setError('')
+    try {
+      await confirmarEntregaVenta(venta.id)
+      await cargar()
+    } catch (errorSolicitud) {
+      setError(
+        errorSolicitud.response?.data?.[0] ?? 'No fue posible actualizar el estado de entrega.'
+      )
+    }
+  }
 
   async function cargar() {
     setCargando(true)
@@ -53,9 +79,14 @@ export default function PaginaRegistroVentas() {
     return coincideEstado && coincideTexto
   })
 
-  const totalVendido = ventas.reduce((total, v) => total + Number(v.total || 0), 0)
-  const ventasContado = ventas.filter((v) => v.tipo_pago === 'contado').length
-  const ventasCredito = ventas.filter((v) => v.tipo_pago === 'credito').length
+  function estaPendienteDeEntrega(venta) {
+    return !venta.estado_entrega || venta.estado_entrega === 'pendiente_entrega'
+  }
+
+  const ventasVigentes = ventas.filter((venta) => venta.estado !== 'anulada')
+  const totalVendido = ventasVigentes.reduce((total, v) => total + Number(v.total || 0), 0)
+  const ventasContado = ventasVigentes.filter((v) => v.tipo_pago === 'contado').length
+  const ventasCredito = ventasVigentes.filter((v) => v.tipo_pago === 'credito').length
 
   return (
     <div className="flex flex-col gap-5">
@@ -86,7 +117,7 @@ export default function PaginaRegistroVentas() {
         <Resumen
           Icono={CalendarIcon}
           etiqueta="Ventas registradas"
-          valor={String(ventas.length)}
+          valor={String(ventasVigentes.length)}
         />
         <Resumen
           Icono={ReceiptIcon}
@@ -127,7 +158,8 @@ export default function PaginaRegistroVentas() {
                 <th className="px-4 py-3">Venta</th>
                 <th className="px-4 py-3">Cliente</th>
                 <th className="px-4 py-3">Tipo pago</th>
-                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Pago</th>
+                <th className="px-4 py-3">Entrega</th>
                 <th className="px-4 py-3 text-center">Ítems</th>
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-center">Acciones</th>
@@ -164,6 +196,15 @@ export default function PaginaRegistroVentas() {
                       {String(venta.estado).toUpperCase()}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                        TONOS_ENTREGA[venta.estado_entrega] ?? 'bg-azul-50 text-azul-700'
+                      }`}
+                    >
+                      {ETIQUETAS_ENTREGA[venta.estado_entrega] ?? 'Pendiente de entrega'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-center font-medium text-azul-600">
                     {venta.cantidad_items}
                   </td>
@@ -171,19 +212,30 @@ export default function PaginaRegistroVentas() {
                     {formatearPesos(Number(venta.total))}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setVentaDetalleId(venta.id)}
-                      className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50"
-                    >
-                      Ver detalle
-                    </button>
+                    <div className="flex justify-center gap-2">
+                      {estaPendienteDeEntrega(venta) && (
+                        <button
+                          type="button"
+                          onClick={() => marcarComoEntregada(venta)}
+                          className="rounded-lg bg-exito-700 px-3 py-1.5 text-xs font-semibold text-blanco hover:bg-exito-800"
+                        >
+                          Marcar entregada
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setVentaDetalleId(venta.id)}
+                        className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50"
+                      >
+                        Ver detalle
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {!cargando && !ventasFiltradas.length && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-azul-400">
+                  <td colSpan={9} className="px-4 py-10 text-center text-azul-400">
                     {ventas.length === 0
                       ? 'Todavía no hay ventas registradas.'
                       : 'No se encontraron ventas con los filtros seleccionados.'}
@@ -200,6 +252,7 @@ export default function PaginaRegistroVentas() {
         <ModalDetalleVenta
           ventaId={ventaDetalleId}
           alCerrar={() => setVentaDetalleId(null)}
+          alActualizar={cargar}
         />
       )}
     </div>

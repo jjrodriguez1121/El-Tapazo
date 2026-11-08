@@ -7,7 +7,12 @@ from rest_framework.response import Response
 from nucleo.permisos import EsAdministrador, EsCajeroOAdministrador
 from ventas.models import CuentaPorCobrar, MetodoPago, PagoVenta, Venta
 from ventas.dtos import DatosDeVentaDTO, LineaDeVentaDTO
-from ventas.servicios import registrar_abono as registrar_abono_cartera, registrar_venta
+from ventas.servicios import (
+    anular_venta,
+    confirmar_entrega,
+    registrar_abono as registrar_abono_cartera,
+    registrar_venta,
+)
 
 
 @api_view(["GET", "POST"])
@@ -40,6 +45,7 @@ def ventas(request):
                 "fecha_venta": v.fecha,
                 "tipo_pago": v.tipo_pago,
                 "estado": v.estado,
+                "estado_entrega": v.estado_entrega,
                 "total": v.total,
                 "subtotal": v.subtotal,
                 "total_iva": v.total_iva,
@@ -68,6 +74,9 @@ def ventas(request):
             referencia_transaccion=request.data.get("referencia_transaccion", ""),
             observaciones=request.data.get("observaciones", ""),
             descuento_porcentaje=Decimal(str(request.data.get("descuento_porcentaje", 0))),
+            estado_entrega=request.data.get(
+                "estado_entrega", Venta.EstadoEntrega.PENDIENTE
+            ),
         )
         venta = registrar_venta(
             datos=datos,
@@ -82,6 +91,7 @@ def ventas(request):
         "total": venta.total,
         "tipo_pago": venta.tipo_pago,
         "estado": venta.estado,
+        "estado_entrega": venta.estado_entrega,
     }, status=201)
 
 
@@ -105,7 +115,7 @@ def cuentas_por_cobrar(request):
         CuentaPorCobrar.objects.filter(
             negocio_id=request.user.negocio_id,
         )
-        .exclude(estado=CuentaPorCobrar.Estado.PAGADA)
+        .exclude(estado__in=[CuentaPorCobrar.Estado.PAGADA, CuentaPorCobrar.Estado.ANULADA])
         .select_related("venta__cliente")
         .order_by("fecha_vencimiento")
     )
@@ -114,7 +124,11 @@ def cuentas_por_cobrar(request):
     for cuenta in cuentas:
         estado = (
             CuentaPorCobrar.Estado.VENCIDA
-            if cuenta.fecha_vencimiento < hoy and cuenta.saldo > 0
+            if (
+                cuenta.venta.estado_entrega == Venta.EstadoEntrega.ENTREGADA
+                and cuenta.fecha_vencimiento < hoy
+                and cuenta.saldo > 0
+            )
             else cuenta.estado
         )
         cliente = cuenta.venta.cliente
@@ -134,6 +148,7 @@ def cuentas_por_cobrar(request):
                 "total": cuenta.total,
                 "saldo": cuenta.saldo,
                 "estado": estado.upper(),
+                "estado_entrega": cuenta.venta.estado_entrega,
             }
         )
     return Response(datos)
@@ -153,7 +168,11 @@ def cuenta_por_cobrar_detalle(request, cuenta_id):
     hoy = timezone.localdate()
     estado = (
         "VENCIDA"
-        if cuenta.fecha_vencimiento < hoy and cuenta.saldo > 0
+        if (
+            cuenta.venta.estado_entrega == Venta.EstadoEntrega.ENTREGADA
+            and cuenta.fecha_vencimiento < hoy
+            and cuenta.saldo > 0
+        )
         else cuenta.estado
     )
     cliente = cuenta.venta.cliente
@@ -181,6 +200,7 @@ def cuenta_por_cobrar_detalle(request, cuenta_id):
         "saldo": cuenta.saldo,
         "abonado": cuenta.total - cuenta.saldo,
         "estado": estado.upper(),
+        "estado_entrega": cuenta.venta.estado_entrega,
         "abonos": [{
             "id": pago.id,
             "fecha_pago": pago.fecha,
@@ -229,6 +249,7 @@ def venta_detalle(request, venta_id):
         "fecha_venta": venta.fecha,
         "tipo_pago": venta.tipo_pago,
         "estado": venta.estado,
+        "estado_entrega": venta.estado_entrega,
         "cliente_nombre": cliente_nombre,
         "vendedor": f"{venta.vendedor.nombre} {venta.vendedor.apellido}".strip() if venta.vendedor else "N/D",
         "subtotal": venta.subtotal,
@@ -236,6 +257,34 @@ def venta_detalle(request, venta_id):
         "total_iva": venta.total_iva,
         "total": venta.total,
         "detalles": detalles,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([EsCajeroOAdministrador])
+def confirmar_entrega_venta(request, venta_id):
+    try:
+        venta = confirmar_entrega(venta_id=venta_id, negocio_id=request.user.negocio_id)
+    except ValueError as error:
+        raise ValidationError(str(error))
+    return Response({"id": venta.id, "estado_entrega": venta.estado_entrega})
+
+
+@api_view(["POST"])
+@permission_classes([EsCajeroOAdministrador])
+def anular_venta_pendiente(request, venta_id):
+    try:
+        venta = anular_venta(
+            venta_id=venta_id,
+            negocio_id=request.user.negocio_id,
+            usuario_id=request.user.id,
+        )
+    except ValueError as error:
+        raise ValidationError(str(error))
+    return Response({
+        "id": venta.id,
+        "estado": venta.estado,
+        "estado_entrega": venta.estado_entrega,
     })
 
 

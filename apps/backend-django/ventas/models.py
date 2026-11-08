@@ -36,6 +36,11 @@ class Venta(ModeloDelNegocio):
         PENDIENTE = "pendiente", "Pendiente de cobro"
         ANULADA = "anulada", "Anulada"
 
+    class EstadoEntrega(models.TextChoices):
+        PENDIENTE = "pendiente_entrega", "Pendiente de entrega"
+        ENTREGADA = "entregada", "Entregada"
+        ANULADA = "anulada", "Anulada"
+
     cliente = models.ForeignKey(
         "clientes.Cliente",
         on_delete=models.PROTECT,
@@ -58,6 +63,12 @@ class Venta(ModeloDelNegocio):
     )
     tipo_pago = models.CharField("tipo de pago", max_length=10, choices=TipoPago.choices)
     estado = models.CharField("estado", max_length=12, choices=Estado.choices)
+    estado_entrega = models.CharField(
+        "estado de entrega",
+        max_length=20,
+        choices=EstadoEntrega.choices,
+        default=EstadoEntrega.PENDIENTE,
+    )
     fecha = models.DateTimeField("fecha", default=timezone.now)
     observaciones = models.TextField("observaciones", blank=True)
 
@@ -116,6 +127,7 @@ class CuentaPorCobrar(ModeloDelNegocio):
         PARCIAL = "parcial", "Abonada parcialmente"
         PAGADA = "pagada", "Pagada"
         VENCIDA = "vencida", "Vencida"
+        ANULADA = "anulada", "Anulada"
 
     venta = models.OneToOneField(
         "ventas.Venta",
