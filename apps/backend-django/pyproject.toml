@@ -21,6 +21,7 @@ known-first-party = [
     "inventario",
     "ventas",
     "compras",
+    "pqrs",
 ]
 
 [tool.pytest.ini_options]
@@ -32,7 +33,7 @@ addopts = "-ra --strict-markers"
 markers = [
     "lento: pruebas que tardan de más (concurrencia con transaction=True, por ejemplo)",
 ]
-testpaths = ["nucleo", "negocios", "usuarios", "clientes", "catalogo", "inventario", "ventas"]
+testpaths = ["nucleo", "negocios", "usuarios", "clientes", "catalogo", "inventario", "ventas", "pqrs"]
 
 [tool.coverage.run]
 omit = ["*/migrations/*", "*/tests/*", "config/*", "manage.py"]

@@ -56,6 +56,7 @@ LOCAL_APPS = [
     "inventario",
     "ventas",
     "compras",
+    "pqrs",
     "eventos",
 ]
 
