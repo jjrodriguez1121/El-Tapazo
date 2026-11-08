@@ -8,6 +8,7 @@ import {
 import { Link } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
+import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
 import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
 import { RUTAS } from '@/configuracion/rutas'
 import { estaEnRangoDeFechas } from '@/utilidades/fechas'
@@ -47,18 +48,24 @@ export default function PaginaRegistroVentas() {
   const [filtroEntrega, setFiltroEntrega] = useState('todos')
   const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
+  const [ventaParaEntregar, setVentaParaEntregar] = useState(null)
+  const [procesandoEntrega, setProcesandoEntrega] = useState(false)
 
-  async function marcarComoEntregada(venta) {
-    if (!window.confirm(`¿Confirmar la entrega de ${venta.numero_venta}?`)) return
-
+  async function marcarComoEntregada() {
+    if (!ventaParaEntregar) return
+    setProcesandoEntrega(true)
     setError('')
     try {
-      await confirmarEntregaVenta(venta.id)
+      await confirmarEntregaVenta(ventaParaEntregar.id)
+      setVentaParaEntregar(null)
       await cargar()
     } catch (errorSolicitud) {
       setError(
         errorSolicitud.response?.data?.[0] ?? 'No fue posible actualizar el estado de entrega.'
       )
+      setVentaParaEntregar(null)
+    } finally {
+      setProcesandoEntrega(false)
     }
   }
 
@@ -306,7 +313,7 @@ export default function PaginaRegistroVentas() {
                       {estaPendienteDeEntrega(venta) && (
                         <button
                           type="button"
-                          onClick={() => marcarComoEntregada(venta)}
+                          onClick={() => setVentaParaEntregar(venta)}
                           className="rounded-lg bg-exito-700 px-3 py-1.5 text-xs font-semibold text-blanco hover:bg-exito-800"
                         >
                           Marcar entregada
@@ -345,6 +352,17 @@ export default function PaginaRegistroVentas() {
           ventaId={ventaDetalleId}
           alCerrar={() => setVentaDetalleId(null)}
           alActualizar={cargar}
+        />
+      )}
+      {ventaParaEntregar && (
+        <ConfirmacionAccion
+          titulo="Confirmar entrega"
+          descripcion={`¿Confirmas que la venta ${ventaParaEntregar.numero_venta} ya fue entregada a ${ventaParaEntregar.cliente_nombre}? Esta acción actualizará su estado de entrega.`}
+          textoConfirmar="Confirmar entrega"
+          variante="positiva"
+          procesando={procesandoEntrega}
+          alConfirmar={marcarComoEntregada}
+          alCancelar={() => setVentaParaEntregar(null)}
         />
       )}
     </div>

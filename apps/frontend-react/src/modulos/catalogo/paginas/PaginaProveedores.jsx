@@ -3,6 +3,7 @@ import { PlusIcon } from '@phosphor-icons/react'
 
 import ModalNuevoProveedor from '../componentes/ModalNuevoProveedor'
 import TarjetaDeProveedor from '../componentes/TarjetaDeProveedor'
+import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
 import { clienteApi } from '@/librerias/clienteApi'
 
 export default function PaginaProveedores() {
@@ -11,6 +12,8 @@ export default function PaginaProveedores() {
   const [modalAbierto, setModalAbierto] = useState(false)
   const [proveedorParaEditar, setProveedorParaEditar] = useState(null)
   const [error, setError] = useState('')
+  const [proveedorParaCambiar, setProveedorParaCambiar] = useState(null)
+  const [procesandoEstado, setProcesandoEstado] = useState(false)
 
   async function cargarProveedores() {
     try {
@@ -51,13 +54,12 @@ export default function PaginaProveedores() {
     setModalAbierto(false)
   }
 
-  async function cambiarEstadoProveedor(proveedor) {
+  async function cambiarEstadoProveedor() {
+    const proveedor = proveedorParaCambiar
+    if (!proveedor) return
     const activar = !proveedor.activo
     const accion = activar ? 'activacion' : 'desactivacion'
-    const confirmacion = activar
-      ? `¿Activar el proveedor ${proveedor.razonSocial}?`
-      : `¿Desactivar el proveedor ${proveedor.razonSocial}? Las compras históricas se conservarán.`
-    if (!window.confirm(confirmacion)) return
+    setProcesandoEstado(true)
     setError('')
     try {
       const { data } = await clienteApi.post(`/catalogo/proveedores/${proveedor.id}/${accion}/`)
@@ -68,8 +70,12 @@ export default function PaginaProveedores() {
             : actual
         )
       )
+      setProveedorParaCambiar(null)
     } catch {
       setError(`No fue posible ${activar ? 'activar' : 'desactivar'} el proveedor.`)
+      setProveedorParaCambiar(null)
+    } finally {
+      setProcesandoEstado(false)
     }
   }
 
@@ -130,7 +136,7 @@ export default function PaginaProveedores() {
               setProveedorParaEditar(seleccionado)
               setModalAbierto(true)
             }}
-            alCambiarEstado={cambiarEstadoProveedor}
+            alCambiarEstado={setProveedorParaCambiar}
           />
         ))}
         {!proveedoresFiltrados.length && (
@@ -146,6 +152,23 @@ export default function PaginaProveedores() {
           alGuardar={guardarProveedor}
           proveedoresExistentes={proveedores}
           proveedorParaEditar={proveedorParaEditar}
+        />
+      )}
+      {proveedorParaCambiar && (
+        <ConfirmacionAccion
+          titulo={`${proveedorParaCambiar.activo ? 'Desactivar' : 'Activar'} proveedor`}
+          descripcion={
+            proveedorParaCambiar.activo
+              ? `¿Deseas desactivar «${proveedorParaCambiar.razonSocial}»? Sus compras históricas se conservarán y podrás volver a activarlo después.`
+              : `¿Deseas activar «${proveedorParaCambiar.razonSocial}» para volver a gestionarlo en el catálogo?`
+          }
+          textoConfirmar={
+            proveedorParaCambiar.activo ? 'Desactivar proveedor' : 'Activar proveedor'
+          }
+          variante={proveedorParaCambiar.activo ? 'destructiva' : 'positiva'}
+          procesando={procesandoEstado}
+          alConfirmar={cambiarEstadoProveedor}
+          alCancelar={() => setProveedorParaCambiar(null)}
         />
       )}
     </div>

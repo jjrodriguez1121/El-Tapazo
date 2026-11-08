@@ -114,10 +114,11 @@ test('impide crear una categoría duplicada', async () => {
 
 test('desactiva y reactiva una categoría sin quitar sus productos', async () => {
   const usuario = userEvent.setup()
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
   renderizarEnRuta(<PaginaCategorias />, '/categorias')
 
   await usuario.click(await screen.findByRole('button', { name: 'Desactivar Cervezas' }))
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('No se eliminarán sus productos')
+  await usuario.click(screen.getByRole('button', { name: 'Desactivar categoría' }))
   expect(desactivarCategoria).toHaveBeenCalledWith(1)
 
   await usuario.selectOptions(
@@ -129,6 +130,7 @@ test('desactiva y reactiva una categoría sin quitar sus productos', async () =>
   expect(screen.getByText('13 productos')).toBeInTheDocument()
 
   await usuario.click(screen.getByRole('button', { name: 'Activar Cervezas' }))
+  await usuario.click(screen.getByRole('button', { name: 'Activar categoría' }))
   expect(activarCategoria).toHaveBeenCalledWith(1)
   await usuario.selectOptions(
     screen.getByRole('combobox', { name: 'Estado de las categorías' }),

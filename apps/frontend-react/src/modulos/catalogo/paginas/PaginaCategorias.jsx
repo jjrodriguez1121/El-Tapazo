@@ -14,6 +14,7 @@ import {
   useTodasLasCategorias,
 } from '../hooks/useCatalogoDeProductos'
 import Aviso from '@/componentes/ui/Aviso'
+import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
 import { mensajeDeError } from '@/utilidades/errores'
 
 /**
@@ -30,6 +31,8 @@ export default function PaginaCategorias() {
   const [categoriaParaEditar, setCategoriaParaEditar] = useState(null)
   const [filtroEstado, setFiltroEstado] = useState('activas')
   const [errorAccion, setErrorAccion] = useState('')
+  const [categoriaParaCambiar, setCategoriaParaCambiar] = useState(null)
+  const [procesandoEstado, setProcesandoEstado] = useState(false)
 
   function agregarCategoria(categoria) {
     clienteConsultas.setQueryData(CLAVE_TODAS_LAS_CATEGORIAS, (actual = []) => [
@@ -50,13 +53,11 @@ export default function PaginaCategorias() {
     clienteConsultas.invalidateQueries({ queryKey: CLAVE_CATALOGO_PRODUCTOS })
   }
 
-  async function cambiarEstadoCategoria(categoria) {
+  async function cambiarEstadoCategoria() {
+    const categoria = categoriaParaCambiar
+    if (!categoria) return
     const activar = !categoria.activa
-    const mensajeConfirmacion = activar
-      ? `¿Activar la categoría ${categoria.nombre}?`
-      : `¿Desactivar la categoría ${categoria.nombre}? Los productos que ya la usan se conservarán.`
-    if (!window.confirm(mensajeConfirmacion)) return
-
+    setProcesandoEstado(true)
     setErrorAccion('')
     try {
       const actualizada = activar
@@ -66,8 +67,12 @@ export default function PaginaCategorias() {
         actual.map((item) => (item.id === actualizada.id ? { ...item, ...actualizada } : item))
       )
       await clienteConsultas.invalidateQueries({ queryKey: CLAVE_CATALOGO_PRODUCTOS })
+      setCategoriaParaCambiar(null)
     } catch (error) {
       setErrorAccion(mensajeDeError(error))
+      setCategoriaParaCambiar(null)
+    } finally {
+      setProcesandoEstado(false)
     }
   }
 
@@ -147,7 +152,7 @@ export default function PaginaCategorias() {
                 setCategoriaParaEditar(categoria)
                 setModalAbierto(true)
               }}
-              alCambiarEstado={() => cambiarEstadoCategoria(categoria)}
+              alCambiarEstado={() => setCategoriaParaCambiar(categoria)}
             />
           ))}
           {!categoriasFiltradas.length && (
@@ -165,6 +170,23 @@ export default function PaginaCategorias() {
           alActualizar={actualizarCategoria}
           categoriasExistentes={categorias}
           categoriaParaEditar={categoriaParaEditar}
+        />
+      )}
+      {categoriaParaCambiar && (
+        <ConfirmacionAccion
+          titulo={`${categoriaParaCambiar.activa ? 'Desactivar' : 'Activar'} categoría`}
+          descripcion={
+            categoriaParaCambiar.activa
+              ? `¿Deseas desactivar «${categoriaParaCambiar.nombre}»? No se eliminarán sus productos y podrás volver a activarla después.`
+              : `¿Deseas activar «${categoriaParaCambiar.nombre}» para volver a usarla en el catálogo?`
+          }
+          textoConfirmar={
+            categoriaParaCambiar.activa ? 'Desactivar categoría' : 'Activar categoría'
+          }
+          variante={categoriaParaCambiar.activa ? 'destructiva' : 'positiva'}
+          procesando={procesandoEstado}
+          alConfirmar={cambiarEstadoCategoria}
+          alCancelar={() => setCategoriaParaCambiar(null)}
         />
       )}
     </div>

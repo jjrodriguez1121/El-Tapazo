@@ -102,13 +102,16 @@ test('agrega una persona al listado local', async () => {
 
 test('desactiva y reactiva un cliente sin eliminar su ficha', async () => {
   const usuario = userEvent.setup()
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
   iniciarComoAdmin()
   renderizarEnRuta(<PaginaClientes />, '/clientes')
 
   await usuario.click(
     await screen.findByRole('button', { name: 'Desactivar cliente Carlos Ramírez' })
   )
+  expect(screen.getByRole('alertdialog')).toHaveTextContent(
+    'Sus ventas y cuentas históricas se conservarán'
+  )
+  await usuario.click(screen.getByRole('button', { name: 'Desactivar cliente' }))
   await usuario.selectOptions(
     screen.getByRole('combobox', { name: 'Estado de los clientes' }),
     'inactivos'
@@ -116,6 +119,7 @@ test('desactiva y reactiva un cliente sin eliminar su ficha', async () => {
   expect(await screen.findByText('Carlos Ramírez')).toBeInTheDocument()
   expect(screen.getByText('$27.500')).toBeInTheDocument()
   await usuario.click(screen.getByRole('button', { name: 'Activar cliente Carlos Ramírez' }))
+  await usuario.click(screen.getByRole('button', { name: 'Activar cliente' }))
 
   await usuario.selectOptions(
     screen.getByRole('combobox', { name: 'Estado de los clientes' }),

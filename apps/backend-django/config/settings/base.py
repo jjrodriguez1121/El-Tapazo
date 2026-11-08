@@ -175,9 +175,6 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "inicio_sesion": env("LIMITE_INICIO_SESION", default="10/min"),
         "correos_salientes": env("LIMITE_CORREOS_SALIENTES", default="5/hour"),
-        # Sin freno, cualquiera con un lector de tres dólares puede ir
-        # preguntándole al sistema cuánto debe cada persona del bar.
-        "punto_de_control": env("LIMITE_PUNTO_DE_CONTROL", default="60/min"),
     },
 }
 

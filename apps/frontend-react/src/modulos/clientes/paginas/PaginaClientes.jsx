@@ -4,6 +4,7 @@ import { MagnifyingGlassIcon, PlusIcon } from '@phosphor-icons/react'
 import ModalNuevoCliente from '../componentes/ModalNuevoCliente'
 import TarjetaDeCliente from '../componentes/TarjetaDeCliente'
 import Aviso from '@/componentes/ui/Aviso'
+import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
 import { useUsuarioDeSesion } from '@/estado/sesion'
 import { clienteApi } from '@/librerias/clienteApi'
 
@@ -31,6 +32,8 @@ export default function PaginaClientes() {
   const [clienteEnEdicion, setClienteEnEdicion] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [clienteParaCambiar, setClienteParaCambiar] = useState(null)
+  const [procesandoEstado, setProcesandoEstado] = useState(false)
 
   async function cargarClientes() {
     setCargando(true)
@@ -89,13 +92,12 @@ export default function PaginaClientes() {
     setModalAbierto(true)
   }
 
-  async function cambiarEstadoCliente(cliente) {
+  async function cambiarEstadoCliente() {
+    const cliente = clienteParaCambiar
+    if (!cliente) return
     const activar = !cliente.activo
     const accion = activar ? 'activacion' : 'desactivacion'
-    const confirmacion = activar
-      ? `¿Activar a ${cliente.nombre}?`
-      : `¿Desactivar a ${cliente.nombre}? Sus ventas y cuentas históricas se conservarán.`
-    if (!window.confirm(confirmacion)) return
+    setProcesandoEstado(true)
     setError('')
     try {
       const { data } = await clienteApi.post(`/clientes/${cliente.id}/${accion}/`)
@@ -109,11 +111,15 @@ export default function PaginaClientes() {
             : actual
         )
       )
+      setClienteParaCambiar(null)
     } catch (err) {
       setError(
         err.response?.data?.error?.mensaje ??
           `No fue posible ${activar ? 'activar' : 'desactivar'} el cliente.`
       )
+      setClienteParaCambiar(null)
+    } finally {
+      setProcesandoEstado(false)
     }
   }
 
@@ -192,7 +198,7 @@ export default function PaginaClientes() {
             key={cliente.id}
             cliente={cliente}
             alEditar={abrirEdicion}
-            alCambiarEstado={cambiarEstadoCliente}
+            alCambiarEstado={setClienteParaCambiar}
             puedeCambiarEstado={puedeCambiarEstado}
           />
         ))}
@@ -214,6 +220,21 @@ export default function PaginaClientes() {
           alGuardar={guardarCliente}
           clienteInicial={clienteEnEdicion}
           clientesExistentes={clientes}
+        />
+      )}
+      {clienteParaCambiar && (
+        <ConfirmacionAccion
+          titulo={`${clienteParaCambiar.activo ? 'Desactivar' : 'Activar'} cliente`}
+          descripcion={
+            clienteParaCambiar.activo
+              ? `¿Deseas desactivar a «${clienteParaCambiar.nombre}»? Sus ventas y cuentas históricas se conservarán y podrás volver a activarlo después.`
+              : `¿Deseas activar a «${clienteParaCambiar.nombre}» para volver a gestionarlo?`
+          }
+          textoConfirmar={clienteParaCambiar.activo ? 'Desactivar cliente' : 'Activar cliente'}
+          variante={clienteParaCambiar.activo ? 'destructiva' : 'positiva'}
+          procesando={procesandoEstado}
+          alConfirmar={cambiarEstadoCliente}
+          alCancelar={() => setClienteParaCambiar(null)}
         />
       )}
     </div>

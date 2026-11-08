@@ -4,7 +4,7 @@ import pytest
 from django.db import IntegrityError, transaction
 
 from eventos.models import Evento
-from eventos.pruebas.fabricas import FabricaDeDispositivoNfc, FabricaDeEvento
+from eventos.pruebas.fabricas import FabricaDeEvento
 from inventario.pruebas.fabricas import FabricaDeUbicacion
 
 pytestmark = pytest.mark.django_db
@@ -57,19 +57,3 @@ def test_varios_eventos_planeados_sin_ubicacion_no_se_estorban():
     )
 
     assert segundo.pk is not None
-
-
-def test_el_token_de_un_dispositivo_es_unico_en_toda_la_plataforma():
-    """Global y no por negocio: cuando llega la petición del lector todavía no
-    se sabe de qué negocio es — se averigua justo por el token."""
-    lector = FabricaDeDispositivoNfc()
-
-    with pytest.raises(IntegrityError), transaction.atomic():
-        FabricaDeDispositivoNfc(hash_token=lector.hash_token)
-
-
-def test_del_dispositivo_solo_se_guarda_el_hash_del_token():
-    lector = FabricaDeDispositivoNfc()
-
-    assert lector.token_en_claro not in lector.hash_token
-    assert len(lector.hash_token) == 64

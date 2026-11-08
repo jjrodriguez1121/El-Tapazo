@@ -5,9 +5,6 @@ inicia sesión ni tiene contraseña — para eso está `usuarios`. Lo que se gua
 es lo que hace falta para saber a quién se le vendió y si tiene edad para
 comprar alcohol.
 
-El dato nunca viaja al chip de la pulsera. El chip solo aporta su UID de
-fábrica; el nombre, el documento y la fecha de nacimiento viven aquí. Por eso
-una pulsera perdida no filtra los datos de nadie.
 """
 
 from datetime import date

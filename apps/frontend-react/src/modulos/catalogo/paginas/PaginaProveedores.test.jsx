@@ -102,7 +102,6 @@ test('impide repetir razón social y valida correo inválido', async () => {
 
 test('edita, desactiva y reactiva un proveedor desde sus acciones', async () => {
   const usuario = userEvent.setup()
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
   renderizarEnRuta(<PaginaProveedores />, '/proveedores')
 
   await usuario.click(await screen.findByRole('button', { name: 'Editar Bavaria S.A.' }))
@@ -113,6 +112,8 @@ test('edita, desactiva y reactiva un proveedor desde sus acciones', async () => 
   expect(await screen.findByText('Bavaria Editada')).toBeInTheDocument()
 
   await usuario.click(screen.getByRole('button', { name: 'Desactivar Bavaria Editada' }))
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('compras históricas se conservarán')
+  await usuario.click(screen.getByRole('button', { name: 'Desactivar proveedor' }))
   expect(await screen.findByText('Postobón S.A.')).toBeInTheDocument()
   expect(screen.queryByText('Bavaria Editada')).not.toBeInTheDocument()
 
@@ -121,6 +122,7 @@ test('edita, desactiva y reactiva un proveedor desde sus acciones', async () => 
     'inactivos'
   )
   await usuario.click(await screen.findByRole('button', { name: 'Activar Bavaria Editada' }))
+  await usuario.click(screen.getByRole('button', { name: 'Activar proveedor' }))
   await usuario.selectOptions(
     screen.getByRole('combobox', { name: 'Estado de los proveedores' }),
     'activos'
