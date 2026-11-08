@@ -65,7 +65,7 @@ documentado arriba es el de los módulos actualmente expuestos.
 | Backend y API | Python, Django y Django REST Framework |
 | Base de datos | PostgreSQL |
 | Frontend | React, JavaScript y Vite |
-| Desarrollo | Docker Compose |
+| Desarrollo | Docker Compose
 
 ## Iniciar el proyecto
 
