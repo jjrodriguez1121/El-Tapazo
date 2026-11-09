@@ -105,11 +105,11 @@ export default function PaginaCuentasPorPagar() {
           'Estado',
         ],
         filas: cuentasFiltradas.map((cuenta) => [
-          cuenta.fecha_compra ? formatearFechaCorta(new Date(cuenta.fecha_compra)) : 'N/D',
+          cuenta.fecha_compra ? formatearFechaCorta(cuenta.fecha_compra) : 'N/D',
           cuenta.numero_compra,
           cuenta.proveedor,
           cuenta.fecha_vencimiento
-            ? formatearFechaCorta(new Date(`${cuenta.fecha_vencimiento}T00:00:00`))
+            ? formatearFechaCorta(cuenta.fecha_vencimiento)
             : 'N/D',
           formatearPesos(Number(cuenta.total)),
           formatearPesos(Number(cuenta.saldo)),
@@ -200,13 +200,13 @@ export default function PaginaCuentasPorPagar() {
                 <tr key={cuenta.id} className="border-t border-azul-100">
                   <td className="px-4 py-3 text-xs text-azul-500">
                     {cuenta.fecha_compra
-                      ? formatearFechaCorta(new Date(cuenta.fecha_compra))
+                      ? formatearFechaCorta(cuenta.fecha_compra)
                       : 'N/D'}
                   </td>
                   <td className="px-4 py-3 font-semibold text-azul-950">{cuenta.numero_compra}</td>
                   <td className="px-4 py-3">{cuenta.proveedor}</td>
                   <td className="px-4 py-3">
-                    {formatearFechaCorta(new Date(`${cuenta.fecha_vencimiento}T00:00:00`))}
+                    {formatearFechaCorta(cuenta.fecha_vencimiento)}
                   </td>
                   <td className="px-4 py-3 text-right">{formatearPesos(Number(cuenta.total))}</td>
                   <td className="px-4 py-3 text-right font-bold text-azul-950">

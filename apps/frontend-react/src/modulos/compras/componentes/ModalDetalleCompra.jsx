@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { XIcon } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
-import { formatearPesos } from '@/utilidades/formatos'
+import { formatearFechaHora, formatearPesos } from '@/utilidades/formatos'
 import { obtenerDetalleCompra } from '../api/apiCompras'
 
 export default function ModalDetalleCompra({ compraId, alCerrar }) {
@@ -36,7 +36,7 @@ export default function ModalDetalleCompra({ compraId, alCerrar }) {
             <>
               <dl className="grid gap-3 sm:grid-cols-3">
                 <Dato etiqueta="Proveedor" valor={compra.proveedor_nombre} />
-                <Dato etiqueta="Fecha" valor={new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(compra.fecha_compra))} />
+                <Dato etiqueta="Fecha" valor={formatearFechaHora(compra.fecha_compra)} />
                 <Dato etiqueta="Pago" valor={compra.condicion_pago === 'CONTADO' ? 'Contado' : 'Crédito'} />
               </dl>
 

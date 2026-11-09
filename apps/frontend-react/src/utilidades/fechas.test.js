@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { estaEnRangoDeFechas } from './fechas'
+import { estaEnRangoDeFechas, obtenerFechaLocalIso } from './fechas'
 
 describe('estaEnRangoDeFechas', () => {
   test('incluye ambos extremos del rango', () => {
@@ -15,5 +15,12 @@ describe('estaEnRangoDeFechas', () => {
   test('permite filtrar con un solo límite y descarta fechas inválidas', () => {
     expect(estaEnRangoDeFechas('2026-11-08', '2026-11-08', '')).toBe(true)
     expect(estaEnRangoDeFechas('', '', '')).toBe(false)
+  })
+
+  test('interpreta timestamps y rangos usando la fecha de Bogotá', () => {
+    const timestamp = '2026-11-09T04:30:00Z'
+
+    expect(obtenerFechaLocalIso(timestamp)).toBe('2026-11-08')
+    expect(estaEnRangoDeFechas(timestamp, '2026-11-08', '2026-11-08')).toBe(true)
   })
 })

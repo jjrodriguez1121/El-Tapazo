@@ -3,7 +3,7 @@ import { CheckCircleIcon, PlusIcon, PrinterIcon, TrashIcon } from '@phosphor-ico
 
 import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
-import { formatearPesos } from '@/utilidades/formatos'
+import { formatearFechaHora, formatearPesos } from '@/utilidades/formatos'
 import { imprimirComprobanteCompra } from '@/utilidades/imprimirComprobanteCompra'
 import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
 import { crearCompra, listarCompras } from '../api/apiCompras'
@@ -426,12 +426,7 @@ export default function PaginaCompras() {
               {compras.map((compra) => (
                 <tr key={compra.id} className="border-t border-azul-100">
                   <td className="px-4 py-3 text-xs text-azul-500">
-                    {compra.fecha_compra
-                      ? new Intl.DateTimeFormat('es-CO', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        }).format(new Date(compra.fecha_compra))
-                      : 'N/D'}
+                    {compra.fecha_compra ? formatearFechaHora(compra.fecha_compra) : 'N/D'}
                   </td>
                   <td className="px-4 py-3 font-semibold text-azul-950">{compra.numero_compra}</td>
                   <td className="px-4 py-3">{compra.proveedor_nombre}</td>

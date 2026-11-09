@@ -3,7 +3,7 @@ import { CheckCircleIcon, TrashIcon, XIcon } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
 import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
-import { formatearPesos } from '@/utilidades/formatos'
+import { formatearFechaHora, formatearPesos } from '@/utilidades/formatos'
 import { anularVenta, confirmarEntregaVenta, obtenerDetalleVenta } from '../api/apiVentas'
 
 export default function ModalDetalleVenta({ ventaId, alCerrar, alActualizar }) {
@@ -86,10 +86,7 @@ export default function ModalDetalleVenta({ ventaId, alCerrar, alActualizar }) {
                   <Dato etiqueta="Cliente" valor={venta.cliente_nombre} />
                   <Dato
                     etiqueta="Fecha"
-                    valor={new Intl.DateTimeFormat('es-CO', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    }).format(new Date(venta.fecha_venta))}
+                    valor={formatearFechaHora(venta.fecha_venta)}
                   />
                   <Dato
                     etiqueta="Tipo de pago"

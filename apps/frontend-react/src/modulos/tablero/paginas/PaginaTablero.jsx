@@ -3,6 +3,7 @@ import { CalendarIcon, TrendUpIcon, WarningIcon, WalletIcon } from '@phosphor-ic
 
 import Aviso from '@/componentes/ui/Aviso'
 import { clienteApi } from '@/librerias/clienteApi'
+import { obtenerFechaLocalIso } from '@/utilidades/fechas'
 import { formatearFechaLarga, formatearPesos } from '@/utilidades/formatos'
 
 import AlertasDeStock from '../componentes/AlertasDeStock'
@@ -67,7 +68,7 @@ async function obtenerTodasLasAlertasDeStock() {
 }
 
 function fechaDeVenta(venta) {
-  return venta.fecha_venta?.slice(0, 10) ?? ''
+  return obtenerFechaLocalIso(venta.fecha_venta)
 }
 
 function diasDelRango(desde, hasta, ventas) {
@@ -78,15 +79,19 @@ function diasDelRango(desde, hasta, ventas) {
   })
 
   const dias = []
-  const cursor = new Date(`${desde}T00:00:00`)
-  const limite = new Date(`${hasta}T00:00:00`)
+  const cursor = new Date(`${desde}T12:00:00Z`)
+  const limite = new Date(`${hasta}T12:00:00Z`)
   while (cursor <= limite) {
-    const clave = fechaLocal(cursor)
+    const clave = cursor.toISOString().slice(0, 10)
     dias.push({
-      dia: new Intl.DateTimeFormat('es-CO', { day: '2-digit', month: 'short' }).format(cursor),
+      dia: new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        timeZone: 'America/Bogota',
+      }).format(cursor),
       total: totales.get(clave) ?? 0,
     })
-    cursor.setDate(cursor.getDate() + 1)
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
   return dias
 }

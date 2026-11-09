@@ -1,4 +1,4 @@
-import { formatearPesos } from './formatos.js'
+import { formatearFechaHora, formatearPesos } from './formatos.js'
 
 function escaparHtml(valor) {
   return String(valor ?? '')
@@ -17,9 +17,7 @@ export function imprimirComprobanteVenta(venta, ventana = window.open('', '_blan
   }
 
   const fechaVenta = venta.fecha_venta
-    ? new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(
-        new Date(venta.fecha_venta)
-      )
+    ? formatearFechaHora(venta.fecha_venta)
     : 'No registrada'
   const detalles = (venta.detalles ?? [])
     .map(

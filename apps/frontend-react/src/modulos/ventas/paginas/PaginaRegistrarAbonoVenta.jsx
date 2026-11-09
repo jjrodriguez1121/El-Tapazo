@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
 import { RUTAS } from '@/configuracion/rutas'
-import { formatearFechaCorta, formatearPesos } from '@/utilidades/formatos'
+import { formatearFechaCorta, formatearFechaHora, formatearPesos } from '@/utilidades/formatos'
 import { listarMetodosPago, obtenerCuentaPorCobrar, registrarAbonoVenta } from '../api/apiVentas'
 
 export default function PaginaRegistrarAbonoVenta() {
@@ -131,11 +131,11 @@ export default function PaginaRegistrarAbonoVenta() {
               <dl className="mt-5 grid gap-4 border-t border-azul-100 pt-5 sm:grid-cols-2">
                 <Dato
                   etiqueta="Fecha de venta"
-                  valor={cuenta.fecha_venta ? formatearFechaCorta(new Date(cuenta.fecha_venta)) : 'N/D'}
+                  valor={cuenta.fecha_venta ? formatearFechaCorta(cuenta.fecha_venta) : 'N/D'}
                 />
                 <Dato
                   etiqueta="Fecha de vencimiento"
-                  valor={formatearFechaCorta(new Date(`${cuenta.fecha_vencimiento}T00:00:00`))}
+                  valor={formatearFechaCorta(cuenta.fecha_vencimiento)}
                 />
               </dl>
             </section>
@@ -219,7 +219,7 @@ export default function PaginaRegistrarAbonoVenta() {
                         <p className="text-xs text-azul-400">{abono.referencia || 'Sin referencia'}</p>
                       </div>
                       <p className="text-azul-500">
-                        {new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(abono.fecha_pago))}
+                        {formatearFechaHora(abono.fecha_pago)}
                       </p>
                       <p className="font-bold text-azul-950 sm:text-right">{formatearPesos(Number(abono.valor))}</p>
                     </div>

@@ -1,3 +1,5 @@
+import { formatearFechaHora } from './formatos.js'
+
 function escaparHtml(valor) {
   return String(valor ?? '')
     .replaceAll('&', '&amp;')
@@ -20,7 +22,7 @@ export function imprimirReportePdf({ titulo, descripcion, columnas, filas }) {
     .map((fila) => `<tr>${fila.map((celda) => `<td>${escaparHtml(celda)}</td>`).join('')}</tr>`)
     .join('')
   const fechaGeneracion = escaparHtml(
-    new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date())
+    formatearFechaHora(new Date())
   )
 
   ventana.document.write(`<!doctype html>

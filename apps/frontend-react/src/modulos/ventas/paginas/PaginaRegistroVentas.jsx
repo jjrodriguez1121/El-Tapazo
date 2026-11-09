@@ -13,7 +13,7 @@ import { RUTAS } from '@/configuracion/rutas'
 import { estaEnRangoDeFechas } from '@/utilidades/fechas'
 import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
 import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
-import { formatearPesos } from '@/utilidades/formatos'
+import { formatearFechaHora, formatearPesos } from '@/utilidades/formatos'
 import { listarVentas, obtenerDetalleVenta } from '../api/apiVentas'
 import ModalDetalleVenta from '../componentes/ModalDetalleVenta'
 
@@ -107,10 +107,6 @@ export default function PaginaRegistroVentas() {
   function descargarReporte() {
     setError('')
     try {
-      const fechaVenta = new Intl.DateTimeFormat('es-CO', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      })
       imprimirReportePdf({
         titulo: 'Registro de ventas',
         descripcion: `Fecha de venta: ${rangoFechas.desde || 'sin límite'} a ${rangoFechas.hasta || 'sin límite'}. Se incluyen los filtros seleccionados en el listado.`,
@@ -125,7 +121,7 @@ export default function PaginaRegistroVentas() {
           'Total',
         ],
         filas: ventasFiltradas.map((venta) => [
-          fechaVenta.format(new Date(venta.fecha_venta)),
+          formatearFechaHora(venta.fecha_venta),
           venta.numero_venta,
           venta.cliente_nombre,
           venta.tipo_pago === 'contado' ? 'Contado' : 'Crédito',
@@ -265,10 +261,7 @@ export default function PaginaRegistroVentas() {
               {ventasFiltradas.map((venta) => (
                 <tr key={venta.id} className="border-t border-azul-100 hover:bg-azul-50/30">
                   <td className="px-4 py-3 text-xs font-medium text-azul-500">
-                    {new Intl.DateTimeFormat('es-CO', {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    }).format(new Date(venta.fecha_venta))}
+                    {formatearFechaHora(venta.fecha_venta)}
                   </td>
                   <td className="px-4 py-3 font-semibold text-azul-950">{venta.numero_venta}</td>
                   <td className="px-4 py-3 text-azul-700">{venta.cliente_nombre}</td>

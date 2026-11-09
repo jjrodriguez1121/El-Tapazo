@@ -1,4 +1,4 @@
-import { formatearFechaCorta, formatearPesos } from './formatos.js'
+import { formatearFechaCorta, formatearFechaHora, formatearPesos } from './formatos.js'
 
 function escaparHtml(valor) {
   return String(valor ?? '')
@@ -17,9 +17,7 @@ export function imprimirComprobanteCompra(compra, ventana = window.open('', '_bl
   }
 
   const fechaCompra = compra.fecha_compra
-    ? new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(
-        new Date(compra.fecha_compra)
-      )
+    ? formatearFechaHora(compra.fecha_compra)
     : 'No registrada'
   const detalles = (compra.detalles ?? [])
     .map(
@@ -32,7 +30,7 @@ export function imprimirComprobanteCompra(compra, ventana = window.open('', '_bl
     )
     .join('')
   const fechaVencimiento = compra.fecha_vencimiento
-    ? formatearFechaCorta(new Date(`${compra.fecha_vencimiento}T00:00:00`))
+    ? formatearFechaCorta(compra.fecha_vencimiento)
     : 'No aplica'
 
   ventana.document.write(`<!doctype html>
