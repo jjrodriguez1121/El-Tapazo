@@ -173,7 +173,7 @@ export default function ModalNuevoProducto({
               {estaEditando ? 'Editar producto' : 'Nuevo producto'}
             </h2>
             <p className="mt-1 text-xs font-medium text-azul-500">
-              Completa la información del repuesto.
+              Completa la información del producto.
             </p>
           </div>
           <button
@@ -192,7 +192,7 @@ export default function ModalNuevoProducto({
             <div className="grid gap-x-3 gap-y-3 sm:grid-cols-[2fr_1fr]">
               <CampoFormulario
                 id={`${id}-nombre`}
-                etiqueta="Nombre del repuesto"
+                etiqueta="Nombre del producto"
                 name="nombre"
                 required
                 autoComplete="off"

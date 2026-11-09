@@ -89,7 +89,7 @@ export default function PaginaProveedores() {
         <div>
           <h1 className="text-titulo font-bold text-azul-950">Proveedores</h1>
           <p className="mt-1 text-sm font-medium text-azul-400">
-            Distribuidores y casas de repuestos
+            Distribuidores y proveedores de productos
           </p>
         </div>
         <button

@@ -272,7 +272,7 @@ export default function PaginaPuntoDeVenta() {
         <header>
           <h1 className="text-titulo font-bold text-azul-950">Punto de venta</h1>
           <p className="mt-1 text-xs font-medium text-azul-400">
-            Agrega repuestos al carrito para registrar la venta
+            Agrega productos al carrito para registrar la venta
           </p>
         </header>
 
