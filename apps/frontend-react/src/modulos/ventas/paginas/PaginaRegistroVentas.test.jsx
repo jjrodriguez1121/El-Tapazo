@@ -26,6 +26,7 @@ const VENTA = {
   fecha_venta: '2026-11-08T10:00:00Z',
   tipo_pago: 'contado',
   estado: 'pagada',
+  estado_pago: 'PAGADA',
   estado_entrega: 'pendiente_entrega',
   cantidad_items: 1,
   total: '25000.00',
@@ -79,4 +80,29 @@ test('pide confirmar la entrega y permite cancelarla antes de actualizarla', asy
 
   await waitFor(() => expect(confirmarEntregaVenta).toHaveBeenCalledWith(45))
   await waitFor(() => expect(listarVentas).toHaveBeenCalledTimes(2))
+})
+
+test('muestra el estado parcial de pago en el registro de ventas', async () => {
+  listarVentas.mockResolvedValue([{ ...VENTA, tipo_pago: 'credito', estado_pago: 'PARCIAL' }])
+  renderizarEnRuta(<PaginaRegistroVentas />, '/ventas')
+
+  expect(await screen.findByText('PARCIAL')).toBeInTheDocument()
+})
+
+test('oculta la acción de anular cuando la venta ya tiene pagos', async () => {
+  const usuario = userEvent.setup()
+  listarVentas.mockResolvedValue([{ ...VENTA, tipo_pago: 'credito', estado_pago: 'PARCIAL' }])
+  obtenerDetalleVenta.mockResolvedValue({
+    ...VENTA,
+    tipo_pago: 'credito',
+    estado_pago: 'PARCIAL',
+    puede_anular: false,
+    detalles: [],
+  })
+  renderizarEnRuta(<PaginaRegistroVentas />, '/ventas')
+
+  await usuario.click(await screen.findByRole('button', { name: 'Ver detalle' }))
+
+  expect(screen.getAllByText('PARCIAL')).toHaveLength(2)
+  expect(screen.queryByRole('button', { name: 'Anular venta' })).not.toBeInTheDocument()
 })

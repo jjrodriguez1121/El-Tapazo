@@ -25,7 +25,7 @@ def ventas(request):
     if request.method == "GET":
         registros = (
             Venta.objects.filter(negocio_id=request.user.negocio_id)
-            .select_related("cliente", "vendedor")
+            .select_related("cliente", "vendedor", "cuenta_por_cobrar")
             .prefetch_related("detalles")
             .order_by("-fecha")
         )
@@ -49,6 +49,7 @@ def ventas(request):
                 "fecha_venta": v.fecha,
                 "tipo_pago": v.tipo_pago,
                 "estado": v.estado,
+                "estado_pago": _estado_pago_de_venta(v),
                 "estado_entrega": v.estado_entrega,
                 "total": v.total,
                 "subtotal": v.subtotal,
@@ -234,7 +235,7 @@ def cuenta_por_cobrar_detalle(request, cuenta_id):
 def venta_detalle(request, venta_id):
     venta = (
         Venta.objects.filter(id=venta_id, negocio_id=request.user.negocio_id)
-        .select_related("cliente", "vendedor")
+        .select_related("cliente", "vendedor", "cuenta_por_cobrar")
         .prefetch_related("detalles__producto")
         .first()
     )
@@ -246,6 +247,7 @@ def venta_detalle(request, venta_id):
         if venta.cliente
         else "Cliente general / Mostrador"
     )
+    cuenta = getattr(venta, "cuenta_por_cobrar", None)
 
     detalles = [
         {
@@ -267,6 +269,8 @@ def venta_detalle(request, venta_id):
         "fecha_venta": venta.fecha,
         "tipo_pago": venta.tipo_pago,
         "estado": venta.estado,
+        "estado_pago": _estado_pago_de_venta(venta, cuenta),
+        "puede_anular": _venta_puede_anularse(venta, cuenta, request.user.negocio_id),
         "estado_entrega": venta.estado_entrega,
         "cliente_nombre": cliente_nombre,
         "vendedor": f"{venta.vendedor.nombre} {venta.vendedor.apellido}".strip() if venta.vendedor else "N/D",
@@ -276,6 +280,37 @@ def venta_detalle(request, venta_id):
         "total": venta.total,
         "detalles": detalles,
     })
+
+
+def _estado_pago_de_venta(venta, cuenta=None):
+    if venta.estado == Venta.Estado.ANULADA:
+        return "ANULADA"
+    if cuenta is None:
+        cuenta = getattr(venta, "cuenta_por_cobrar", None)
+    if cuenta is None:
+        return venta.estado.upper()
+    if cuenta.estado == CuentaPorCobrar.Estado.VENCIDA:
+        return "VENCIDA"
+    if cuenta.saldo <= 0:
+        return "PAGADA"
+    if cuenta.saldo < cuenta.total:
+        return "PARCIAL"
+    return "PENDIENTE"
+
+
+def _venta_puede_anularse(venta, cuenta, negocio_id):
+    if venta.estado_entrega != Venta.EstadoEntrega.PENDIENTE:
+        return False
+    if PagoVenta.objects.filter(
+        venta=venta,
+        negocio_id=negocio_id,
+        estado=PagoVenta.Estado.CONFIRMADO,
+    ).exists():
+        return False
+    return not cuenta or (
+        cuenta.estado not in [CuentaPorCobrar.Estado.PARCIAL, CuentaPorCobrar.Estado.PAGADA]
+        and cuenta.saldo >= cuenta.total
+    )
 
 
 @api_view(["POST"])

@@ -24,6 +24,8 @@ const TONOS_ESTADO = {
   PAGADA: 'bg-exito-50 text-exito-700',
   PENDIENTE: 'bg-alerta-50 text-alerta-700',
   ANULADA: 'bg-error-50 text-error-700',
+  PARCIAL: 'bg-alerta-50 text-alerta-700',
+  VENCIDA: 'bg-error-50 text-error-700',
 }
 
 const TONOS_ENTREGA = {
@@ -91,7 +93,8 @@ export default function PaginaRegistroVentas() {
 
   const ventasFiltradas = ventas.filter((v) => {
     const coincideFecha = estaEnRangoDeFechas(v.fecha_venta, rangoFechas.desde, rangoFechas.hasta)
-    const coincideEstado = filtroEstado === 'todos' || v.estado === filtroEstado
+    const estadoPago = String(v.estado_pago ?? v.estado).toLowerCase()
+    const coincideEstado = filtroEstado === 'todos' || estadoPago === filtroEstado
     const coincideTipoPago = filtroTipoPago === 'todos' || v.tipo_pago === filtroTipoPago
     const estadoEntrega = v.estado_entrega ?? 'pendiente_entrega'
     const coincideEntrega = filtroEntrega === 'todos' || estadoEntrega === filtroEntrega
@@ -125,7 +128,7 @@ export default function PaginaRegistroVentas() {
           venta.numero_venta,
           venta.cliente_nombre,
           venta.tipo_pago === 'contado' ? 'Contado' : 'Crédito',
-          String(venta.estado).toUpperCase(),
+          String(venta.estado_pago ?? venta.estado).toUpperCase(),
           ETIQUETAS_ENTREGA[venta.estado_entrega] ?? 'Pendiente de entrega',
           venta.cantidad_items,
           formatearPesos(Number(venta.total)),
@@ -216,6 +219,8 @@ export default function PaginaRegistroVentas() {
               <option value="todos">Todos los estados</option>
               <option value="pagada">Pagada</option>
               <option value="pendiente">Pendiente</option>
+              <option value="parcial">Parcial</option>
+              <option value="vencida">Vencida</option>
               <option value="anulada">Anulada</option>
             </select>
             <select
@@ -279,10 +284,10 @@ export default function PaginaRegistroVentas() {
                   <td className="px-4 py-3">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                        TONOS_ESTADO[venta.estado] ?? 'bg-azul-50 text-azul-700'
+                        TONOS_ESTADO[venta.estado_pago ?? venta.estado] ?? 'bg-azul-50 text-azul-700'
                       }`}
                     >
-                      {String(venta.estado).toUpperCase()}
+                      {String(venta.estado_pago ?? venta.estado).toUpperCase()}
                     </span>
                   </td>
                   <td className="px-4 py-3">

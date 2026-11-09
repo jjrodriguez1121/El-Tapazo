@@ -227,9 +227,19 @@ def anular_venta(*, venta_id: int, negocio_id: int, usuario_id: int) -> Venta:
         .filter(venta=venta, negocio_id=negocio_id)
         .first()
     )
-    if cuenta and cuenta.abonos.exists():
+    if PagoVenta.objects.filter(
+        venta=venta,
+        negocio_id=negocio_id,
+        estado=PagoVenta.Estado.CONFIRMADO,
+    ).exists() or (
+        cuenta
+        and (
+            cuenta.estado in [CuentaPorCobrar.Estado.PARCIAL, CuentaPorCobrar.Estado.PAGADA]
+            or cuenta.saldo < cuenta.total
+        )
+    ):
         raise ValueError(
-            "No se puede anular una venta a crédito que ya tiene abonos registrados."
+            "No se puede anular una venta que ya tiene pagos o abonos confirmados."
         )
 
     for detalle in venta.detalles.all():
@@ -260,11 +270,6 @@ def anular_venta(*, venta_id: int, negocio_id: int, usuario_id: int) -> Venta:
         cuenta.saldo = Decimal("0")
         cuenta.estado = CuentaPorCobrar.Estado.ANULADA
         cuenta.save(update_fields=["saldo", "estado", "actualizado_en"])
-
-    PagoVenta.objects.filter(
-        venta=venta,
-        estado=PagoVenta.Estado.CONFIRMADO,
-    ).update(estado=PagoVenta.Estado.ANULADO)
 
     venta.estado = Venta.Estado.ANULADA
     venta.estado_entrega = Venta.EstadoEntrega.ANULADA

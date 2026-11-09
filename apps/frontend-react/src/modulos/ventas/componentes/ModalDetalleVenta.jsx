@@ -92,19 +92,22 @@ export default function ModalDetalleVenta({ ventaId, alCerrar, alActualizar }) {
                     etiqueta="Tipo de pago"
                     valor={venta.tipo_pago === 'contado' ? 'Contado' : 'Crédito'}
                   />
+                  <Dato etiqueta="Estado de pago" valor={venta.estado_pago ?? venta.estado} />
                   <Dato etiqueta="Entrega" valor={etiquetaEntrega(venta.estado_entrega)} />
                 </dl>
 
                 {venta.estado_entrega === 'pendiente_entrega' && (
                   <div className="mt-4 flex flex-wrap justify-end gap-2">
-                    <button
-                      type="button"
-                      disabled={procesando}
-                      onClick={anular}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-error-200 px-3 py-2 text-xs font-bold text-error-700 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <TrashIcon size={16} /> Anular venta
-                    </button>
+                    {venta.puede_anular && (
+                      <button
+                        type="button"
+                        disabled={procesando}
+                        onClick={anular}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-error-200 px-3 py-2 text-xs font-bold text-error-700 hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <TrashIcon size={16} /> Anular venta
+                      </button>
+                    )}
                     <button
                       type="button"
                       disabled={procesando}
