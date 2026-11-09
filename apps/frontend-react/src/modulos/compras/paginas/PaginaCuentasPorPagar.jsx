@@ -6,8 +6,10 @@ import Aviso from '@/componentes/ui/Aviso'
 import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
 import { clienteApi } from '@/librerias/clienteApi'
 import { estaEnRangoDeFechas } from '@/utilidades/fechas'
+import { imprimirComprobanteCompra } from '@/utilidades/imprimirComprobanteCompra'
 import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
 import { formatearFechaCorta, formatearPesos } from '@/utilidades/formatos'
+import { obtenerDetalleCompra } from '../api/apiCompras'
 import ModalDetalleCompra from '../componentes/ModalDetalleCompra'
 
 const TONOS_ESTADO = {
@@ -22,6 +24,7 @@ export default function PaginaCuentasPorPagar() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [compraDetalleId, setCompraDetalleId] = useState(null)
+  const [descargandoId, setDescargandoId] = useState(null)
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
 
@@ -44,6 +47,28 @@ export default function PaginaCuentasPorPagar() {
 
   async function registrarAbono(cuenta) {
     navegar(`/cuentas-por-pagar/${cuenta.id}/abono`)
+  }
+
+  async function descargarComprobante(cuenta) {
+    setError('')
+    const ventana = window.open('', '_blank')
+    if (!ventana) {
+      setError(
+        'El navegador bloqueó la ventana del comprobante. Permite las ventanas emergentes e inténtalo de nuevo.'
+      )
+      return
+    }
+
+    setDescargandoId(cuenta.id)
+    try {
+      const compra = await obtenerDetalleCompra(cuenta.compra_id)
+      imprimirComprobanteCompra(compra, ventana)
+    } catch (errorDescarga) {
+      ventana.close()
+      setError(errorDescarga.message || 'No fue posible descargar el PDF de la compra.')
+    } finally {
+      setDescargandoId(null)
+    }
   }
 
   const cuentasFiltradas = cuentas.filter((cuenta) => {
@@ -209,6 +234,17 @@ export default function PaginaCuentasPorPagar() {
                         className="rounded-lg bg-azul-950 px-3 py-1.5 text-xs font-semibold text-blanco hover:bg-azul-800"
                       >
                         Registrar abono
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => descargarComprobante(cuenta)}
+                        disabled={descargandoId !== null}
+                        title="Se abrirá la impresión del navegador; selecciona Guardar como PDF."
+                        aria-label={`Descargar PDF de la compra ${cuenta.numero_compra}`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <DownloadSimpleIcon size={15} />
+                        {descargandoId === cuenta.id ? 'Preparando...' : 'Descargar PDF'}
                       </button>
                     </div>
                   </td>

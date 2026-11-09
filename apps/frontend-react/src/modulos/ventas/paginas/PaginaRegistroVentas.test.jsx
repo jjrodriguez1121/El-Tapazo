@@ -1,10 +1,11 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { renderizarEnRuta } from '@/pruebas/renderizar'
 
-import { confirmarEntregaVenta, listarVentas } from '../api/apiVentas'
+import { confirmarEntregaVenta, listarVentas, obtenerDetalleVenta } from '../api/apiVentas'
+import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
 
 import PaginaRegistroVentas from './PaginaRegistroVentas'
 
@@ -13,6 +14,9 @@ vi.mock('../api/apiVentas', () => ({
   confirmarEntregaVenta: vi.fn(),
   listarVentas: vi.fn(),
   obtenerDetalleVenta: vi.fn(),
+}))
+vi.mock('@/utilidades/imprimirComprobanteVenta', () => ({
+  imprimirComprobanteVenta: vi.fn(),
 }))
 
 const VENTA = {
@@ -31,12 +35,37 @@ beforeEach(() => {
   vi.clearAllMocks()
   listarVentas.mockResolvedValue([VENTA])
   confirmarEntregaVenta.mockResolvedValue({})
+  obtenerDetalleVenta.mockResolvedValue({ ...VENTA, detalles: [] })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+test('descarga el comprobante PDF de una venta registrada', async () => {
+  const usuario = userEvent.setup()
+  const ventana = { close: vi.fn() }
+  const detalle = { ...VENTA, detalles: [] }
+  vi.spyOn(window, 'open').mockReturnValue(ventana)
+  obtenerDetalleVenta.mockResolvedValue(detalle)
+  renderizarEnRuta(<PaginaRegistroVentas />, '/ventas')
+
+  await usuario.click(
+    await screen.findByRole('button', { name: 'Descargar PDF de la venta V-00045' })
+  )
+
+  await waitFor(() => {
+    expect(obtenerDetalleVenta).toHaveBeenCalledWith(45)
+    expect(imprimirComprobanteVenta).toHaveBeenCalledWith(detalle, ventana)
+  })
 })
 
 test('pide confirmar la entrega y permite cancelarla antes de actualizarla', async () => {
   const usuario = userEvent.setup()
   renderizarEnRuta(<PaginaRegistroVentas />, '/ventas')
 
+  expect(screen.queryByRole('button', { name: 'Marcar entregada' })).not.toBeInTheDocument()
+  await usuario.click(await screen.findByRole('button', { name: 'Ver detalle' }))
   await usuario.click(await screen.findByRole('button', { name: 'Marcar entregada' }))
   expect(screen.getByRole('alertdialog')).toHaveTextContent(
     'V-00045 ya fue entregada a Carlos Ramírez'

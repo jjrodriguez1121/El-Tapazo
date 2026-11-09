@@ -8,13 +8,13 @@ import {
 import { Link } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
-import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
 import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
 import { RUTAS } from '@/configuracion/rutas'
 import { estaEnRangoDeFechas } from '@/utilidades/fechas'
 import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
+import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
 import { formatearPesos } from '@/utilidades/formatos'
-import { confirmarEntregaVenta, listarVentas } from '../api/apiVentas'
+import { listarVentas, obtenerDetalleVenta } from '../api/apiVentas'
 import ModalDetalleVenta from '../componentes/ModalDetalleVenta'
 
 const TONOS_ESTADO = {
@@ -48,24 +48,27 @@ export default function PaginaRegistroVentas() {
   const [filtroEntrega, setFiltroEntrega] = useState('todos')
   const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
-  const [ventaParaEntregar, setVentaParaEntregar] = useState(null)
-  const [procesandoEntrega, setProcesandoEntrega] = useState(false)
+  const [descargandoVentaId, setDescargandoVentaId] = useState(null)
 
-  async function marcarComoEntregada() {
-    if (!ventaParaEntregar) return
-    setProcesandoEntrega(true)
+  async function descargarComprobante(venta) {
     setError('')
-    try {
-      await confirmarEntregaVenta(ventaParaEntregar.id)
-      setVentaParaEntregar(null)
-      await cargar()
-    } catch (errorSolicitud) {
+    const ventana = window.open('', '_blank')
+    if (!ventana) {
       setError(
-        errorSolicitud.response?.data?.[0] ?? 'No fue posible actualizar el estado de entrega.'
+        'El navegador bloqueó la ventana del comprobante. Permite las ventanas emergentes e inténtalo de nuevo.'
       )
-      setVentaParaEntregar(null)
+      return
+    }
+
+    setDescargandoVentaId(venta.id)
+    try {
+      const detalle = await obtenerDetalleVenta(venta.id)
+      imprimirComprobanteVenta(detalle, ventana)
+    } catch (errorDescarga) {
+      ventana.close()
+      setError(errorDescarga.message || 'No fue posible descargar el PDF de la venta.')
     } finally {
-      setProcesandoEntrega(false)
+      setDescargandoVentaId(null)
     }
   }
 
@@ -135,10 +138,6 @@ export default function PaginaRegistroVentas() {
     } catch (errorReporte) {
       setError(errorReporte.message || 'No fue posible preparar el reporte PDF.')
     }
-  }
-
-  function estaPendienteDeEntrega(venta) {
-    return !venta.estado_entrega || venta.estado_entrega === 'pendiente_entrega'
   }
 
   const ventasVigentes = ventasFiltradas.filter((venta) => venta.estado !== 'anulada')
@@ -310,21 +309,23 @@ export default function PaginaRegistroVentas() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex justify-center gap-2">
-                      {estaPendienteDeEntrega(venta) && (
-                        <button
-                          type="button"
-                          onClick={() => setVentaParaEntregar(venta)}
-                          className="rounded-lg bg-exito-700 px-3 py-1.5 text-xs font-semibold text-blanco hover:bg-exito-800"
-                        >
-                          Marcar entregada
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => setVentaDetalleId(venta.id)}
                         className="rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50"
                       >
                         Ver detalle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => descargarComprobante(venta)}
+                        disabled={descargandoVentaId !== null}
+                        title="Se abrirá la impresión del navegador; selecciona Guardar como PDF."
+                        aria-label={`Descargar PDF de la venta ${venta.numero_venta}`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-azul-200 px-3 py-1.5 text-xs font-semibold text-azul-700 hover:bg-azul-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <DownloadSimpleIcon size={15} />
+                        {descargandoVentaId === venta.id ? 'Preparando...' : 'Descargar PDF'}
                       </button>
                     </div>
                   </td>
@@ -352,17 +353,6 @@ export default function PaginaRegistroVentas() {
           ventaId={ventaDetalleId}
           alCerrar={() => setVentaDetalleId(null)}
           alActualizar={cargar}
-        />
-      )}
-      {ventaParaEntregar && (
-        <ConfirmacionAccion
-          titulo="Confirmar entrega"
-          descripcion={`¿Confirmas que la venta ${ventaParaEntregar.numero_venta} ya fue entregada a ${ventaParaEntregar.cliente_nombre}? Esta acción actualizará su estado de entrega.`}
-          textoConfirmar="Confirmar entrega"
-          variante="positiva"
-          procesando={procesandoEntrega}
-          alConfirmar={marcarComoEntregada}
-          alCancelar={() => setVentaParaEntregar(null)}
         />
       )}
     </div>

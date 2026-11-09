@@ -47,4 +47,15 @@ describe('imprimirComprobanteVenta', () => {
       'El navegador bloqueó la ventana del comprobante.'
     )
   })
+
+  test('usa una ventana abierta previamente', () => {
+    const documento = { write: vi.fn(), close: vi.fn() }
+    const ventana = { document }
+    const abrirVentana = vi.spyOn(window, 'open')
+
+    imprimirComprobanteVenta({}, ventana)
+
+    expect(abrirVentana).not.toHaveBeenCalled()
+    expect(documento.close).toHaveBeenCalledOnce()
+  })
 })

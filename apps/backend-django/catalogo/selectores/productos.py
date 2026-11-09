@@ -7,7 +7,7 @@ dominio, que es lo que el repositorio no hace.
 
 from decimal import Decimal
 
-from django.db.models import QuerySet
+from django.db.models import Count, Q, QuerySet
 
 from catalogo.dtos import MargenDeVentaDTO
 from catalogo.models import Categoria, Producto, Proveedor
@@ -75,7 +75,13 @@ def obtener_proveedor(*, proveedor_id: int, negocio_id: int) -> Proveedor:
 
 
 def proveedores_del_negocio(*, negocio_id: int) -> QuerySet[Proveedor]:
-    return repositorio_de_proveedores.del_negocio(negocio_id=negocio_id)
+    return repositorio_de_proveedores.del_negocio(negocio_id=negocio_id).annotate(
+        cantidad_productos=Count(
+            "compras__detalles__producto",
+            filter=Q(compras__estado="RECIBIDA"),
+            distinct=True,
+        )
+    )
 
 
 def margen_de_venta(*, producto_id: int, negocio_id: int) -> MargenDeVentaDTO:

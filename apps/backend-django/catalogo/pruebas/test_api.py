@@ -9,6 +9,7 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 
+from compras.models import Compra, DetalleCompra
 from catalogo.pruebas.fabricas import FabricaDeCategoria, FabricaDeProducto, FabricaDeProveedor
 
 pytestmark = pytest.mark.django_db
@@ -265,6 +266,64 @@ def test_registrar_un_proveedor_devuelve_201(cliente_api_autenticado, administra
 
     assert respuesta.status_code == 201
     assert respuesta.data["razon_social"] == "Distribuidora S.A.S."
+
+
+def test_listado_de_proveedores_cuenta_productos_de_compras_recibidas(
+    cliente_api_autenticado, administrador, negocio
+):
+    proveedor = FabricaDeProveedor(negocio=negocio)
+    producto = FabricaDeProducto(negocio=negocio)
+    otro_producto = FabricaDeProducto(negocio=negocio)
+    compra = Compra.objects.create(
+        negocio=negocio,
+        proveedor=proveedor,
+        usuario=administrador,
+        numero_compra="COMPRA-PRUEBA-001",
+        condicion_pago="CONTADO",
+        estado="RECIBIDA",
+    )
+    DetalleCompra.objects.create(
+        negocio=negocio,
+        compra=compra,
+        producto=producto,
+        cantidad=2,
+        costo_unitario=Decimal("2000.00"),
+    )
+    DetalleCompra.objects.create(
+        negocio=negocio,
+        compra=compra,
+        producto=producto,
+        cantidad=3,
+        costo_unitario=Decimal("2000.00"),
+    )
+    DetalleCompra.objects.create(
+        negocio=negocio,
+        compra=compra,
+        producto=otro_producto,
+        cantidad=5,
+        costo_unitario=Decimal("3000.00"),
+    )
+    compra_anulada = Compra.objects.create(
+        negocio=negocio,
+        proveedor=proveedor,
+        usuario=administrador,
+        numero_compra="COMPRA-PRUEBA-002",
+        condicion_pago="CONTADO",
+        estado="ANULADA",
+    )
+    DetalleCompra.objects.create(
+        negocio=negocio,
+        compra=compra_anulada,
+        producto=FabricaDeProducto(negocio=negocio),
+        cantidad=1,
+        costo_unitario=Decimal("1000.00"),
+    )
+
+    respuesta = cliente_api_autenticado(administrador).get(URL_PROVEEDORES)
+
+    assert respuesta.status_code == 200
+    registro = next(item for item in respuesta.data["results"] if item["id"] == proveedor.id)
+    assert registro["cantidad_productos"] == 2
 
 
 def test_un_administrador_puede_desactivar_y_reactivar_un_proveedor(

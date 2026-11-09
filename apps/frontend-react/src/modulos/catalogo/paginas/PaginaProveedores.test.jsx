@@ -15,7 +15,7 @@ vi.mock('@/librerias/clienteApi', () => ({
           razon_social: 'Bavaria S.A.',
           nit: '',
           nombre_contacto: '',
-          cantidadProductos: 0,
+          cantidad_productos: 3,
           activo: true,
         },
         {
@@ -70,6 +70,7 @@ test('muestra los proveedores de ejemplo', async () => {
   expect(await screen.findByText('Bavaria S.A.')).toBeInTheDocument()
   expect(screen.getByText('Postobón S.A.')).toBeInTheDocument()
   expect(screen.getByText('Coca-Cola FEMSA')).toBeInTheDocument()
+  expect(screen.getByText('3 productos')).toBeInTheDocument()
 })
 
 test('agrega un proveedor al listado sin usar el backend', async () => {

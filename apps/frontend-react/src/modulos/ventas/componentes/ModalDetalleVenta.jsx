@@ -115,7 +115,7 @@ export default function ModalDetalleVenta({ ventaId, alCerrar, alActualizar }) {
                       className="inline-flex items-center gap-1.5 rounded-lg bg-exito-700 px-3 py-2 text-xs font-bold text-blanco hover:bg-exito-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <CheckCircleIcon size={16} weight="bold" />
-                      {procesando ? 'Guardando...' : 'Confirmar entrega'}
+                      {procesando ? 'Guardando...' : 'Marcar entregada'}
                     </button>
                   </div>
                 )}

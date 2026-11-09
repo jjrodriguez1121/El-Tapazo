@@ -9,8 +9,7 @@ function escaparHtml(valor) {
     .replaceAll("'", '&#39;')
 }
 
-export function imprimirComprobanteCompra(compra) {
-  const ventana = window.open('', '_blank')
+export function imprimirComprobanteCompra(compra, ventana = window.open('', '_blank')) {
   if (!ventana) {
     throw new Error(
       'El navegador bloqueó la ventana del comprobante. Permite las ventanas emergentes e inténtalo de nuevo.'

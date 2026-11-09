@@ -43,6 +43,8 @@ class ProveedorInputSerializer(serializers.Serializer):
 
 
 class ProveedorOutputSerializer(serializers.ModelSerializer):
+    cantidad_productos = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Proveedor
         fields = (
@@ -55,6 +57,7 @@ class ProveedorOutputSerializer(serializers.ModelSerializer):
             "ciudad",
             "direccion",
             "activo",
+            "cantidad_productos",
             "creado_en",
             "actualizado_en",
         )
@@ -136,4 +139,3 @@ class MargenDeVentaOutputSerializer(serializers.Serializer):
     costo = serializers.DecimalField(max_digits=12, decimal_places=2)
     precio_venta = serializers.DecimalField(max_digits=12, decimal_places=2)
     margen = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
-

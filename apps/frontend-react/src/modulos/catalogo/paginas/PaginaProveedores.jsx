@@ -24,7 +24,7 @@ export default function PaginaProveedores() {
           ...proveedor,
           razonSocial: proveedor.razon_social,
           nombreContacto: proveedor.nombre_contacto,
-          cantidadProductos: proveedor.cantidadProductos ?? 0,
+          cantidadProductos: proveedor.cantidad_productos ?? proveedor.cantidadProductos ?? 0,
           activo: proveedor.activo ?? true,
         }))
       )
