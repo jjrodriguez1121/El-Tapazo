@@ -34,6 +34,7 @@ export default function PaginaProductos() {
     Boolean(categoriaDeLaUrl)
   )
   const [busqueda, setBusqueda] = useFiltroPersistente('productos.busqueda', '')
+  const [filtroStock, setFiltroStock] = useFiltroPersistente('productos.stock', 'todos')
 
   if (catalogo.isPending) return <EsqueletoDeProductos />
 
@@ -90,7 +91,15 @@ export default function PaginaProductos() {
       !textoBusqueda ||
       producto.nombre.toLocaleLowerCase('es-CO').includes(textoBusqueda) ||
       producto.sku.toLocaleLowerCase('es-CO').includes(textoBusqueda)
-    return coincideCategoria && coincideBusqueda
+    const cantidadDisponible = (existenciasPorProducto.get(producto.id) ?? []).reduce(
+      (total, existencia) => total + Number(existencia.cantidad_disponible),
+      0
+    )
+    const coincideStock =
+      filtroStock === 'todos' ||
+      (filtroStock === 'con_stock' && cantidadDisponible > 0) ||
+      (filtroStock === 'sin_stock' && cantidadDisponible <= 0)
+    return coincideCategoria && coincideBusqueda && coincideStock
   })
   const productosBajoMinimo = new Set(
     existenciasVisibles
@@ -151,6 +160,19 @@ export default function PaginaProductos() {
             onChange={(evento) => setBusqueda(evento.target.value)}
             className="h-10 w-full rounded-xl border border-azul-150 bg-blanco pl-10 pr-3.5 text-sm text-azul-950 outline-none placeholder:text-azul-400 focus:border-azul-500 focus:ring-3 focus:ring-azul-500/15"
           />
+        </label>
+        <label className="flex items-center gap-2 self-start text-xs font-semibold text-azul-600">
+          Disponibilidad
+          <select
+            aria-label="Filtrar productos por disponibilidad"
+            value={filtroStock}
+            onChange={(evento) => setFiltroStock(evento.target.value)}
+            className="h-10 rounded-xl border border-azul-150 bg-blanco px-3 text-xs text-azul-800 outline-none focus:border-azul-600 focus:ring-3 focus:ring-azul-600/15"
+          >
+            <option value="todos">Todos</option>
+            <option value="con_stock">Con stock</option>
+            <option value="sin_stock">Sin stock</option>
+          </select>
         </label>
       </div>
 
@@ -217,7 +239,7 @@ export default function PaginaProductos() {
                   <td colSpan={5} className="px-6 py-12 text-center">
                     <p className="text-sm font-semibold text-azul-700">No hay productos para mostrar.</p>
                     <p className="mt-1 text-xs text-azul-400">
-                      Ajusta la búsqueda o selecciona otra categoría.
+                      Ajusta la búsqueda, la disponibilidad o selecciona otra categoría.
                     </p>
                   </td>
                 </tr>

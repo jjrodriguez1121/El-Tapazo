@@ -73,6 +73,21 @@ test('filtra productos por categoría', async () => {
   expect(screen.queryByText('Papas')).not.toBeInTheDocument()
 })
 
+test('filtra productos con y sin stock', async () => {
+  const usuario = userEvent.setup()
+  renderizarEnRuta(<PaginaProductos />, '/productos')
+
+  const filtro = screen.getByRole('combobox', { name: 'Filtrar productos por disponibilidad' })
+
+  await usuario.selectOptions(filtro, 'con_stock')
+  expect(screen.getByText('Agua mineral')).toBeInTheDocument()
+  expect(screen.queryByText('Papas')).not.toBeInTheDocument()
+
+  await usuario.selectOptions(filtro, 'sin_stock')
+  expect(screen.queryByText('Agua mineral')).not.toBeInTheDocument()
+  expect(screen.getByText('Papas')).toBeInTheDocument()
+})
+
 test('informa que los productos nuevos se registran desde Compras cuando el catálogo está vacío', () => {
   useCatalogoDeProductos.mockReturnValue({
     isPending: false,
