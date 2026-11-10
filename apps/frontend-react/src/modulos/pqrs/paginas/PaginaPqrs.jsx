@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ChatCircleDotsIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 
 import { mensajeDeError } from '@/utilidades/errores'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 
 import { crearPqr, listarPqrs, obtenerResumenPqrs, registrarSeguimientoPqr } from '../api/apiPqrs'
 import FormularioPqr from '../componentes/FormularioPqr'
@@ -12,10 +13,10 @@ const RESUMEN_VACIO = { total: 0, servicio: 0, productos: 0, pendientes: 0 }
 export default function PaginaPqrs() {
   const [listaPqrs, setListaPqrs] = useState([])
   const [resumen, setResumen] = useState(RESUMEN_VACIO)
-  const [filtroAmbito, setFiltroAmbito] = useState('')
-  const [filtroRespuesta, setFiltroRespuesta] = useState('')
-  const [busqueda, setBusqueda] = useState('')
-  const [pagina, setPagina] = useState(1)
+  const [filtroAmbito, setFiltroAmbito] = useFiltroPersistente('pqrs.ambito', '')
+  const [filtroRespuesta, setFiltroRespuesta] = useFiltroPersistente('pqrs.respuesta', '')
+  const [busqueda, setBusqueda] = useFiltroPersistente('pqrs.busqueda', '')
+  const [pagina, setPagina] = useFiltroPersistente('pqrs.pagina', 1)
   const [hayAnterior, setHayAnterior] = useState(false)
   const [haySiguiente, setHaySiguiente] = useState(false)
   const [cargando, setCargando] = useState(true)

@@ -4,11 +4,12 @@ import { PlusIcon } from '@phosphor-icons/react'
 import ModalNuevoProveedor from '../componentes/ModalNuevoProveedor'
 import TarjetaDeProveedor from '../componentes/TarjetaDeProveedor'
 import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { clienteApi } from '@/librerias/clienteApi'
 
 export default function PaginaProveedores() {
   const [proveedores, setProveedores] = useState([])
-  const [filtroEstado, setFiltroEstado] = useState('activos')
+  const [filtroEstado, setFiltroEstado] = useFiltroPersistente('proveedores.estado', 'activos')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [proveedorParaEditar, setProveedorParaEditar] = useState(null)
   const [error, setError] = useState('')

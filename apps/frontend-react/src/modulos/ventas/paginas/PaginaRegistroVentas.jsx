@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
 import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { RUTAS } from '@/configuracion/rutas'
 import { estaEnRangoDeFechas } from '@/utilidades/fechas'
 import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
@@ -44,11 +45,14 @@ export default function PaginaRegistroVentas() {
   const [ventas, setVentas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
-  const [filtroTexto, setFiltroTexto] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('todos')
-  const [filtroTipoPago, setFiltroTipoPago] = useState('todos')
-  const [filtroEntrega, setFiltroEntrega] = useState('todos')
-  const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
+  const [filtroTexto, setFiltroTexto] = useFiltroPersistente('ventas.busqueda', '')
+  const [filtroEstado, setFiltroEstado] = useFiltroPersistente('ventas.estado', 'todos')
+  const [filtroTipoPago, setFiltroTipoPago] = useFiltroPersistente('ventas.tipoPago', 'todos')
+  const [filtroEntrega, setFiltroEntrega] = useFiltroPersistente('ventas.entrega', 'todos')
+  const [rangoFechas, setRangoFechas] = useFiltroPersistente('ventas.fechas', {
+    desde: '',
+    hasta: '',
+  })
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
   const [descargandoVentaId, setDescargandoVentaId] = useState(null)
 

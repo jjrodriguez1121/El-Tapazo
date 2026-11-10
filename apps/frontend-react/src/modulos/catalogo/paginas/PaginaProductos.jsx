@@ -1,9 +1,9 @@
-import { useState } from 'react'
 import { MagnifyingGlassIcon, PackageIcon } from '@phosphor-icons/react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 
 import Aviso from '@/componentes/ui/Aviso'
 import Insignia from '@/componentes/ui/Insignia'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { formatearCantidad, formatearPesos } from '@/utilidades/formatos'
 import { mensajeDeError } from '@/utilidades/errores'
 
@@ -28,10 +28,12 @@ export default function PaginaProductos() {
   const { state: estadoDeNavegacion } = useLocation()
   const [parametros] = useSearchParams()
   const categoriaDeLaUrl = parametros.get('categoria')
-  const [categoriaActiva, setCategoriaActiva] = useState(
-    categoriaDeLaUrl ? Number(categoriaDeLaUrl) : 'todas'
+  const [categoriaActiva, setCategoriaActiva] = useFiltroPersistente(
+    'productos.categoria',
+    categoriaDeLaUrl ? Number(categoriaDeLaUrl) : 'todas',
+    Boolean(categoriaDeLaUrl)
   )
-  const [busqueda, setBusqueda] = useState('')
+  const [busqueda, setBusqueda] = useFiltroPersistente('productos.busqueda', '')
 
   if (catalogo.isPending) return <EsqueletoDeProductos />
 

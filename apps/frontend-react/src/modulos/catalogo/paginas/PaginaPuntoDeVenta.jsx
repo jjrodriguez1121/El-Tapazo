@@ -18,6 +18,7 @@ import { mensajeDeError } from '@/utilidades/errores'
 import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
 import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
 import { clienteApi } from '@/librerias/clienteApi'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { crearVenta, listarMetodosPago, obtenerDetalleVenta } from '@/modulos/ventas/api/apiVentas'
 import ModalNuevoCliente from '@/modulos/clientes/componentes/ModalNuevoCliente'
 
@@ -42,8 +43,14 @@ function ImagenProducto({ producto }) {
 
 export default function PaginaPuntoDeVenta() {
   const catalogo = useCatalogoDeProductos()
-  const [categoriaActiva, setCategoriaActiva] = useState('todas')
-  const [busquedaProducto, setBusquedaProducto] = useState('')
+  const [categoriaActiva, setCategoriaActiva] = useFiltroPersistente(
+    'puntoDeVenta.categoria',
+    'todas'
+  )
+  const [busquedaProducto, setBusquedaProducto] = useFiltroPersistente(
+    'puntoDeVenta.busqueda',
+    ''
+  )
   const [carrito, setCarrito] = useState([])
   const [porcentajeDescuento, setPorcentajeDescuento] = useState('5')
   const [avisoCobro, setAvisoCobro] = useState('')

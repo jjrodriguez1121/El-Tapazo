@@ -15,6 +15,7 @@ import {
 } from '../hooks/useCatalogoDeProductos'
 import Aviso from '@/componentes/ui/Aviso'
 import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { mensajeDeError } from '@/utilidades/errores'
 
 /**
@@ -29,7 +30,7 @@ export default function PaginaCategorias() {
   const clienteConsultas = useQueryClient()
   const [modalAbierto, setModalAbierto] = useState(false)
   const [categoriaParaEditar, setCategoriaParaEditar] = useState(null)
-  const [filtroEstado, setFiltroEstado] = useState('activas')
+  const [filtroEstado, setFiltroEstado] = useFiltroPersistente('categorias.estado', 'activas')
   const [errorAccion, setErrorAccion] = useState('')
   const [categoriaParaCambiar, setCategoriaParaCambiar] = useState(null)
   const [procesandoEstado, setProcesandoEstado] = useState(false)

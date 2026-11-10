@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { CalendarIcon, TrendUpIcon, WarningIcon, WalletIcon } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
@@ -99,8 +100,8 @@ function diasDelRango(desde, hasta, ventas) {
 /** Resumen operativo filtrado por un rango de fechas obligatorio. */
 export default function PaginaTablero() {
   const hoy = fechaLocal()
-  const [desde, setDesde] = useState(hoy)
-  const [hasta, setHasta] = useState(hoy)
+  const [desde, setDesde] = useFiltroPersistente('tablero.desde', hoy)
+  const [hasta, setHasta] = useFiltroPersistente('tablero.hasta', hoy)
   const [ventas, setVentas] = useState([])
   const [resumen, setResumen] = useState(RESUMEN_VACIO)
   const [alertas, setAlertas] = useState([])

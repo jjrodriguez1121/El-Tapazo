@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import Aviso from '@/componentes/ui/Aviso'
 import FiltroRangoFechas from '@/componentes/ui/FiltroRangoFechas'
 import { clienteApi } from '@/librerias/clienteApi'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { estaEnRangoDeFechas } from '@/utilidades/fechas'
 import { imprimirReportePdf } from '@/utilidades/exportarReportePdf'
 import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
@@ -38,9 +39,18 @@ export default function PaginaCuentasPorCobrar() {
   const [error, setError] = useState('')
   const [ventaDetalleId, setVentaDetalleId] = useState(null)
   const [descargandoId, setDescargandoId] = useState(null)
-  const [filtroEstado, setFiltroEstado] = useState('todos')
-  const [filtroEntrega, setFiltroEntrega] = useState('todos')
-  const [rangoFechas, setRangoFechas] = useState({ desde: '', hasta: '' })
+  const [filtroEstado, setFiltroEstado] = useFiltroPersistente(
+    'cuentasPorCobrar.estado',
+    'todos'
+  )
+  const [filtroEntrega, setFiltroEntrega] = useFiltroPersistente(
+    'cuentasPorCobrar.entrega',
+    'todos'
+  )
+  const [rangoFechas, setRangoFechas] = useFiltroPersistente('cuentasPorCobrar.fechas', {
+    desde: '',
+    hasta: '',
+  })
 
   async function cargarCuentas() {
     setCargando(true)

@@ -6,6 +6,7 @@ import TarjetaDeCliente from '../componentes/TarjetaDeCliente'
 import Aviso from '@/componentes/ui/Aviso'
 import ConfirmacionAccion from '@/componentes/ui/ConfirmacionAccion'
 import { useUsuarioDeSesion } from '@/estado/sesion'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
 import { clienteApi } from '@/librerias/clienteApi'
 
 function adaptarCliente(cliente, saldoPendienteActual = 0) {
@@ -26,8 +27,8 @@ export default function PaginaClientes() {
   const usuario = useUsuarioDeSesion()
   const puedeCambiarEstado = usuario?.esAdministrador ?? false
   const [clientes, setClientes] = useState([])
-  const [busqueda, setBusqueda] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('activos')
+  const [busqueda, setBusqueda] = useFiltroPersistente('clientes.busqueda', '')
+  const [filtroEstado, setFiltroEstado] = useFiltroPersistente('clientes.estado', 'activos')
   const [modalAbierto, setModalAbierto] = useState(false)
   const [clienteEnEdicion, setClienteEnEdicion] = useState(null)
   const [cargando, setCargando] = useState(true)
