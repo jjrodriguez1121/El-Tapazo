@@ -168,14 +168,15 @@ test('agrega productos, cambia cantidades y calcula los totales', async () => {
   const usuario = userEvent.setup()
   renderizarEnRuta(<PaginaPuntoDeVenta />, '/punto-de-venta')
 
+  expect(screen.getByRole('spinbutton', { name: 'Descuento porcentual' })).toHaveValue(0)
   await usuario.click(screen.getByRole('button', { name: 'Agregar Bujía NGK al carrito' }))
   await usuario.click(screen.getByRole('button', { name: 'Sumar Bujía NGK' }))
 
   expect(screen.getByText('2 artículos')).toBeInTheDocument()
-  expect(screen.getByText('$19.160')).toBeInTheDocument()
-  expect(screen.getByText('$3.640')).toBeInTheDocument()
-  expect(screen.getByText('$1.200')).toBeInTheDocument()
-  expect(screen.getByText('$22.800')).toBeInTheDocument()
+  expect(screen.getByText('$20.168')).toBeInTheDocument()
+  expect(screen.getByText('$3.832')).toBeInTheDocument()
+  expect(screen.getByText('$0')).toBeInTheDocument()
+  expect(screen.getByText('$24.000')).toBeInTheDocument()
 })
 
 test('muestra eliminar siempre y retira la línea completa del carrito', async () => {

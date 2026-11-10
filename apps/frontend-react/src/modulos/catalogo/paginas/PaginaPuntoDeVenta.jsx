@@ -52,7 +52,7 @@ export default function PaginaPuntoDeVenta() {
     ''
   )
   const [carrito, setCarrito] = useState([])
-  const [porcentajeDescuento, setPorcentajeDescuento] = useState('5')
+  const [porcentajeDescuento, setPorcentajeDescuento] = useState('0')
   const [avisoCobro, setAvisoCobro] = useState('')
   const [tipoAviso, setTipoAviso] = useState('') // 'exito' | 'error'
   const [tipoPago, setTipoPago] = useState('contado')
