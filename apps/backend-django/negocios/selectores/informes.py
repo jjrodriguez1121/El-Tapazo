@@ -8,7 +8,7 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from compras.models import CuentaPorPagar
-from inventario.models import Existencia
+from inventario.selectores import productos_bajo_minimo
 from negocios.excepciones import RangoDeFechasInvalido
 from ventas.models import CuentaPorCobrar, DetalleVenta, PagoVenta, Venta
 
@@ -130,9 +130,5 @@ def resumen_del_dashboard(*, negocio_id: int, desde: date, hasta: date) -> dict:
         "entregas_pendientes": ventas.filter(
             estado_entrega=Venta.EstadoEntrega.PENDIENTE
         ).count(),
-        "stock_bajo": Existencia.objects.filter(
-            negocio_id=negocio_id,
-            cantidad_minima__gt=0,
-            cantidad_disponible__lt=F("cantidad_minima"),
-        ).count(),
+        "stock_bajo": productos_bajo_minimo(negocio_id=negocio_id).count(),
     }
