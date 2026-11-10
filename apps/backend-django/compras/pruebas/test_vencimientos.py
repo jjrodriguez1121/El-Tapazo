@@ -9,6 +9,7 @@ from compras.api.serializers import CompraCrearSerializer
 
 DATOS_COMPRA = {
     "proveedor_id": 1,
+    "numero_factura": "FAC-001",
     "condicion_pago": "CREDITO",
     "detalles": [
         {
@@ -50,6 +51,29 @@ def test_compra_a_credito_exige_fecha_de_vencimiento():
 
     assert serializer.is_valid() is False
     assert "fecha_vencimiento" in serializer.errors
+
+
+def test_compra_exige_numero_de_factura():
+    datos = {**DATOS_COMPRA}
+    datos.pop("numero_factura")
+
+    serializer = CompraCrearSerializer(data=datos)
+
+    assert serializer.is_valid() is False
+    assert "numero_factura" in serializer.errors
+
+
+def test_compra_de_contado_exige_medio_de_pago():
+    datos = {
+        **DATOS_COMPRA,
+        "condicion_pago": "CONTADO",
+        "metodo_pago_id": None,
+    }
+
+    serializer = CompraCrearSerializer(data=datos)
+
+    assert serializer.is_valid() is False
+    assert "metodo_pago_id" in serializer.errors
 
 
 def test_compra_rechaza_un_descuento_mayor_al_valor_de_su_linea():

@@ -92,3 +92,21 @@ test('filtra los productos existentes por proveedor y carga todas las páginas',
   })
   expect(screen.getByLabelText('Producto')).not.toHaveTextContent('Producto proveedor A')
 })
+
+test('marca como obligatorios los campos aplicables del formulario de compra', async () => {
+  const usuario = userEvent.setup()
+  renderizarEnRuta(<PaginaCompras />, '/compras')
+
+  expect(await screen.findByLabelText('Proveedor')).toBeRequired()
+  expect(screen.getByLabelText('Factura')).toBeRequired()
+  expect(screen.getByLabelText('Pago')).toBeRequired()
+  expect(screen.getByLabelText('Medio de pago')).toBeRequired()
+  expect(screen.getByLabelText('Tipo')).toBeRequired()
+  expect(screen.getByLabelText('Cantidad')).toBeRequired()
+  expect(screen.getByLabelText('Costo unitario')).toBeRequired()
+  await usuario.selectOptions(screen.getByLabelText('Pago'), 'CREDITO')
+  expect(screen.getByLabelText('Fecha de vencimiento')).toBeRequired()
+
+  await usuario.selectOptions(screen.getByLabelText('Proveedor'), '7')
+  expect(await screen.findByLabelText('Producto')).toBeRequired()
+})

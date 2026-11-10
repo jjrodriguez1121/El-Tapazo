@@ -261,6 +261,7 @@ export default function PaginaCompras() {
           <label className="flex flex-col gap-1 text-xs font-semibold text-azul-700">
             Factura
             <input
+              required
               value={datos.numeroFactura}
               onChange={(e) => setDatos({ ...datos, numeroFactura: e.target.value })}
               className="h-10 rounded-lg border border-azul-200 px-3 text-sm"
@@ -331,6 +332,7 @@ export default function PaginaCompras() {
               <label className="flex flex-col gap-1 text-xs font-semibold text-azul-700 md:col-span-2">
                 Tipo
                 <select
+                  required
                   value={linea.tipo}
                   onChange={(e) => cambiarLinea(indice, 'tipo', e.target.value)}
                   className="h-9 rounded-lg border border-azul-200 px-2 text-sm"

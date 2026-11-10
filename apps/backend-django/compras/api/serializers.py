@@ -43,7 +43,7 @@ class DetalleCompraSerializer(serializers.Serializer):
 
 class CompraCrearSerializer(serializers.Serializer):
     proveedor_id = serializers.IntegerField()
-    numero_factura = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+    numero_factura = serializers.CharField(max_length=50)
     condicion_pago = serializers.ChoiceField(choices=["CONTADO", "CREDITO"])
     metodo_pago_id = serializers.IntegerField(required=False, allow_null=True)
     fecha_vencimiento = serializers.DateField(required=False, allow_null=True)
