@@ -62,6 +62,59 @@ def test_el_listado_solo_trae_los_productos_del_negocio(
     assert respuesta.data["count"] == 2
 
 
+def test_filtrar_productos_por_proveedor_usa_compras_recibidas(
+    cliente_api_autenticado, administrador, negocio
+):
+    proveedor = FabricaDeProveedor(negocio=negocio)
+    otro_proveedor = FabricaDeProveedor(negocio=negocio)
+    producto = FabricaDeProducto(negocio=negocio)
+    otro_producto = FabricaDeProducto(negocio=negocio)
+    compra = Compra.objects.create(
+        negocio=negocio,
+        proveedor=proveedor,
+        usuario=administrador,
+        numero_compra="COMPRA-PROVEEDOR-FILTRO-001",
+        condicion_pago="CONTADO",
+        estado="RECIBIDA",
+    )
+    compra_anulada = Compra.objects.create(
+        negocio=negocio,
+        proveedor=proveedor,
+        usuario=administrador,
+        numero_compra="COMPRA-PROVEEDOR-FILTRO-002",
+        condicion_pago="CONTADO",
+        estado="ANULADA",
+    )
+    compra_otro_proveedor = Compra.objects.create(
+        negocio=negocio,
+        proveedor=otro_proveedor,
+        usuario=administrador,
+        numero_compra="COMPRA-PROVEEDOR-FILTRO-003",
+        condicion_pago="CONTADO",
+        estado="RECIBIDA",
+    )
+    for producto_compra, compra_producto in (
+        (producto, compra),
+        (FabricaDeProducto(negocio=negocio), compra_anulada),
+        (otro_producto, compra_otro_proveedor),
+    ):
+        DetalleCompra.objects.create(
+            negocio=negocio,
+            compra=compra_producto,
+            producto=producto_compra,
+            cantidad=1,
+            costo_unitario=Decimal("1000.00"),
+        )
+
+    respuesta = cliente_api_autenticado(administrador).get(
+        URL_PRODUCTOS, {"activo": "true", "proveedor_id": proveedor.id}
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.data["count"] == 1
+    assert respuesta.data["results"][0]["id"] == producto.id
+
+
 def test_pedir_un_producto_de_otro_negocio_devuelve_404_y_no_403(
     cliente_api_autenticado, administrador
 ):

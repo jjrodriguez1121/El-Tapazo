@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircleIcon, PlusIcon, PrinterIcon, TrashIcon } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
@@ -22,9 +22,26 @@ const lineaVacia = () => ({
   descuento: 0,
 })
 
+async function listarProductosDelProveedor(proveedorId) {
+  const productos = []
+  let pagina = 1
+
+  while (true) {
+    const { data } = await clienteApi.get('/catalogo/productos/', {
+      params: { activo: true, proveedor_id: proveedorId, page: pagina },
+    })
+    if (Array.isArray(data)) return data
+
+    productos.push(...data.results)
+    if (!data.next) return productos
+    pagina += 1
+  }
+}
+
 export default function PaginaCompras() {
   const [compras, setCompras] = useState([])
   const [productos, setProductos] = useState([])
+  const [cargandoProductos, setCargandoProductos] = useState(false)
   const [proveedores, setProveedores] = useState([])
   const [categorias, setCategorias] = useState([])
   const [impuestos, setImpuestos] = useState([])
@@ -42,31 +59,25 @@ export default function PaginaCompras() {
   const [error, setError] = useState('')
   const [compraDetalleId, setCompraDetalleId] = useState(null)
   const [compraParaImprimir, setCompraParaImprimir] = useState(null)
+  const solicitudProductos = useRef(0)
 
   async function cargarDatos() {
     setCargando(true)
     try {
       const [
         listaCompras,
-        listaProductos,
         listaProveedores,
         listaCategorias,
         listaImpuestos,
         listaMetodosPago,
       ] = await Promise.all([
         listarCompras(),
-        clienteApi.get('/catalogo/productos/?activo=true'),
         clienteApi.get('/catalogo/proveedores/?activo=true'),
         clienteApi.get('/catalogo/categorias/?activa=true'),
         clienteApi.get('/catalogo/impuestos/'),
         listarMetodosPago(),
       ])
       setCompras(listaCompras)
-      setProductos(
-        Array.isArray(listaProductos.data)
-          ? listaProductos.data
-          : (listaProductos.data.results ?? [])
-      )
       setProveedores(
         Array.isArray(listaProveedores.data)
           ? listaProveedores.data
@@ -97,6 +108,49 @@ export default function PaginaCompras() {
   useEffect(() => {
     cargarDatos()
   }, [])
+
+  useEffect(() => {
+    const solicitudActual = ++solicitudProductos.current
+    if (!datos.proveedorId) {
+      setProductos([])
+      setCargandoProductos(false)
+      return () => {
+        solicitudProductos.current += 1
+      }
+    }
+
+    setProductos([])
+    setCargandoProductos(true)
+    listarProductosDelProveedor(datos.proveedorId)
+      .then((productosDelProveedor) => {
+        if (solicitudProductos.current === solicitudActual) {
+          setProductos(productosDelProveedor)
+        }
+      })
+      .catch(() => {
+        if (solicitudProductos.current === solicitudActual) {
+          setError('No fue posible cargar los productos de este proveedor.')
+        }
+      })
+      .finally(() => {
+        if (solicitudProductos.current === solicitudActual) {
+          setCargandoProductos(false)
+        }
+      })
+
+    return () => {
+      solicitudProductos.current += 1
+    }
+  }, [datos.proveedorId])
+
+  function cambiarProveedor(proveedorId) {
+    setDatos((actual) => ({ ...actual, proveedorId }))
+    setLineas((actuales) =>
+      actuales.map((linea) =>
+        linea.tipo === 'existente' ? { ...linea, productoId: '' } : linea
+      )
+    )
+  }
 
   function cambiarLinea(indice, campo, valor) {
     setLineas((actuales) =>
@@ -146,6 +200,14 @@ export default function PaginaCompras() {
       setDatos((actual) => ({ ...actual, numeroFactura: '', fechaVencimiento: '' }))
       setLineas([lineaVacia()])
       await cargarDatos()
+      if (datos.proveedorId) {
+        try {
+          const productosDelProveedor = await listarProductosDelProveedor(datos.proveedorId)
+          setProductos(productosDelProveedor)
+        } catch {
+          setError('La compra se registró, pero no fue posible actualizar los productos del proveedor.')
+        }
+      }
     } catch (err) {
       setError(
         err.response?.data?.detail ??
@@ -185,7 +247,7 @@ export default function PaginaCompras() {
             <select
               required
               value={datos.proveedorId}
-              onChange={(e) => setDatos({ ...datos, proveedorId: e.target.value })}
+              onChange={(e) => cambiarProveedor(e.target.value)}
               className="h-10 rounded-lg border border-azul-200 px-3 text-sm"
             >
               <option value="">Seleccione...</option>
@@ -283,11 +345,20 @@ export default function PaginaCompras() {
                     Producto
                     <select
                       required
+                      disabled={!datos.proveedorId || cargandoProductos}
                       value={linea.productoId}
                       onChange={(e) => cambiarLinea(indice, 'productoId', e.target.value)}
                       className="h-9 rounded-lg border border-azul-200 px-2 text-sm"
                     >
-                      <option value="">Seleccione...</option>
+                      <option value="">
+                        {!datos.proveedorId
+                          ? 'Seleccione un proveedor...'
+                          : cargandoProductos
+                            ? 'Cargando productos...'
+                            : productos.length
+                              ? 'Seleccione...'
+                              : 'Sin productos de este proveedor'}
+                      </option>
                       {productos.map((producto) => (
                         <option key={producto.id} value={producto.id}>
                           {producto.sku} · {producto.nombre}
