@@ -47,6 +47,20 @@ beforeEach(() => {
           precio_evento: '12000.00',
           impuesto: { id: 1, nombre: 'IVA 19 %', porcentaje: '19.00' },
         },
+        {
+          id: 11,
+          nombre: 'Filtro de aceite',
+          sku: 'MOT-001',
+          categoria: { id: 1, nombre: 'Eléctrico' },
+          precio_evento: '8000.00',
+        },
+        {
+          id: 13,
+          nombre: 'Batería descargada',
+          sku: 'BAT-001',
+          categoria: { id: 1, nombre: 'Eléctrico' },
+          precio_evento: '50000.00',
+        },
       ],
       categorias: [{ id: 1, nombre: 'Eléctrico' }],
       existencias: [
@@ -55,6 +69,12 @@ beforeEach(() => {
           ubicacion: { nombre: 'Bodega C-01' },
           cantidad_disponible: '12.00',
           esta_bajo_minimo: false,
+        },
+        {
+          producto: { id: 11 },
+          ubicacion: { nombre: 'Bodega C-01' },
+          cantidad_disponible: '0.00',
+          esta_bajo_minimo: true,
         },
       ],
     },
@@ -82,8 +102,54 @@ test('lista los productos disponibles y filtra por categoría', async () => {
 
   expect(screen.getByRole('heading', { name: 'Punto de venta' })).toBeInTheDocument()
   expect(screen.getByText('Bujía NGK')).toBeInTheDocument()
+  expect(screen.queryByText('Filtro de aceite')).not.toBeInTheDocument()
+  expect(screen.queryByText('Batería descargada')).not.toBeInTheDocument()
   await usuario.click(screen.getByRole('button', { name: 'Eléctrico' }))
   expect(screen.getByText('Bujía NGK')).toBeInTheDocument()
+})
+
+test('busca productos disponibles por nombre o código', async () => {
+  const usuario = userEvent.setup()
+  const catalogo = useCatalogoDeProductos()
+  useCatalogoDeProductos.mockReturnValue({
+    ...catalogo,
+    data: {
+      ...catalogo.data,
+      productos: [
+        ...catalogo.data.productos,
+        {
+          id: 12,
+          nombre: 'Aceite sintético',
+          sku: 'LUB-001',
+          categoria: { id: 2, nombre: 'Lubricantes' },
+          precio_evento: '25000.00',
+        },
+      ],
+      existencias: [
+        ...catalogo.data.existencias,
+        {
+          producto: { id: 12 },
+          ubicacion: { nombre: 'Bodega C-01' },
+          cantidad_disponible: '3.00',
+          esta_bajo_minimo: false,
+        },
+      ],
+    },
+  })
+  renderizarEnRuta(<PaginaPuntoDeVenta />, '/punto-de-venta')
+
+  await usuario.type(screen.getByRole('searchbox', { name: 'Buscar productos' }), 'lub-001')
+
+  expect(screen.getByText('Aceite sintético')).toBeInTheDocument()
+  expect(screen.queryByText('Bujía NGK')).not.toBeInTheDocument()
+  expect(screen.queryByText('Filtro de aceite')).not.toBeInTheDocument()
+
+  const buscador = screen.getByRole('searchbox', { name: 'Buscar productos' })
+  await usuario.clear(buscador)
+  await usuario.type(buscador, 'Aceite sintético')
+
+  expect(screen.getByText('Aceite sintético')).toBeInTheDocument()
+  expect(screen.queryByText('Bujía NGK')).not.toBeInTheDocument()
 })
 
 test('el vencimiento de una venta a crédito empieza mañana', async () => {

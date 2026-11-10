@@ -113,7 +113,8 @@ test('asigna las ventas del gráfico al día de Bogotá aunque el timestamp UTC 
 
   const grafica = screen.getByRole('heading', { name: 'Ventas por día' }).closest('section')
   await waitFor(() => {
-    expect(within(grafica).getByText('$100')).toBeInTheDocument()
-    expect(within(grafica).getByText('$200')).toBeInTheDocument()
+    expect(within(grafica).getByText('$100')).toBeVisible()
+    expect(within(grafica).getByText('$200')).toBeVisible()
   })
+  expect(grafica.querySelectorAll('.bg-azul-600')).toHaveLength(7)
 })

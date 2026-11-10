@@ -4,6 +4,7 @@ import {
   PrinterIcon,
   ImageIcon,
   MinusIcon,
+  MagnifyingGlassIcon,
   PackageIcon,
   PlusIcon,
   ShoppingCartSimpleIcon,
@@ -42,6 +43,7 @@ function ImagenProducto({ producto }) {
 export default function PaginaPuntoDeVenta() {
   const catalogo = useCatalogoDeProductos()
   const [categoriaActiva, setCategoriaActiva] = useState('todas')
+  const [busquedaProducto, setBusquedaProducto] = useState('')
   const [carrito, setCarrito] = useState([])
   const [porcentajeDescuento, setPorcentajeDescuento] = useState('5')
   const [avisoCobro, setAvisoCobro] = useState('')
@@ -109,9 +111,20 @@ export default function PaginaPuntoDeVenta() {
     ])
   }
 
-  const productosVisibles = productos.filter(
-    (producto) => categoriaActiva === 'todas' || String(producto.categoria.id) === categoriaActiva
-  )
+  const terminoBusqueda = busquedaProducto.trim().toLocaleLowerCase()
+  const productosVisibles = productos.filter((producto) => {
+    const stockDisponible = (existenciasPorProducto.get(String(producto.id)) ?? []).reduce(
+      (total, existencia) => total + Number(existencia.cantidad_disponible),
+      0
+    )
+    const coincideCategoria =
+      categoriaActiva === 'todas' || String(producto.categoria.id) === categoriaActiva
+    const coincideBusqueda =
+      !terminoBusqueda ||
+      producto.nombre.toLocaleLowerCase().includes(terminoBusqueda) ||
+      String(producto.sku ?? '').toLocaleLowerCase().includes(terminoBusqueda)
+    return stockDisponible > 0 && coincideCategoria && coincideBusqueda
+  })
   const cantidadArticulos = carrito.reduce((total, linea) => total + linea.cantidad, 0)
   const subtotal = carrito.reduce(
     (total, linea) =>
@@ -276,6 +289,22 @@ export default function PaginaPuntoDeVenta() {
           </p>
         </header>
 
+        <label className="relative block">
+          <MagnifyingGlassIcon
+            aria-hidden="true"
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-azul-400"
+          />
+          <input
+            type="search"
+            aria-label="Buscar productos"
+            placeholder="Buscar por nombre o código..."
+            value={busquedaProducto}
+            onChange={(evento) => setBusquedaProducto(evento.target.value)}
+            className="h-10 w-full rounded-lg border border-azul-200 bg-blanco pl-9 pr-3 text-xs text-azul-950 outline-none placeholder:text-azul-400 focus:border-azul-600"
+          />
+        </label>
+
         <div
           className="flex gap-2 overflow-x-auto pb-1"
           aria-label="Filtrar productos por categoría"
@@ -357,7 +386,9 @@ export default function PaginaPuntoDeVenta() {
           })}
           {!productosVisibles.length && (
             <p className="col-span-full rounded-xl border border-dashed border-azul-200 bg-blanco px-4 py-10 text-center text-sm text-azul-500">
-              No hay productos en esta categoría.
+              {busquedaProducto.trim()
+                ? 'No se encontraron productos disponibles con esa búsqueda.'
+                : 'No hay productos disponibles con stock en esta categoría.'}
             </p>
           )}
         </div>
