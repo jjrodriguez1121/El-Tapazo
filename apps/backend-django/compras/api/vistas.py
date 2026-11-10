@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from catalogo.models import Categoria, Impuesto, Producto, Proveedor
+from catalogo.servicios.productos import calcular_precio_venta
 from compras.api.serializers import CompraCrearSerializer, CompraOutputSerializer
 from compras.models import Compra, CuentaPorPagar, DetalleCompra, PagoCompra
 from inventario.models import Existencia, MovimientoInventario
@@ -304,10 +305,14 @@ def _registrar_entrada_recibida(*, negocio_id, usuario, producto, detalle, canti
     producto.costo = costo_nuevo
     producto.save(update_fields=["costo", "actualizado_en"])
     if producto.precio_venta_automatico:
-        margen = Decimal(producto.margen_ganancia or 0)
-        producto.precio_venta = (
-            costo_nuevo * (Decimal("1") + margen / Decimal("100"))
-        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        porcentaje_iva = (
+            Decimal(producto.impuesto.porcentaje) if producto.impuesto_id else Decimal("0")
+        )
+        producto.precio_venta = calcular_precio_venta(
+            costo=costo_nuevo,
+            margen=Decimal(producto.margen_ganancia or 0),
+            porcentaje_iva=porcentaje_iva,
+        )
         producto.save(update_fields=["precio_venta", "actualizado_en"])
 
     MovimientoInventario.objects.create(

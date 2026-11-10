@@ -16,6 +16,16 @@ from catalogo.validadores import normalizar_sku, validar_formato_sku
 logger = logging.getLogger(__name__)
 
 
+def calcular_precio_venta(
+    *, costo: Decimal, margen: Decimal, porcentaje_iva: Decimal = Decimal("0")
+) -> Decimal:
+    """Aplica la ganancia sobre el costo y agrega el IVA al precio resultante."""
+    precio_sin_iva = costo * (Decimal("1") + margen / Decimal("100"))
+    return (precio_sin_iva * (Decimal("1") + porcentaje_iva / Decimal("100"))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+
 def recalcular_precio_venta(producto: Producto) -> Producto:
     """Calcula el precio final con IVA incluido desde el costo promedio y el margen."""
     if not producto.precio_venta_automatico:
@@ -23,12 +33,12 @@ def recalcular_precio_venta(producto: Producto) -> Producto:
 
     costo = Decimal(producto.costo or 0)
     margen = Decimal(producto.margen_ganancia or 0)
-    if costo <= 0:
-        producto.precio_venta = Decimal("0")
-    else:
-        producto.precio_venta = (
-            costo * (Decimal("1") + margen / Decimal("100"))
-        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    porcentaje_iva = Decimal(producto.impuesto.porcentaje) if producto.impuesto_id else Decimal("0")
+    producto.precio_venta = calcular_precio_venta(
+        costo=costo,
+        margen=margen,
+        porcentaje_iva=porcentaje_iva,
+    )
     producto.save(update_fields=["precio_venta", "actualizado_en"])
     return producto
 

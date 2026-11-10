@@ -9,6 +9,7 @@ from decimal import Decimal
 import pytest
 
 from catalogo.dtos import DatosDeProductoDTO
+from catalogo.models import Impuesto
 from catalogo.excepciones import (
     CategoriaDuplicada,
     FormatoSkuInvalido,
@@ -93,6 +94,42 @@ def test_actualizar_un_producto_deja_conservar_su_propio_sku(negocio):
     )
 
     assert actualizado.sku == "CER-001"
+
+
+def test_precio_automatico_aplica_margen_sobre_costo_y_agrega_iva(negocio):
+    impuesto = Impuesto.objects.create(
+        negocio=negocio,
+        nombre="IVA 19 %",
+        porcentaje=Decimal("19.00"),
+    )
+    producto = FabricaDeProducto(
+        negocio=negocio,
+        costo=Decimal("100000.00"),
+        precio_venta=Decimal("130000.00"),
+        margen_ganancia=Decimal("30.00"),
+        precio_venta_automatico=True,
+        impuesto=impuesto,
+    )
+
+    servicio.recalcular_precio_venta(producto)
+
+    producto.refresh_from_db()
+    assert producto.precio_venta == Decimal("154700.00")
+
+
+def test_precio_automatico_no_agrega_iva_si_el_producto_no_tiene_impuesto(negocio):
+    producto = FabricaDeProducto(
+        negocio=negocio,
+        costo=Decimal("100000.00"),
+        precio_venta=Decimal("130000.00"),
+        margen_ganancia=Decimal("30.00"),
+        precio_venta_automatico=True,
+    )
+
+    servicio.recalcular_precio_venta(producto)
+
+    producto.refresh_from_db()
+    assert producto.precio_venta == Decimal("130000.00")
 
 
 def test_cambiar_precio_toca_solo_el_precio_que_se_manda(negocio, administrador):

@@ -43,6 +43,13 @@ function EncabezadoSeccion({ Icono, children }) {
   )
 }
 
+function calcularPrecioConMargen(datosProducto, margen) {
+  const costo = Number(datosProducto?.costo ?? 0)
+  const porcentajeIva = Number(datosProducto?.impuesto?.porcentaje ?? 0)
+  const precioAntesDeIva = costo * (1 + margen / 100)
+  return Math.round(precioAntesDeIva * (1 + porcentajeIva / 100) * 100) / 100
+}
+
 export default function ModalNuevoProducto({
   categorias,
   alCerrar,
@@ -274,20 +281,24 @@ export default function ModalNuevoProducto({
               />
               <CampoFormulario
                 id={`${id}-margen`}
-                etiqueta="Margen de ganancia (%)"
+                etiqueta="Ganancia sobre costo (%)"
                 name="margenGanancia"
                 type="number"
                 required
                 min="0"
                 step="0.01"
+                aria-describedby={`${id}-margen-ayuda`}
                 value={datos.margenGanancia}
                 onChange={(evento) => {
-                  cambiar('margenGanancia', evento.target.value)
-                  const costo = Number(productoParaEditar?.costo ?? 0)
                   const margen = Number(evento.target.value)
-                  if (datos.precioAutomatico && costo > 0) {
-                    cambiar('precioVenta', String(Math.round(costo * (1 + margen / 100) * 100) / 100))
-                  }
+                  setDatos((actuales) => ({
+                    ...actuales,
+                    margenGanancia: evento.target.value,
+                    ...(actuales.precioAutomatico && {
+                      precioVenta: String(calcularPrecioConMargen(productoParaEditar, margen)),
+                    }),
+                  }))
+                  setErrores((actuales) => ({ ...actuales, margenGanancia: '' }))
                 }}
                 error={errores.margenGanancia}
               />
@@ -316,11 +327,25 @@ export default function ModalNuevoProducto({
                 error={errores.stockMinimo}
               />
             </div>
+            <p id={`${id}-margen-ayuda`} className="mt-2 text-[11px] text-azul-500">
+              La ganancia se calcula sobre el costo y luego se agrega el IVA al precio de venta.
+            </p>
             <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-azul-700">
               <input
                 type="checkbox"
                 checked={datos.precioAutomatico}
-                onChange={(evento) => cambiar('precioAutomatico', evento.target.checked)}
+                onChange={(evento) => {
+                  const precioAutomatico = evento.target.checked
+                  setDatos((actuales) => ({
+                    ...actuales,
+                    precioAutomatico,
+                    ...(precioAutomatico && {
+                      precioVenta: String(
+                        calcularPrecioConMargen(productoParaEditar, Number(actuales.margenGanancia))
+                      ),
+                    }),
+                  }))
+                }}
                 className="h-4 w-4 rounded border-azul-300"
               />
               Calcular el precio automáticamente con el margen y el costo promedio
