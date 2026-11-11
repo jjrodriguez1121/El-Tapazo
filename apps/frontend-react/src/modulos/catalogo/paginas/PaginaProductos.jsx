@@ -91,14 +91,18 @@ export default function PaginaProductos() {
       !textoBusqueda ||
       producto.nombre.toLocaleLowerCase('es-CO').includes(textoBusqueda) ||
       producto.sku.toLocaleLowerCase('es-CO').includes(textoBusqueda)
-    const cantidadDisponible = (existenciasPorProducto.get(producto.id) ?? []).reduce(
+    const existenciasDelProducto = existenciasPorProducto.get(producto.id) ?? []
+    const cantidadDisponible = existenciasDelProducto.reduce(
       (total, existencia) => total + Number(existencia.cantidad_disponible),
       0
     )
+    const tieneStockBajo =
+      cantidadDisponible > 0 && existenciasDelProducto.some((existencia) => existencia.esta_bajo_minimo)
     const coincideStock =
       filtroStock === 'todos' ||
       (filtroStock === 'con_stock' && cantidadDisponible > 0) ||
-      (filtroStock === 'sin_stock' && cantidadDisponible <= 0)
+      (filtroStock === 'sin_stock' && cantidadDisponible <= 0) ||
+      (filtroStock === 'stock_bajo' && tieneStockBajo)
     return coincideCategoria && coincideBusqueda && coincideStock
   })
   const productosBajoMinimo = new Set(
@@ -171,6 +175,7 @@ export default function PaginaProductos() {
           >
             <option value="todos">Todos</option>
             <option value="con_stock">Con stock</option>
+            <option value="stock_bajo">Stock bajo</option>
             <option value="sin_stock">Sin stock</option>
           </select>
         </label>

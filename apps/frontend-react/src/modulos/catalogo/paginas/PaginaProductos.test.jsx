@@ -36,6 +36,13 @@ beforeEach(() => {
           categoria: { id: 2, nombre: 'Snacks' },
           precio_evento: '1800.00',
         },
+        {
+          id: 12,
+          nombre: 'Gaseosa',
+          sku: 'BEB-002',
+          categoria: { id: 1, nombre: 'Bebidas' },
+          precio_evento: '3200.00',
+        },
       ],
       existencias: [
         {
@@ -43,6 +50,13 @@ beforeEach(() => {
           ubicacion: { nombre: 'Bodega A-1' },
           cantidad_disponible: '12.00',
           esta_bajo_minimo: false,
+        },
+        {
+          producto: { id: 12 },
+          ubicacion: { nombre: 'Bodega A-1' },
+          cantidad_disponible: '2.00',
+          cantidad_minima: '5.00',
+          esta_bajo_minimo: true,
         },
       ],
     },
@@ -86,6 +100,11 @@ test('filtra productos con y sin stock', async () => {
   await usuario.selectOptions(filtro, 'sin_stock')
   expect(screen.queryByText('Agua mineral')).not.toBeInTheDocument()
   expect(screen.getByText('Papas')).toBeInTheDocument()
+
+  await usuario.selectOptions(filtro, 'stock_bajo')
+  expect(screen.getByText('Gaseosa')).toBeInTheDocument()
+  expect(screen.queryByText('Agua mineral')).not.toBeInTheDocument()
+  expect(screen.queryByText('Papas')).not.toBeInTheDocument()
 })
 
 test('informa que los productos nuevos se registran desde Compras cuando el catálogo está vacío', () => {
