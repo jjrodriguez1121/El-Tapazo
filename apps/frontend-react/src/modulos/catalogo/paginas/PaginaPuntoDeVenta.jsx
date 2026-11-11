@@ -51,7 +51,7 @@ export default function PaginaPuntoDeVenta() {
     'puntoDeVenta.busqueda',
     ''
   )
-  const [carrito, setCarrito] = useState([])
+  const [carrito, setCarrito] = useFiltroPersistente('puntoDeVenta.carrito', [])
   const [porcentajeDescuento, setPorcentajeDescuento] = useState('0')
   const [avisoCobro, setAvisoCobro] = useState('')
   const [tipoAviso, setTipoAviso] = useState('') // 'exito' | 'error'

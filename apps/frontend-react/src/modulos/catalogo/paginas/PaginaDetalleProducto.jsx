@@ -3,7 +3,6 @@ import {
   ArrowLeftIcon,
   ImageIcon,
   PencilSimpleIcon,
-  ShoppingCartSimpleIcon,
 } from '@phosphor-icons/react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 
@@ -35,7 +34,6 @@ export default function PaginaDetalleProducto() {
   const { productoId } = useParams()
   const { state } = useLocation()
   const catalogo = useCatalogoDeProductos()
-  const [mensajeAccion, setMensajeAccion] = useState('')
   const [modalEdicionAbierto, setModalEdicionAbierto] = useState(false)
   const [productoEditado, setProductoEditado] = useState(null)
   const productoDesdeRuta = state?.producto
@@ -188,7 +186,7 @@ export default function PaginaDetalleProducto() {
             </div>
           )}
 
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div>
             <button
               type="button"
               onClick={() => setModalEdicionAbierto(true)}
@@ -196,15 +194,7 @@ export default function PaginaDetalleProducto() {
             >
               <PencilSimpleIcon size={15} /> Editar producto
             </button>
-            <button
-              type="button"
-              onClick={() => setMensajeAccion('La venta se conectará en la siguiente etapa.')}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-azul-200 bg-blanco px-4 text-xs font-bold text-azul-800 hover:bg-azul-50 focus-visible:outline-2 focus-visible:outline-azul-600"
-            >
-              <ShoppingCartSimpleIcon size={15} /> Agregar a venta
-            </button>
           </div>
-          {mensajeAccion && <p role="status" className="text-xs font-medium text-azul-600">{mensajeAccion}</p>}
         </div>
       </section>
 

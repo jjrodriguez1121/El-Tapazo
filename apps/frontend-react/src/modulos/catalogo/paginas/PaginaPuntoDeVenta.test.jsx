@@ -1,5 +1,6 @@
-import { screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 import { clienteApi } from '@/librerias/clienteApi'
@@ -105,6 +106,38 @@ test('lista los productos disponibles y filtra por categoría', async () => {
   expect(screen.queryByText('Filtro de aceite')).not.toBeInTheDocument()
   expect(screen.queryByText('Batería descargada')).not.toBeInTheDocument()
   await usuario.click(screen.getByRole('button', { name: 'Eléctrico' }))
+  expect(screen.getByText('Bujía NGK')).toBeInTheDocument()
+})
+
+test('conserva el carrito al salir y volver a la vista de punto de venta', async () => {
+  const usuario = userEvent.setup()
+  render(
+    <MemoryRouter initialEntries={['/punto-de-venta']}>
+      <Routes>
+        <Route
+          path="/punto-de-venta"
+          element={
+            <>
+              <PaginaPuntoDeVenta />
+              <Link to="/otra-vista">Cambiar de vista</Link>
+            </>
+          }
+        />
+        <Route
+          path="/otra-vista"
+          element={<Link to="/punto-de-venta">Volver al punto de venta</Link>}
+        />
+      </Routes>
+    </MemoryRouter>
+  )
+
+  await usuario.click(screen.getByRole('button', { name: 'Agregar Bujía NGK al carrito' }))
+  expect(screen.getByText('1 artículo')).toBeInTheDocument()
+
+  await usuario.click(screen.getByRole('link', { name: 'Cambiar de vista' }))
+  await usuario.click(screen.getByRole('link', { name: 'Volver al punto de venta' }))
+
+  expect(await screen.findByText('1 artículo')).toBeInTheDocument()
   expect(screen.getByText('Bujía NGK')).toBeInTheDocument()
 })
 

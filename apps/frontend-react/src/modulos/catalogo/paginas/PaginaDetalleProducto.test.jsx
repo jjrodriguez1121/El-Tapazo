@@ -39,6 +39,7 @@ test('muestra la ficha del producto de ejemplo con proveedor y movimientos', () 
   expect(screen.getByText('Stock disponible')).toBeInTheDocument()
   expect(screen.getByText('Bavaria S.A.')).toBeInTheDocument()
   expect(screen.getByText('Entrada por compra')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Agregar a venta' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: /Volver a productos/ })).toHaveAttribute(
     'href',
     '/productos'
