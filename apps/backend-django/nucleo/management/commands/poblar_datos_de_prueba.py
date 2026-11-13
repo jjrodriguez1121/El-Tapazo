@@ -4,10 +4,13 @@
     ./dev.sh manage poblar_datos_de_prueba --correo otro@admin.com --minimo 150
 
 Crea, como mínimo `--minimo` (100) registros de cada módulo del menú:
-categorías, proveedores, productos (con imagen), clientes, compras de contado,
+categorías, proveedores, productos (con foto de la web), clientes, compras de contado,
 compras a crédito (cuentas por pagar), ventas de contado, ventas a crédito
 (cuentas por cobrar) y PQRs. Además abona parte de la cartera y deja una
 factura de proveedor en PDF para probar el buscador de coincidencias.
+
+Las fotos se buscan en la web con `asignar_imagenes_de_productos` (Bing vía
+ddgs). Sin internet, o con `--sin-imagenes-web`, quedan ilustraciones dibujadas.
 
 Todo pasa por la **misma API** que usa el frontend (con `APIClient`), así que
 el stock, el kardex, los totales y la cartera quedan como si alguien los
@@ -33,6 +36,7 @@ from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 from rest_framework.test import APIClient
 
+from catalogo.management.commands.asignar_imagenes_de_productos import asignar_foto
 from catalogo.models import Categoria, Impuesto, Producto, Proveedor
 from clientes.models import Cliente
 from compras.models import Compra, CuentaPorPagar, DetalleCompra, PagoCompra
@@ -392,6 +396,11 @@ class Command(BaseCommand):
         parser.add_argument("--minimo", type=int, default=100, help="Registros mínimos por módulo.")
         parser.add_argument("--semilla", type=int, default=7, help="Semilla de los datos al azar.")
         parser.add_argument(
+            "--sin-imagenes-web",
+            action="store_true",
+            help="No busca fotos en la web: deja las ilustraciones generadas (sin internet).",
+        )
+        parser.add_argument(
             "--reiniciar",
             action="store_true",
             help="Borra antes los datos operativos del negocio (catálogo, clientes, compras, "
@@ -436,6 +445,8 @@ class Command(BaseCommand):
             self._ventas()
             self._abonos()
             self._pqrs()
+        if not opciones["sin_imagenes_web"]:
+            self._imagenes_web()
         self._factura_de_prueba()
         self._resumen()
 
@@ -811,6 +822,25 @@ class Command(BaseCommand):
                                   "Lamentamos lo ocurrido. Aplicamos un bono de consumo para su próxima visita."})  # fmt: skip
                 self._post(ruta, {"tipo": "cambio_estado", "nuevo_estado": "cerrada"})
         self._paso(f"{cantidad} PQRs")
+
+    def _imagenes_web(self):
+        """Cambia la ilustración de cada producto por una foto real de la web.
+
+        Va después de la transacción: son muchas consultas por red y no deben
+        dejar la base bloqueada. Si el buscador no encuentra o no responde, el
+        producto se queda con su ilustración.
+        """
+        cuenta = {"con_foto": 0, "sin_resultados": 0, "fallo": 0}
+        productos = Producto.objects.filter(negocio_id=self.negocio_id).order_by("id")
+        total = productos.count()
+        for numero, producto in enumerate(productos, 1):
+            cuenta[asignar_foto(producto)] += 1
+            if numero % 10 == 0 or numero == total:
+                self._paso(f"fotos de la web: {numero}/{total}")
+        self._paso(
+            f"{cuenta['con_foto']} fotos reales; {cuenta['sin_resultados'] + cuenta['fallo']} "
+            "productos se quedan con la ilustración"
+        )
 
     # ------------------------------------------------------------------ #
     def _factura_de_prueba(self):

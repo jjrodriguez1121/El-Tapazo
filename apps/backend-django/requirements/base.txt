@@ -10,3 +10,4 @@ psycopg[binary]~=3.2            # driver de PostgreSQL
 Pillow~=11.0                    # imágenes (fotos de productos)
 pypdf~=5.1                      # texto de las facturas de proveedor en PDF
 rapidfuzz~=3.10                 # parecido de nombres al cruzar facturas con el catálogo
+ddgs==9.16.0                    # buscador de fotos de producto (Bing, sin clave de API)
