@@ -83,6 +83,16 @@ def test_leer_factura_saca_encabezado_y_renglones_por_aritmetica():
     assert factura.lineas[0].descripcion == "CERVEZA AGUILA LATA X 330 ML"
 
 
+def test_gana_el_trio_que_cuadra_exacto():
+    # 20 × 8.800 con 3 % de descuento y 24 % de "IVA" también da el total;
+    # el trío exacto 24 × 8.800 = 211.200 debe ganar.
+    factura = leer_factura(["3 CIGARRILLOS LUCKY STRIKE 20 UNIDADES 24 8.800,00 211.200,00"])
+
+    linea = factura.lineas[0]
+    assert (linea.cantidad, linea.costo_unitario) == (Decimal("24.00"), Decimal("8800.00"))
+    assert linea.descripcion == "CIGARRILLOS LUCKY STRIKE 20 UNIDADES"
+
+
 def test_palabras_separa_medidas_y_expande_abreviaturas():
     assert palabras("CERV POKER LT 330") == ["CERVEZA", "POKER", "L", "330"]
     assert palabras("Agua 600ml") == ["AGUA", "600", "ML"]

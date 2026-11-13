@@ -121,21 +121,30 @@ def _leer_numero(ficha: str) -> Decimal | None:
 
 def _cuadra(
     cantidad: Decimal, unitario: Decimal, total: Decimal, porcentajes: tuple[Decimal, ...]
-) -> bool:
-    """Si cantidad × unitario da el total (con IVA, o con el descuento/IVA de otra columna)."""
+) -> int:
+    """Qué tan bien da cantidad × unitario el total: 0 no cuadra.
+
+    3 exacto, 2 con una tarifa de IVA usual metida en el total, 1 con el
+    descuento o el IVA de otra columna del renglón (lo más fácil de que cuadre
+    por casualidad, por eso pesa menos).
+    """
     if cantidad <= 0 or unitario < 0 or total <= 0:
-        return False
+        return 0
     base = cantidad * unitario
     tolerancia = max(Decimal("1"), TOLERANCIA_DEL_TOTAL * total)
-    if any(abs(base * factor - total) <= tolerancia for factor in FACTORES_DEL_TOTAL):
-        return True
+    if abs(base - total) <= tolerancia:
+        return 3
+    if any(abs(base * factor - total) <= tolerancia for factor in FACTORES_DEL_TOTAL[1:]):
+        return 2
     descuentos = (Decimal(0), *porcentajes)
     ivas = (Decimal(0), *porcentajes)
-    return any(
-        abs(base * (1 - descuento / CIEN) * (1 + iva / CIEN) - total) <= tolerancia
-        for descuento in descuentos
-        for iva in ivas
-        if descuento or iva
+    return int(
+        any(
+            abs(base * (1 - descuento / CIEN) * (1 + iva / CIEN) - total) <= tolerancia
+            for descuento in descuentos
+            for iva in ivas
+            if descuento or iva
+        )
     )
 
 
@@ -143,9 +152,10 @@ def _elegir_cifras(numericas: list[tuple[int, Decimal]]):
     """Busca qué números del renglón son cantidad, unitario y total.
 
     El total es el de más a la derecha de los tres; cantidad y unitario pueden
-    venir en cualquier orden. Si varios tríos cuadran gana el que tiene la
-    cantidad menor que el unitario, luego cantidad entera, luego el total más a
-    la derecha. Devuelve `(cantidad, unitario, total, posiciones)` o `None`.
+    venir en cualquier orden. Si varios tríos cuadran gana el que cuadra más
+    exacto, luego el que tiene la cantidad menor que el unitario, luego
+    cantidad entera, luego el total más a la derecha. Devuelve
+    `(cantidad, unitario, total, posiciones)` o `None`.
     """
     mejor = None
     cuantas = len(numericas)
@@ -163,9 +173,11 @@ def _elegir_cifras(numericas: list[tuple[int, Decimal]]):
                         for posicion, (_, valor) in enumerate(numericas)
                         if posicion not in (primero, segundo, k) and 0 < valor <= CIEN
                     )
-                    if not _cuadra(cantidad, unitario, total, otros):
+                    exactitud = _cuadra(cantidad, unitario, total, otros)
+                    if not exactitud:
                         continue
                     clave = (
+                        exactitud,
                         int(cantidad <= unitario),
                         int(cantidad == cantidad.to_integral_value()),
                         k,
