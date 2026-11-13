@@ -58,6 +58,7 @@ LOCAL_APPS = [
     "compras",
     "pqrs",
     "eventos",
+    "asistente",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -236,3 +237,11 @@ URL_FRONTEND = env("URL_FRONTEND", default="http://localhost:5173")
 
 # Cuánto dura una invitación antes de vencerse.
 VIGENCIA_INVITACION_DIAS = env.int("VIGENCIA_INVITACION_DIAS", default=7)
+
+# --------------------------------------------------------------------------- #
+# Asistente con IA (Groq)
+# --------------------------------------------------------------------------- #
+# La clave va solo en el .env del backend; el navegador nunca la ve.
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_MODELO = env("GROQ_MODELO", default="openai/gpt-oss-120b")
+GROQ_TIEMPO_LIMITE = env.int("GROQ_TIEMPO_LIMITE", default=60)

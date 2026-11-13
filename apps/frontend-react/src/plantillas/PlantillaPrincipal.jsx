@@ -5,6 +5,7 @@ import Encabezado from '@/componentes/estructura/Encabezado'
 import MenuLateral from '@/componentes/estructura/MenuLateral'
 import RecordatorioDePausa from '@/componentes/estructura/RecordatorioDePausa'
 import { useUsuarioDeSesion } from '@/estado/sesion'
+import AsistenteFlotante from '@/modulos/asistente/componentes/AsistenteFlotante'
 import { useCerrarSesion } from '@/modulos/autenticacion/hooks/useCerrarSesion'
 
 // Temporalmente un minuto para validar el recordatorio. Al terminar las pruebas,
@@ -73,6 +74,7 @@ export default function PlantillaPrincipal() {
         </main>
       </div>
       <RecordatorioDePausa intervaloMs={INTERVALO_DE_PAUSA_EN_PRUEBA_MS} />
+      <AsistenteFlotante />
     </div>
   )
 }

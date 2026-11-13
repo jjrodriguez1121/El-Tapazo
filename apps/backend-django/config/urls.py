@@ -18,6 +18,7 @@ api_v1_patterns = [
     path("ventas/", include("ventas.urls")),
     path("compras/", include("compras.urls")),
     path("pqrs/", include("pqrs.urls")),
+    path("asistente/", include("asistente.urls")),
 ]
 
 urlpatterns = [
