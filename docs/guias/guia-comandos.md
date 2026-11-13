@@ -58,6 +58,16 @@ Lo normal es usar el script `./dev.sh`, que además elige puertos libres:
 | Instalar una dependencia | Agrégala a `requirements/base.txt` y `./dev.sh up --build` | — |
 | Ver SQL de una migración | `./dev.sh manage sqlmigrate catalogo 0001` | — |
 | Verificar el proyecto | `./dev.sh manage check` | — |
+| Llenar con datos de prueba (≥100 por módulo) | `./dev.sh manage poblar_datos_de_prueba` | — |
+| Volver a generarlos desde cero | `./dev.sh manage poblar_datos_de_prueba --reiniciar` | — |
+
+`poblar_datos_de_prueba` solo corre con `DEBUG` activo y sobre el negocio de
+`admin@gmail.com` (cámbialo con `--correo`). Crea categorías, proveedores,
+productos con imagen, clientes, compras y ventas de contado y a crédito,
+abonos de cartera y PQRs, todo a través de la API. Además deja una factura de
+proveedor en `apps/backend-django/media/pruebas/factura-proveedor-prueba.pdf`
+para probar el buscador de coincidencias de **Compras → Importar factura PDF**.
+`--reiniciar` borra antes los datos operativos de ese negocio.
 
 ---
 
