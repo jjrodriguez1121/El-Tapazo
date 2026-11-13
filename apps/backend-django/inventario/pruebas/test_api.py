@@ -235,20 +235,30 @@ def test_anular_un_movimiento_devuelve_el_contrario(
 # --------------------------------------------------------------------------- #
 # Reposición y valorización
 # --------------------------------------------------------------------------- #
-def test_bajo_minimo_solo_trae_lo_que_tiene_minimo_puesto(cliente_api_autenticado, mesero, negocio):
-    """Un cero es «sin alerta», no «alerta siempre»."""
-    FabricaDeExistencia(
+def test_bajo_minimo_incluye_agotados_y_existencias_bajo_el_minimo(
+    cliente_api_autenticado, mesero, negocio
+):
+    agotada = FabricaDeExistencia(
+        negocio=negocio, cantidad_disponible=Decimal("0.00"), cantidad_minima=Decimal("0.00")
+    )
+    agotada_dos = FabricaDeExistencia(
         negocio=negocio, cantidad_disponible=Decimal("0.00"), cantidad_minima=Decimal("0.00")
     )
     escasa = FabricaDeExistencia(
         negocio=negocio, cantidad_disponible=Decimal("3.00"), cantidad_minima=Decimal("20.00")
     )
+    FabricaDeExistencia(
+        negocio=negocio, cantidad_disponible=Decimal("15.00"), cantidad_minima=Decimal("0.00")
+    )
 
     respuesta = cliente_api_autenticado(mesero).get(URL_BAJO_MINIMO)
 
     assert respuesta.status_code == 200
-    assert respuesta.data["count"] == 1
-    assert respuesta.data["results"][0]["id"] == escasa.id
+    assert respuesta.data["count"] == 3
+    resultados = {existencia["id"]: existencia for existencia in respuesta.data["results"]}
+    assert resultados[agotada.id]["esta_bajo_minimo"] is True
+    assert resultados[agotada_dos.id]["esta_bajo_minimo"] is True
+    assert resultados[escasa.id]["esta_bajo_minimo"] is True
 
 
 def test_fijar_el_minimo_es_de_administrador(cliente_api_autenticado, mesero, negocio):

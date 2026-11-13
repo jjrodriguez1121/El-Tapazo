@@ -8,7 +8,7 @@ from decimal import Decimal
 class LineaDePedidoDTO:
     """Un producto de la comanda. El precio **no** viaja aquí.
 
-    Lo congela el servicio leyendo `producto.precio_evento` en el momento de la
+    Lo congela el servicio leyendo `producto.precio_venta` en el momento de la
     venta: si lo mandara quien pide, cualquiera podría fijar el precio de su
     propia cerveza.
     """

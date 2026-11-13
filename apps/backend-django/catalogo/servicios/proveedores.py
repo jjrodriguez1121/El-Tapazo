@@ -1,4 +1,4 @@
-"""Alta, cambio y baja de proveedores."""
+"""Alta, cambios y activación de proveedores."""
 
 from catalogo.excepciones import NitDeProveedorDuplicado
 from catalogo.models import Proveedor
@@ -52,6 +52,14 @@ def desactivar_proveedor(*, proveedor_id: int, negocio_id: int) -> Proveedor:
     """
     proveedor = obtener_proveedor(proveedor_id=proveedor_id, negocio_id=negocio_id)
     proveedor.activo = False
+    proveedor.save(update_fields=["activo", "actualizado_en"])
+    return proveedor
+
+
+def activar_proveedor(*, proveedor_id: int, negocio_id: int) -> Proveedor:
+    """Restaura un proveedor desactivado sin alterar sus compras históricas."""
+    proveedor = obtener_proveedor(proveedor_id=proveedor_id, negocio_id=negocio_id)
+    proveedor.activo = True
     proveedor.save(update_fields=["activo", "actualizado_en"])
     return proveedor
 

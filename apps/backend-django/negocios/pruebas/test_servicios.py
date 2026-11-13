@@ -21,6 +21,7 @@ from eventos.dtos import LineaDePedidoDTO as LineaDeComandaDTO
 from eventos.servicios import cuentas, jornadas
 from eventos.servicios import pedidos as comandas
 from inventario.pruebas.fabricas import FabricaDeExistencia
+from inventario.selectores import productos_bajo_minimo
 from negocios.excepciones import (
     NegocioNoEncontrado,
     NegocioYaActivo,
@@ -30,7 +31,7 @@ from negocios.excepciones import (
 )
 from negocios.models import Negocio
 from negocios.pruebas.fabricas import FabricaDeNegocio
-from negocios.selectores import negocio_del_usuario, resumen_de_ventas
+from negocios.selectores import negocio_del_usuario, resumen_de_ventas, resumen_del_dashboard
 from negocios.servicios import negocios as servicio
 
 pytestmark = pytest.mark.django_db
@@ -44,8 +45,7 @@ def bodega(negocio):
         cantidad_disponible=Decimal("100.00"),
         producto=FabricaDeProducto(
             negocio=negocio,
-            precio_evento=Decimal("5000.00"),
-            precio_mayorista=Decimal("3500.00"),
+            precio_venta=Decimal("5000.00"),
         ),
     )
 
@@ -241,6 +241,32 @@ def test_sin_fechas_el_resumen_es_del_mes_en_curso(negocio):
     hoy = timezone.localdate()
     assert resumen["desde"] == hoy.replace(day=1)
     assert resumen["hasta"] == hoy
+
+
+def test_indicador_stock_bajo_coincide_con_alertas_de_inventario(negocio):
+    FabricaDeExistencia(
+        negocio=negocio,
+        cantidad_disponible=Decimal("0.00"),
+        cantidad_minima=Decimal("0.00"),
+    )
+    FabricaDeExistencia(
+        negocio=negocio,
+        cantidad_disponible=Decimal("3.00"),
+        cantidad_minima=Decimal("20.00"),
+    )
+    FabricaDeExistencia(
+        negocio=negocio,
+        cantidad_disponible=Decimal("15.00"),
+        cantidad_minima=Decimal("0.00"),
+    )
+
+    resumen = resumen_del_dashboard(
+        negocio_id=negocio.id,
+        desde=timezone.localdate(),
+        hasta=timezone.localdate(),
+    )
+
+    assert resumen["stock_bajo"] == productos_bajo_minimo(negocio_id=negocio.id).count() == 2
 
 
 def test_un_rango_al_reves_se_rechaza(negocio):

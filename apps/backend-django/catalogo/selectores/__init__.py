@@ -3,7 +3,6 @@
 from catalogo.selectores.productos import (
     buscar_por_sku,
     categorias_del_negocio,
-    comparar_precios_de_proveedores,
     margen_de_venta,
     obtener_categoria,
     obtener_producto,
@@ -15,7 +14,6 @@ from catalogo.selectores.productos import (
 __all__ = [
     "buscar_por_sku",
     "categorias_del_negocio",
-    "comparar_precios_de_proveedores",
     "margen_de_venta",
     "obtener_categoria",
     "obtener_producto",

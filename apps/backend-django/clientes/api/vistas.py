@@ -16,18 +16,22 @@ from clientes.api import filtros, serializers
 from clientes.dtos import DatosDeClienteDTO
 from clientes.models import Cliente
 from clientes.selectores import clientes as selector
-from clientes.selectores import historial_de_consumo
 from clientes.servicios import clientes as servicio
 from nucleo.api.vistas import MixinDelNegocio
 from nucleo.permisos import EsAdministrador, EsDelEquipo
 
 # Lo que solo puede hacer el administrador. Lo demás lo hace cualquiera del
-# equipo: quien registra al cliente es quien está en la barra.
-ACCIONES_DE_ADMINISTRADOR = frozenset({"desactivacion"})
+# equipo: quien registra al cliente es quien está en la barra. Activar y
+# desactivar son acciones administrativas para proteger el historial.
+ACCIONES_DE_ADMINISTRADOR = frozenset({"desactivacion", "activacion"})
 
 
 class ClienteViewSet(
-    MixinDelNegocio, mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet
+    MixinDelNegocio,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
 ):
     """/api/v1/clientes/"""
 
@@ -92,6 +96,9 @@ class ClienteViewSet(
         )
         return Response(serializers.ClienteOutputSerializer(cliente).data)
 
+    def partial_update(self, request: Request, pk: str) -> Response:
+        return self.update(request, pk)
+
     @extend_schema(
         summary="Desactivar una ficha",
         description="No se borra: sus cuentas y comandas la siguen necesitando.",
@@ -101,6 +108,16 @@ class ClienteViewSet(
     @action(detail=True, methods=["post"], url_path="desactivacion")
     def desactivacion(self, request: Request, pk: str) -> Response:
         cliente = servicio.desactivar_cliente(cliente_id=int(pk), negocio_id=self.negocio_id)
+        return Response(serializers.ClienteOutputSerializer(cliente).data)
+
+    @extend_schema(
+        summary="Activar una ficha previamente desactivada",
+        request=None,
+        responses={200: serializers.ClienteOutputSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="activacion")
+    def activacion(self, request: Request, pk: str) -> Response:
+        cliente = servicio.activar_cliente(cliente_id=int(pk), negocio_id=self.negocio_id)
         return Response(serializers.ClienteOutputSerializer(cliente).data)
 
     @extend_schema(
@@ -121,15 +138,3 @@ class ClienteViewSet(
             negocio_id=self.negocio_id, **entrada.validated_data
         )
         return Response(serializers.ClienteOutputSerializer(cliente).data)
-
-    @extend_schema(
-        summary="Ver el historial de consumo",
-        description="Las cuentas que ha tenido y cuánto consumió en cada una.",
-        responses={200: serializers.CuentaDelHistorialSerializer(many=True)},
-    )
-    @action(detail=True, methods=["get"], url_path="historial")
-    def historial(self, request: Request, pk: str) -> Response:
-        cuentas = historial_de_consumo(cliente_id=int(pk), negocio_id=self.negocio_id)
-        pagina = self.paginate_queryset(cuentas)
-        salida = serializers.CuentaDelHistorialSerializer(pagina, many=True)
-        return self.get_paginated_response(salida.data)

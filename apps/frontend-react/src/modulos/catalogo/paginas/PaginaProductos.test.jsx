@@ -36,6 +36,13 @@ beforeEach(() => {
           categoria: { id: 2, nombre: 'Snacks' },
           precio_evento: '1800.00',
         },
+        {
+          id: 12,
+          nombre: 'Gaseosa',
+          sku: 'BEB-002',
+          categoria: { id: 1, nombre: 'Bebidas' },
+          precio_evento: '3200.00',
+        },
       ],
       existencias: [
         {
@@ -43,6 +50,13 @@ beforeEach(() => {
           ubicacion: { nombre: 'Bodega A-1' },
           cantidad_disponible: '12.00',
           esta_bajo_minimo: false,
+        },
+        {
+          producto: { id: 12 },
+          ubicacion: { nombre: 'Bodega A-1' },
+          cantidad_disponible: '2.00',
+          cantidad_minima: '5.00',
+          esta_bajo_minimo: true,
         },
       ],
     },
@@ -55,7 +69,6 @@ test('muestra productos, precios y estado de existencias', () => {
   expect(screen.getByRole('heading', { name: 'Productos' })).toBeInTheDocument()
   expect(screen.getByText('Agua mineral')).toBeInTheDocument()
   expect(screen.getByText('$2.500')).toBeInTheDocument()
-  expect(screen.getByText('Bodega A-1')).toBeInTheDocument()
   expect(screen.getByText('En stock')).toBeInTheDocument()
   expect(screen.getByText('Sin stock')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Ver producto Agua mineral' })).toHaveAttribute(
@@ -74,7 +87,27 @@ test('filtra productos por categoría', async () => {
   expect(screen.queryByText('Papas')).not.toBeInTheDocument()
 })
 
-test('muestra los productos de ejemplo cuando el catálogo del negocio está vacío', () => {
+test('filtra productos con y sin stock', async () => {
+  const usuario = userEvent.setup()
+  renderizarEnRuta(<PaginaProductos />, '/productos')
+
+  const filtro = screen.getByRole('combobox', { name: 'Filtrar productos por disponibilidad' })
+
+  await usuario.selectOptions(filtro, 'con_stock')
+  expect(screen.getByText('Agua mineral')).toBeInTheDocument()
+  expect(screen.queryByText('Papas')).not.toBeInTheDocument()
+
+  await usuario.selectOptions(filtro, 'sin_stock')
+  expect(screen.queryByText('Agua mineral')).not.toBeInTheDocument()
+  expect(screen.getByText('Papas')).toBeInTheDocument()
+
+  await usuario.selectOptions(filtro, 'stock_bajo')
+  expect(screen.getByText('Gaseosa')).toBeInTheDocument()
+  expect(screen.queryByText('Agua mineral')).not.toBeInTheDocument()
+  expect(screen.queryByText('Papas')).not.toBeInTheDocument()
+})
+
+test('informa que los productos nuevos se registran desde Compras cuando el catálogo está vacío', () => {
   useCatalogoDeProductos.mockReturnValue({
     isPending: false,
     isError: false,
@@ -82,43 +115,6 @@ test('muestra los productos de ejemplo cuando el catálogo del negocio está vac
   })
   renderizarEnRuta(<PaginaProductos />, '/productos')
 
-  expect(screen.getByText('Datos de ejemplo')).toBeInTheDocument()
-  expect(screen.getByText('Águila')).toBeInTheDocument()
-  expect(screen.getByText('Bodega A-12')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Gaseosas' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Nuevo producto' })).toBeEnabled()
-})
-
-test('agrega el producto nuevo al listado localmente', async () => {
-  const usuario = userEvent.setup()
-  renderizarEnRuta(<PaginaProductos />, '/productos')
-
-  await usuario.click(screen.getByRole('button', { name: 'Nuevo producto' }))
-  await usuario.type(screen.getByRole('textbox', { name: 'Nombre del repuesto' }), 'Pastillas delanteras')
-  await usuario.type(screen.getByRole('textbox', { name: 'Código / SKU' }), 'FRE-100')
-  await usuario.type(screen.getByRole('spinbutton', { name: 'Precio de venta' }), '58000')
-  await usuario.type(screen.getByRole('spinbutton', { name: 'Stock actual' }), '8')
-  await usuario.type(screen.getByRole('spinbutton', { name: 'Stock mínimo' }), '3')
-  await usuario.type(screen.getByRole('textbox', { name: 'Ubicación' }), 'Bodega A-4')
-  await usuario.click(screen.getByRole('button', { name: 'Guardar producto' }))
-
-  expect(await screen.findByText('Pastillas delanteras')).toBeInTheDocument()
-  expect(screen.getByText('Bodega A-4')).toBeInTheDocument()
-  expect(screen.getByText('$58.000')).toBeInTheDocument()
-})
-
-test('valida el formato y los SKU duplicados antes de guardar', async () => {
-  const usuario = userEvent.setup()
-  renderizarEnRuta(<PaginaProductos />, '/productos')
-
-  await usuario.click(screen.getByRole('button', { name: 'Nuevo producto' }))
-  await usuario.type(screen.getByRole('textbox', { name: 'Nombre del repuesto' }), 'Agua repetida')
-  await usuario.type(screen.getByRole('textbox', { name: 'Código / SKU' }), 'AGU-001')
-  await usuario.type(screen.getByRole('spinbutton', { name: 'Precio de venta' }), '2000')
-  await usuario.type(screen.getByRole('spinbutton', { name: 'Stock actual' }), '5')
-  await usuario.type(screen.getByRole('spinbutton', { name: 'Stock mínimo' }), '1')
-  await usuario.type(screen.getByRole('textbox', { name: 'Ubicación' }), 'Bodega A-1')
-  await usuario.click(screen.getByRole('button', { name: 'Guardar producto' }))
-
-  expect(screen.getByText('Ya existe un producto con ese SKU.')).toBeInTheDocument()
+  expect(screen.getByText('Altas registradas desde Compras')).toBeInTheDocument()
+  expect(screen.getByText('No hay productos para mostrar.')).toBeInTheDocument()
 })

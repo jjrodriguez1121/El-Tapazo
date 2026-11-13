@@ -3,13 +3,10 @@
 El reparto de permisos es la decisión 6 del plan, más las decisiones 10 y 11:
 
 * **Abrir y cerrar la caja** — cajero y administrador. El mesero no.
-* **Abrir grupos y cuentas, asignar pulseras, tomar y entregar comandas** — los
+* **Abrir grupos y cuentas, tomar y entregar comandas** — los
   tres roles. Es la operación de la barra.
 * **Cobrar, liberar cuentas y cancelar comandas** — cajero y administrador.
   Cancelar devuelve stock y es una corrección de caja.
-* **Registrar pulseras y dispositivos** — solo administrador.
-
-El punto de control es aparte: lo consulta un aparato, no una persona.
 """
 
 from drf_spectacular.utils import extend_schema
@@ -17,38 +14,28 @@ from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
 from eventos.api import filtros, serializers
-from eventos.api.autenticacion import AutenticacionDeDispositivo
 from eventos.dtos import LineaDePedidoDTO
 from eventos.models import (
-    AlertaConsumo,
     ClienteEvento,
-    DispositivoNfc,
     Evento,
     GrupoEvento,
     PedidoEvento,
-    PulseraNfc,
 )
-from eventos.permisos import EsDispositivoNfc
-from eventos.repositorios import pulseras as repositorio_de_pulseras
 from eventos.selectores import (
-    consultar_punto_de_control,
     consumo_de_un_grupo,
     consumo_de_una_cuenta,
     informe_de_cierre,
 )
 from eventos.selectores import eventos as selector
-from eventos.servicios import alertas as servicio_de_alertas
 from eventos.servicios import cuentas as servicio_de_cuentas
 from eventos.servicios import jornadas as servicio_de_jornadas
 from eventos.servicios import pagos as servicio_de_pagos
 from eventos.servicios import pedidos as servicio_de_pedidos
-from eventos.servicios import pulseras as servicio_de_pulseras
 from nucleo.api.vistas import MixinDelNegocio
-from nucleo.permisos import EsAdministrador, EsCajeroOAdministrador, EsDelEquipo
+from nucleo.permisos import EsCajeroOAdministrador, EsDelEquipo
 
 
 class _ViewSetDelEvento(MixinDelNegocio, mixins.ListModelMixin, GenericViewSet):
@@ -209,7 +196,7 @@ class GrupoViewSet(_ViewSetDelEvento):
 # Cuentas
 # --------------------------------------------------------------------------- #
 class CuentaViewSet(_ViewSetDelEvento, mixins.RetrieveModelMixin):
-    """/api/v1/eventos/cuentas/ — la persona con su pulsera."""
+    """/api/v1/eventos/cuentas/ — las cuentas del evento."""
 
     serializer_class = serializers.CuentaOutputSerializer
     filterset_class = filtros.CuentaFiltro
@@ -230,8 +217,8 @@ class CuentaViewSet(_ViewSetDelEvento, mixins.RetrieveModelMixin):
     @extend_schema(
         summary="Abrir una cuenta",
         description=(
-            "La pulsera es opcional. Ser menor de edad **no impide** abrirla: la "
-            "respuesta trae `es_menor_de_edad` para que la pantalla lo avise."
+            "Ser menor de edad **no impide** abrirla: la respuesta trae "
+            "`es_menor_de_edad` para que la pantalla lo avise."
         ),
         request=serializers.CuentaInputSerializer,
         responses={201: serializers.CuentaOutputSerializer},
@@ -403,173 +390,3 @@ class PedidoViewSet(_ViewSetDelEvento, mixins.RetrieveModelMixin):
             serializers.ResultadoDeCobroOutputSerializer(resultado).data,
             status=status.HTTP_201_CREATED,
         )
-
-
-# --------------------------------------------------------------------------- #
-# Pulseras, dispositivos y alertas
-# --------------------------------------------------------------------------- #
-class PulseraViewSet(_ViewSetDelEvento):
-    """/api/v1/eventos/pulseras/ — el inventario de chips. Solo administrador."""
-
-    serializer_class = serializers.PulseraOutputSerializer
-    permission_classes = [EsAdministrador]
-    queryset = PulseraNfc.objects.none()
-
-    def get_permissions(self):
-        if self.action == "list":
-            return [EsDelEquipo()]
-        return [EsAdministrador()]
-
-    def get_queryset(self):
-        return selector.pulseras_del_negocio(negocio_id=self.negocio_id)
-
-    @extend_schema(summary="Listar las pulseras")
-    def list(self, request: Request, *args, **kwargs) -> Response:
-        return super().list(request, *args, **kwargs)
-
-    @extend_schema(
-        summary="Registrar una pulsera",
-        description="Se da de alta por el UID que el chip trae de fábrica.",
-        request=serializers.PulseraInputSerializer,
-        responses={201: serializers.PulseraOutputSerializer},
-    )
-    def create(self, request: Request) -> Response:
-        datos = self._validado(serializers.PulseraInputSerializer, request)
-        pulsera = servicio_de_pulseras.registrar_pulsera(negocio_id=self.negocio_id, **datos)
-        return Response(
-            serializers.PulseraOutputSerializer(pulsera).data, status=status.HTTP_201_CREATED
-        )
-
-    @extend_schema(
-        summary="Cambiar el estado de una pulsera",
-        description="Solo la condición física del chip: dañada, perdida o retirada.",
-        request=serializers.EstadoDePulseraInputSerializer,
-        responses={200: serializers.PulseraOutputSerializer},
-    )
-    @action(detail=True, methods=["post"], url_path="estado")
-    def estado(self, request: Request, pk: str) -> Response:
-        datos = self._validado(serializers.EstadoDePulseraInputSerializer, request)
-        pulsera = servicio_de_pulseras.cambiar_estado_de_pulsera(
-            pulsera_id=int(pk), negocio_id=self.negocio_id, **datos
-        )
-        return Response(serializers.PulseraOutputSerializer(pulsera).data)
-
-
-class DispositivoViewSet(_ViewSetDelEvento):
-    """/api/v1/eventos/dispositivos/ — los lectores de la puerta."""
-
-    serializer_class = serializers.DispositivoOutputSerializer
-    permission_classes = [EsAdministrador]
-    # Solo para que drf-spectacular sepa de qué modelo es el listado: el
-    # queryset de verdad lo arma `get_queryset` con el negocio del usuario.
-    queryset = DispositivoNfc.objects.none()
-
-    def get_queryset(self):
-        return repositorio_de_pulseras.dispositivos_del_negocio(negocio_id=self.negocio_id)
-
-    @extend_schema(summary="Listar los lectores de puerta")
-    def list(self, request: Request, *args, **kwargs) -> Response:
-        return super().list(request, *args, **kwargs)
-
-    @extend_schema(
-        summary="Dar de alta un lector",
-        description=(
-            "Devuelve el token **una sola vez**: en la base solo queda su hash. "
-            "Si se pierde, se da de alta otro y se revoca este."
-        ),
-        request=serializers.DispositivoInputSerializer,
-        responses={201: serializers.DispositivoCreadoOutputSerializer},
-    )
-    def create(self, request: Request) -> Response:
-        datos = self._validado(serializers.DispositivoInputSerializer, request)
-        dispositivo, token = servicio_de_pulseras.registrar_dispositivo(
-            negocio_id=self.negocio_id, **datos
-        )
-        salida = serializers.DispositivoCreadoOutputSerializer(dispositivo).data | {"token": token}
-        return Response(salida, status=status.HTTP_201_CREATED)
-
-    @extend_schema(
-        summary="Revocar un lector",
-        description="Es lo que se hace cuando alguien abre la caja y se lleva el token.",
-        request=None,
-        responses={200: serializers.DispositivoOutputSerializer},
-    )
-    @action(detail=True, methods=["post"], url_path="revocacion")
-    def revocacion(self, request: Request, pk: str) -> Response:
-        dispositivo = servicio_de_pulseras.revocar_dispositivo(
-            dispositivo_id=int(pk), negocio_id=self.negocio_id
-        )
-        return Response(serializers.DispositivoOutputSerializer(dispositivo).data)
-
-
-class AlertaViewSet(_ViewSetDelEvento):
-    """/api/v1/eventos/alertas/ — cuándo una cuenta cruzó su límite."""
-
-    serializer_class = serializers.AlertaOutputSerializer
-    filterset_class = filtros.AlertaFiltro
-    permission_classes = [EsDelEquipo]
-    queryset = AlertaConsumo.objects.none()
-
-    def get_queryset(self):
-        return selector.alertas_del_negocio(negocio_id=self.negocio_id)
-
-    @extend_schema(summary="Listar las alertas de consumo")
-    def list(self, request: Request, *args, **kwargs) -> Response:
-        return super().list(request, *args, **kwargs)
-
-    @extend_schema(
-        summary="Atender una alerta",
-        description="Guarda quién la atendió y qué hizo. Los tres datos van juntos.",
-        request=serializers.AtencionDeAlertaInputSerializer,
-        responses={200: serializers.AlertaOutputSerializer},
-    )
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="atencion",
-        permission_classes=[EsCajeroOAdministrador],
-    )
-    def atencion(self, request: Request, pk: str) -> Response:
-        datos = self._validado(serializers.AtencionDeAlertaInputSerializer, request)
-        alerta = servicio_de_alertas.atender_alerta(
-            alerta_id=int(pk),
-            negocio_id=self.negocio_id,
-            atendida_por_id=request.user.id,
-            **datos,
-        )
-        return Response(serializers.AlertaOutputSerializer(alerta).data)
-
-
-# --------------------------------------------------------------------------- #
-# Punto de control NFC
-# --------------------------------------------------------------------------- #
-class PuntoDeControlView(APIView):
-    """POST /api/v1/eventos/puntos-de-control/consultar/
-
-    Lo llama el aparato de la puerta, no una persona: se autentica con su
-    propio token y el negocio sale de ahí, nunca de la petición.
-
-    Devuelve **lo mínimo** —nombre y monto— y lleva freno de peticiones: sin
-    él, cualquiera con un lector de tres dólares podría ir preguntándole al
-    sistema cuánto debe cada persona del bar.
-    """
-
-    authentication_classes = [AutenticacionDeDispositivo]
-    permission_classes = [EsDispositivoNfc]
-    throttle_scope = "punto_de_control"
-
-    @extend_schema(
-        summary="Consultar una pulsera desde la puerta",
-        description="`Authorization: Dispositivo <token>`.",
-        request=serializers.ConsultaDePuntoDeControlInputSerializer,
-        responses={200: serializers.PuntoDeControlOutputSerializer},
-    )
-    def post(self, request: Request) -> Response:
-        entrada = serializers.ConsultaDePuntoDeControlInputSerializer(data=request.data)
-        entrada.is_valid(raise_exception=True)
-
-        respuesta = consultar_punto_de_control(
-            uid_tag=entrada.validated_data["uid_tag"].strip().upper(),
-            negocio_id=request.auth.negocio_id,
-        )
-        return Response(serializers.PuntoDeControlOutputSerializer(respuesta).data)

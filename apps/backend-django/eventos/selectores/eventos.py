@@ -5,22 +5,18 @@ from decimal import Decimal
 from django.db.models import Count, DecimalField, F, Q, QuerySet, Sum
 
 from eventos.models import (
-    AlertaConsumo,
     ClienteEvento,
     DetallePedidoEvento,
     Evento,
     GrupoEvento,
     PedidoEvento,
-    PulseraNfc,
 )
 from eventos.repositorios import cuentas as repositorio_de_cuentas
 from eventos.repositorios import eventos as repositorio
 from eventos.repositorios import grupos as repositorio_de_grupos
 from eventos.repositorios import pagos as repositorio_de_pagos
 from eventos.repositorios import pedidos as repositorio_de_pedidos
-from eventos.repositorios import pulseras as repositorio_de_pulseras
-from eventos.selectores.saldos import TIPO_DEL_IMPORTE, consumo_de_una_cuenta
-from nucleo.excepciones import NoEncontradoEnEsteNegocio
+from eventos.selectores.saldos import TIPO_DEL_IMPORTE
 
 NO_CANCELADOS = ~Q(pedido_evento__estado=PedidoEvento.Estado.CANCELADO)
 
@@ -36,25 +32,15 @@ def grupos_del_negocio(*, negocio_id: int) -> QuerySet[GrupoEvento]:
 
 
 def cuentas_del_negocio(*, negocio_id: int) -> QuerySet[ClienteEvento]:
-    """Las cuentas, con su persona y su pulsera ya cargadas."""
+    """Las cuentas, con su persona y grupo ya cargados."""
     return repositorio_de_cuentas.del_negocio(negocio_id=negocio_id).select_related(
-        "cliente", "pulsera", "grupo_evento"
+        "cliente", "grupo_evento"
     )
 
 
 def pedidos_del_negocio(*, negocio_id: int) -> QuerySet[PedidoEvento]:
     return repositorio_de_pedidos.del_negocio(negocio_id=negocio_id).select_related(
         "cliente_evento__cliente", "mesero", "evento"
-    )
-
-
-def pulseras_del_negocio(*, negocio_id: int) -> QuerySet[PulseraNfc]:
-    return repositorio_de_pulseras.del_negocio(negocio_id=negocio_id)
-
-
-def alertas_del_negocio(*, negocio_id: int) -> QuerySet[AlertaConsumo]:
-    return repositorio_de_pagos.alertas_del_negocio(negocio_id=negocio_id).select_related(
-        "cliente_evento__cliente", "atendida_por"
     )
 
 
@@ -105,40 +91,4 @@ def informe_de_cierre(*, evento_id: int, negocio_id: int) -> dict:
         "pagos_por_metodo": list(pagos),
         "total_cobrado": total_cobrado,
         "cuentas_atendidas": cuentas_atendidas,
-    }
-
-
-def consultar_punto_de_control(*, uid_tag: str, negocio_id: int) -> dict:
-    """Lo que el lector de la puerta necesita saber, y **nada más**.
-
-    Devuelve el nombre y el monto: ni documento, ni teléfono. Cualquiera con un
-    lector de tres dólares puede acercarlo a una pulsera, así que lo que sale
-    por aquí tiene que ser lo mínimo.
-
-    Raises:
-        NoEncontradoEnEsteNegocio: esa pulsera no está registrada aquí.
-    """
-    pulsera = repositorio_de_pulseras.obtener_por_uid(uid_tag=uid_tag, negocio_id=negocio_id)
-    if pulsera is None:
-        raise NoEncontradoEnEsteNegocio
-
-    cuenta = (
-        ClienteEvento.objects.select_related("cliente")
-        .filter(pulsera_id=pulsera.id, negocio_id=negocio_id, liberada_en__isnull=True)
-        .first()
-    )
-    if cuenta is None:
-        return {"estado": "saldada", "cliente": "", "monto": Decimal("0.00")}
-
-    consumido = consumo_de_una_cuenta(cliente_evento_id=cuenta.id, negocio_id=negocio_id)
-    if consumido <= 0:
-        return {
-            "estado": "saldada",
-            "cliente": cuenta.cliente.nombre_completo,
-            "monto": Decimal("0.00"),
-        }
-    return {
-        "estado": "con_saldo",
-        "cliente": cuenta.cliente.nombre_completo,
-        "monto": consumido,
     }

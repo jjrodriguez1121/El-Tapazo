@@ -16,8 +16,8 @@ negocio): el catálogo cambia lo que el resto del equipo ve toda la noche.
 
 | Recurso | Además del CRUD |
 | --- | --- |
-| `categorias/` | `POST {id}/desactivacion/` |
-| `proveedores/` | `POST {id}/desactivacion/` |
+| `categorias/` | `POST {id}/desactivacion/` · `POST {id}/activacion/` |
+| `proveedores/` | `POST {id}/desactivacion/` · `POST {id}/activacion/` |
 | `productos/` | `POST {id}/precio/` · `POST {id}/desactivacion/` · `GET {id}/margen/` · `GET`/`POST {id}/proveedores/` · `DELETE`/`POST {id}/proveedores/{proveedor_id}/[principal/]` |
 
 Dos cosas que conviene saber antes de tocar esto:

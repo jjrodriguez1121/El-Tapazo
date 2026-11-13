@@ -9,8 +9,7 @@ from django.db import models
 
 
 class MetodoDePago(models.TextChoices):
-    """Cómo entró el dinero. Igual en el bar (`pagos_evento`) y en el canal
-    mayorista (`pagos_distribucion`)."""
+    """Cómo entró el dinero en una venta o en un abono de cartera."""
 
     EFECTIVO = "efectivo", "Efectivo"
     TARJETA = "tarjeta", "Tarjeta"

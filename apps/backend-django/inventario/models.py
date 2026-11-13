@@ -17,58 +17,6 @@ from django.utils import timezone
 from nucleo.models import ModeloDelNegocio
 
 
-class Ubicacion(ModeloDelNegocio):
-    """Un lugar físico donde hay mercancía: una bodega o un punto de venta.
-
-    Las existencias no son "del negocio" sino "de un sitio": la misma cerveza
-    puede estar en la bodega y en la barra del evento, y son cantidades
-    distintas que se mueven por separado.
-    """
-
-    class Tipo(models.TextChoices):
-        BODEGA = "bodega", "Bodega"
-        PUNTO_VENTA_EVENTO = "punto_venta_evento", "Punto de venta en evento"
-
-    # Se redeclara el campo heredado solo para que la relación inversa se lea
-    # `negocio.ubicaciones` y no `negocio.ubicacions`.
-    negocio = models.ForeignKey(
-        "negocios.Negocio",
-        on_delete=models.PROTECT,
-        related_name="ubicaciones",
-        verbose_name="negocio",
-    )
-
-    nombre = models.CharField("nombre", max_length=100)
-    tipo = models.CharField(
-        "tipo",
-        max_length=30,
-        choices=Tipo.choices,
-        default=Tipo.BODEGA,
-    )
-    direccion = models.CharField("dirección", max_length=255, blank=True)
-    activa = models.BooleanField(
-        "activa",
-        default=True,
-        help_text="Desactivar en vez de borrar: el kardex histórico la sigue referenciando.",
-    )
-
-    class Meta:
-        db_table = "ubicaciones"
-        ordering = ["nombre"]
-        verbose_name = "ubicación"
-        verbose_name_plural = "ubicaciones"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["negocio", "nombre"],
-                name="ubicacion_nombre_unico_por_negocio",
-                violation_error_message="Ya existe una ubicación con ese nombre en este negocio.",
-            ),
-        ]
-
-    def __str__(self) -> str:
-        return self.nombre
-
-
 class Existencia(ModeloDelNegocio):
     """Cuánto hay de un producto en una ubicación.
 
@@ -84,17 +32,14 @@ class Existencia(ModeloDelNegocio):
     simultáneas no se pisen.
     """
 
-    producto = models.ForeignKey(
+    producto = models.OneToOneField(
         "catalogo.Producto",
         on_delete=models.PROTECT,
         related_name="existencias",
         verbose_name="producto",
     )
-    ubicacion = models.ForeignKey(
-        "inventario.Ubicacion",
-        on_delete=models.PROTECT,
-        related_name="existencias",
-        verbose_name="ubicación",
+    costo_promedio = models.DecimalField(
+        "costo promedio", max_digits=14, decimal_places=2, default=0
     )
     cantidad_disponible = models.DecimalField(
         "cantidad disponible",
@@ -103,6 +48,7 @@ class Existencia(ModeloDelNegocio):
         default=0,
         help_text="Saldo cacheado del kardex. La fuente de verdad es movimientos_inventario.",
     )
+    cantidad_actual = models.IntegerField("cantidad actual", default=0)
     # El punto de reposición va aquí y no en `productos` porque es distinto en
     # cada sitio: veinte cervezas en la barra es alerta, en la bodega no.
     cantidad_minima = models.DecimalField(
@@ -110,21 +56,21 @@ class Existencia(ModeloDelNegocio):
         max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="Por debajo de esto hay que reponer. 0 = sin alerta, no «alerta siempre».",
+        help_text="Por debajo de esto hay que reponer; 0 desactiva el mínimo, no la alerta por agotado.",
     )
 
     class Meta:
-        db_table = "existencias"
-        ordering = ["ubicacion", "producto"]
+        db_table = "inventarios"
+        ordering = ["producto"]
         verbose_name = "existencia"
         verbose_name_plural = "existencias"
         constraints = [
             # Un producto tiene un solo saldo por ubicación. Dos filas para el
             # mismo par serían dos verdades sobre la misma cantidad.
             models.UniqueConstraint(
-                fields=["producto", "ubicacion"],
-                name="existencia_unica_por_producto_y_ubicacion",
-                violation_error_message="Ese producto ya tiene existencias en esta ubicación.",
+                fields=["negocio", "producto"],
+                name="inventario_unico_por_producto_y_negocio",
+                violation_error_message="Ese producto ya tiene existencias registradas.",
             ),
             models.CheckConstraint(
                 condition=models.Q(cantidad_disponible__gte=0),
@@ -138,9 +84,8 @@ class Existencia(ModeloDelNegocio):
             ),
         ]
         indexes = [
-            # Índice parcial: el informe de reposición no tiene por qué
-            # escanear la tabla entera cuando la inmensa mayoría de las filas
-            # tendrá 0, que es «sin alerta».
+            # Índice parcial para evaluar mínimos configurados; las existencias
+            # agotadas también alertan aunque su mínimo sea cero.
             models.Index(
                 fields=["negocio"],
                 condition=models.Q(cantidad_minima__gt=0),
@@ -149,12 +94,14 @@ class Existencia(ModeloDelNegocio):
         ]
 
     def __str__(self) -> str:
-        return f"{self.producto} en {self.ubicacion}: {self.cantidad_disponible}"
+        return f"{self.producto}: {self.cantidad_disponible}"
 
     @property
     def esta_bajo_minimo(self) -> bool:
-        """Hay que reponer. Con la mínima en 0 nunca lo está: ese es el «sin alerta»."""
-        return self.cantidad_minima > 0 and self.cantidad_disponible < self.cantidad_minima
+        """Hay que reponer si se agotó o si bajó del punto de reposición."""
+        return self.cantidad_disponible == 0 or (
+            self.cantidad_minima > 0 and self.cantidad_disponible < self.cantidad_minima
+        )
 
 
 class MovimientoInventario(ModeloDelNegocio):
@@ -181,8 +128,7 @@ class MovimientoInventario(ModeloDelNegocio):
         MERMA = "merma", "Merma"
 
     class ReferenciaTipo(models.TextChoices):
-        PEDIDO_EVENTO = "pedido_evento", "Pedido de evento"
-        PEDIDO_DISTRIBUCION = "pedido_distribucion", "Pedido de distribución"
+        VENTA = "venta", "Venta"
         COMPRA = "compra", "Compra a proveedor"
         TRASLADO = "traslado", "Traslado entre ubicaciones"
         AJUSTE = "ajuste", "Ajuste manual"
@@ -202,18 +148,39 @@ class MovimientoInventario(ModeloDelNegocio):
         related_name="movimientos",
         verbose_name="producto",
     )
-    ubicacion = models.ForeignKey(
-        "inventario.Ubicacion",
-        on_delete=models.PROTECT,
-        related_name="movimientos",
-        verbose_name="ubicación",
+    tipo_movimiento = models.CharField(
+        "tipo de movimiento",
+        max_length=30,
+        choices=[
+            ("ENTRADA_COMPRA", "Entrada por compra"),
+            ("SALIDA_VENTA", "Salida por venta"),
+            ("AJUSTE_ENTRADA", "Ajuste entrada"),
+            ("AJUSTE_SALIDA", "Ajuste salida"),
+            ("ANULACION_VENTA", "Anulación venta"),
+            ("ANULACION_COMPRA", "Anulación compra"),
+        ],
+        blank=True,
     )
-    tipo = models.CharField("tipo", max_length=20, choices=Tipo.choices)
+    tipo = models.CharField("tipo", max_length=20, choices=Tipo.choices, blank=True)
     cantidad = models.DecimalField(
         "cantidad",
         max_digits=12,
         decimal_places=2,
         help_text="Con signo: positiva suma al inventario, negativa resta. Nunca cero.",
+    )
+    costo_unitario = models.DecimalField(
+        "costo unitario", max_digits=14, decimal_places=2, default=0
+    )
+    costo_total = models.DecimalField(
+        "costo total", max_digits=14, decimal_places=2, default=0
+    )
+    detalle_compra = models.ForeignKey(
+        "compras.DetalleCompra", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="movimientos_inventario",
+    )
+    detalle_venta = models.ForeignKey(
+        "ventas.DetalleVenta", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="movimientos_inventario",
     )
 
     referencia_tipo = models.CharField(
@@ -284,5 +251,4 @@ class MovimientoInventario(ModeloDelNegocio):
 # dice nada a quien genera el cliente del frontend. Se exponen a nivel de módulo
 # porque `ENUM_NAME_OVERRIDES` resuelve `modulo.atributo`, no atributos de una
 # clase anidada.
-TIPOS_DE_UBICACION = Ubicacion.Tipo.choices
 TIPOS_DE_MOVIMIENTO = MovimientoInventario.Tipo.choices

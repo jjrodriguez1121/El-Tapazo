@@ -1,19 +1,12 @@
 from django.contrib import admin
 
-from .models import Existencia, MovimientoInventario, Ubicacion
-
-
-@admin.register(Ubicacion)
-class UbicacionAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "tipo", "negocio", "direccion", "activa")
-    list_filter = ("negocio", "tipo", "activa")
-    search_fields = ("nombre", "direccion")
+from .models import Existencia, MovimientoInventario
 
 
 @admin.register(Existencia)
 class ExistenciaAdmin(admin.ModelAdmin):
-    list_display = ("producto", "ubicacion", "cantidad_disponible", "negocio")
-    list_filter = ("negocio", "ubicacion")
+    list_display = ("producto", "cantidad_disponible", "negocio")
+    list_filter = ("negocio",)
     search_fields = ("producto__sku", "producto__nombre")
     # El saldo lo mueven los movimientos de inventario, no el panel: editarlo a
     # mano dejaría la tabla y el kardex diciendo cosas distintas.
@@ -22,8 +15,8 @@ class ExistenciaAdmin(admin.ModelAdmin):
 
 @admin.register(MovimientoInventario)
 class MovimientoInventarioAdmin(admin.ModelAdmin):
-    list_display = ("fecha", "tipo", "producto", "ubicacion", "cantidad", "usuario", "negocio")
-    list_filter = ("negocio", "tipo", "ubicacion")
+    list_display = ("fecha", "tipo", "producto", "cantidad", "usuario", "negocio")
+    list_filter = ("negocio", "tipo")
     search_fields = ("producto__sku", "producto__nombre", "nota")
     date_hierarchy = "fecha"
     # El kardex no se edita ni se borra: un movimiento equivocado se corrige

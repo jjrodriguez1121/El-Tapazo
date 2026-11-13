@@ -52,7 +52,7 @@ def bodega(negocio):
     return FabricaDeExistencia(
         negocio=negocio,
         cantidad_disponible=Decimal("100.00"),
-        producto=FabricaDeProducto(negocio=negocio, precio_mayorista=Decimal("3500.00")),
+        producto=FabricaDeProducto(negocio=negocio, precio_venta=Decimal("3500.00")),
     )
 
 
@@ -116,7 +116,7 @@ def _pedido_ajeno() -> PedidoDistribucion:
 # --------------------------------------------------------------------------- #
 # Tomar el pedido
 # --------------------------------------------------------------------------- #
-def test_crear_pedido_congela_el_precio_mayorista(negocio, tienda, bodega, administrador):
+def test_crear_pedido_congela_el_precio_venta(negocio, tienda, bodega, administrador):
     pedido = _pedir(negocio, tienda, bodega, administrador)
 
     linea = pedido.detalles.get()
@@ -128,8 +128,8 @@ def test_subir_el_precio_no_reescribe_un_pedido_ya_tomado(negocio, tienda, bodeg
     pedido = _pedir(negocio, tienda, bodega, administrador)
 
     producto = bodega.producto
-    producto.precio_mayorista = Decimal("9000.00")
-    producto.save(update_fields=["precio_mayorista", "actualizado_en"])
+    producto.precio_venta = Decimal("9000.00")
+    producto.save(update_fields=["precio_venta", "actualizado_en"])
 
     assert pedido.detalles.get().precio_unitario == Decimal("3500.00")
 

@@ -39,6 +39,6 @@ def buscar_por_documento(*, negocio_id: int, tipo_documento: str, numero_documen
         tipo_documento=tipo_documento,
         numero_documento=numero_documento.strip(),
     )
-    if cliente is None:
+    if cliente is None or not cliente.activo:
         raise NoEncontradoEnEsteNegocio
     return cliente

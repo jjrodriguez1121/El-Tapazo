@@ -1,4 +1,11 @@
-import { BuildingsIcon, EnvelopeSimpleIcon, IdentificationCardIcon, MapPinIcon } from '@phosphor-icons/react'
+import {
+  BuildingsIcon,
+  EnvelopeSimpleIcon,
+  IdentificationCardIcon,
+  MapPinIcon,
+  PencilSimpleIcon,
+  PowerIcon,
+} from '@phosphor-icons/react'
 
 import { formatearPesos } from '@/utilidades/formatos'
 
@@ -19,7 +26,12 @@ function iniciales(nombre) {
     .toUpperCase()
 }
 
-export default function TarjetaDeCliente({ cliente }) {
+export default function TarjetaDeCliente({
+  cliente,
+  alEditar,
+  alCambiarEstado,
+  puedeCambiarEstado,
+}) {
   const esEstablecimiento = cliente.tipo === 'establecimiento'
   const tieneSaldo = cliente.saldoPendiente > 0
   const identificacion = esEstablecimiento
@@ -30,7 +42,9 @@ export default function TarjetaDeCliente({ cliente }) {
     : 'Establecimiento'
 
   return (
-    <article className="flex min-h-32 flex-col gap-2.5 rounded-xl border border-azul-150 bg-blanco p-3.5">
+    <article
+      className={`flex min-h-32 flex-col gap-2.5 rounded-xl border border-azul-150 bg-blanco p-3.5 ${cliente.activo ? '' : 'opacity-70'}`}
+    >
       <header className="flex min-w-0 items-start gap-2.5">
         <span className="grid size-8 flex-none place-items-center rounded-lg bg-azul-950 text-[10px] font-bold text-blanco">
           {iniciales(cliente.nombre)}
@@ -40,6 +54,11 @@ export default function TarjetaDeCliente({ cliente }) {
           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[9px] text-azul-400">
             <span>{cliente.telefono || 'Teléfono sin registrar'}</span>
             {cliente.contacto && <span>· {cliente.contacto}</span>}
+            {!cliente.activo && (
+              <span className="rounded-full bg-azul-100 px-2 py-0.5 font-semibold text-azul-600">
+                Inactivo
+              </span>
+            )}
           </div>
         </div>
         <span
@@ -59,7 +78,9 @@ export default function TarjetaDeCliente({ cliente }) {
           <p className="truncate text-[10px] font-semibold text-azul-800">
             {esEstablecimiento ? `${segmento} · ${identificacion}` : identificacion}
           </p>
-          {cliente.contacto && <p className="truncate text-[9px] text-azul-400">Contacto: {cliente.contacto}</p>}
+          {cliente.contacto && (
+            <p className="truncate text-[9px] text-azul-400">Contacto: {cliente.contacto}</p>
+          )}
         </div>
       </div>
 
@@ -86,6 +107,25 @@ export default function TarjetaDeCliente({ cliente }) {
           {tieneSaldo ? formatearPesos(cliente.saldoPendiente) : 'Al día'}
         </span>
       </footer>
+      <div className="flex gap-2 border-t border-azul-100 pt-2">
+        <button
+          type="button"
+          onClick={() => alEditar(cliente)}
+          className="inline-flex items-center gap-1 text-[10px] font-semibold text-azul-700 hover:text-azul-950"
+        >
+          <PencilSimpleIcon size={13} /> Editar
+        </button>
+        {puedeCambiarEstado && (
+          <button
+            type="button"
+            aria-label={`${cliente.activo ? 'Desactivar' : 'Activar'} cliente ${cliente.nombre}`}
+            onClick={() => alCambiarEstado(cliente)}
+            className={`inline-flex items-center gap-1 text-[10px] font-semibold ${cliente.activo ? 'text-error-700 hover:text-error-900' : 'text-exito-700 hover:text-exito-900'}`}
+          >
+            <PowerIcon size={13} /> {cliente.activo ? 'Desactivar' : 'Activar'}
+          </button>
+        )}
+      </div>
     </article>
   )
 }

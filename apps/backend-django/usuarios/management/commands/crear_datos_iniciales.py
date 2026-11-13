@@ -1,27 +1,14 @@
-"""Deja la base de desarrollo lista para entrar: un negocio y su administrador.
-
-Lo corre el entrypoint del contenedor después de `migrate`, así que tras
-levantar el proyecto por primera vez —o tras borrar la base— siempre hay con
-qué iniciar sesión:
-
-    negocio:     El Tapaso
-    correo:      admin@gmail.com
-    contraseña:  admin123
-
-Se puede correr cuantas veces se quiera: si el negocio o el usuario ya existen
-no los toca, ni siquiera la contraseña. Solo funciona con DEBUG activo: esa
-contraseña no puede llegar nunca a producción.
-
-    ./dev.sh manage crear_datos_iniciales
-"""
+"""Crea el negocio El Tapaso y su administrador inicial de desarrollo."""
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from catalogo.models import Impuesto
 from negocios.models import Negocio
 from usuarios.models import Rol, Usuario
+from ventas.models import MetodoPago
 
 NOMBRE_NEGOCIO = "El Tapaso"
 NIT_NEGOCIO = "900000000-0"
@@ -43,8 +30,33 @@ class Command(BaseCommand):
             nit=NIT_NEGOCIO,
             defaults={"nombre_comercial": NOMBRE_NEGOCIO},
         )
+        for nombre in ("Efectivo", "Transferencia", "Tarjeta", "Nequi", "Daviplata"):
+            MetodoPago.objects.get_or_create(
+                negocio=negocio,
+                nombre=nombre,
+                defaults={"estado": True},
+            )
+        for nombre, porcentaje, tratamiento in (
+            ("IVA 19 %", 19, Impuesto.TipoTratamiento.GRAVADO),
+            ("IVA 5 %", 5, Impuesto.TipoTratamiento.GRAVADO),
+            ("IVA 0 %", 0, Impuesto.TipoTratamiento.EXENTO),
+            ("Exento", 0, Impuesto.TipoTratamiento.EXENTO),
+            ("No gravado", 0, Impuesto.TipoTratamiento.NO_GRAVADO),
+        ):
+            Impuesto.objects.get_or_create(
+                negocio=negocio,
+                nombre=nombre,
+                defaults={
+                    "porcentaje": porcentaje,
+                    "tipo_tratamiento": tratamiento,
+                    "activo": True,
+                },
+            )
+
         if Usuario.objects.filter(correo=CORREO_ADMINISTRADOR).exists():
-            self.stdout.write("Datos iniciales: ya existían, no se tocó nada.")
+            self.stdout.write(
+                "Datos iniciales: el negocio y el administrador ya existen."
+            )
             return
 
         Usuario.objects.create_user(
@@ -54,7 +66,6 @@ class Command(BaseCommand):
             apellido="El Tapaso",
             negocio=negocio,
             rol=Rol.ADMINISTRADOR,
-            # Nadie va a abrir un enlace de verificación en admin@gmail.com.
             correo_verificado_en=timezone.now(),
         )
         creado = "el negocio y su administrador" if negocio_creado else "el administrador"

@@ -4,15 +4,12 @@ from rest_framework import serializers
 
 from clientes.models import Cliente
 from eventos.models import (
-    AlertaConsumo,
     ClienteEvento,
     DetallePedidoEvento,
-    DispositivoNfc,
     Evento,
     GrupoEvento,
     PagoEvento,
     PedidoEvento,
-    PulseraNfc,
 )
 
 
@@ -74,19 +71,8 @@ class GrupoOutputSerializer(serializers.ModelSerializer):
 
 
 class CuentaInputSerializer(serializers.Serializer):
-    """La pulsera es opcional: una cuenta sin pulsera se lleva a mano."""
-
     grupo_id = serializers.IntegerField()
     cliente_id = serializers.IntegerField()
-    pulsera_id = serializers.IntegerField(required=False, allow_null=True, default=None)
-    limite_alerta = serializers.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        min_value=0,
-        required=False,
-        allow_null=True,
-        default=None,
-    )
 
 
 class ClienteDeLaCuentaSerializer(serializers.ModelSerializer):
@@ -102,7 +88,6 @@ class ClienteDeLaCuentaSerializer(serializers.ModelSerializer):
 
 class CuentaOutputSerializer(serializers.ModelSerializer):
     cliente = ClienteDeLaCuentaSerializer(read_only=True)
-    pulsera = serializers.CharField(source="pulsera.uid_tag", read_only=True, default="")
     esta_abierta = serializers.SerializerMethodField()
 
     class Meta:
@@ -111,8 +96,6 @@ class CuentaOutputSerializer(serializers.ModelSerializer):
             "id",
             "cliente",
             "grupo_evento",
-            "pulsera",
-            "limite_alerta",
             "esta_abierta",
             "liberada_en",
             "creado_en",
@@ -205,75 +188,3 @@ class ResultadoDeCobroOutputSerializer(serializers.Serializer):
 
 class ConsumoOutputSerializer(serializers.Serializer):
     consumido = serializers.DecimalField(max_digits=24, decimal_places=2)
-
-
-# --------------------------------------------------------------------------- #
-# Pulseras, dispositivos y alertas
-# --------------------------------------------------------------------------- #
-class PulseraInputSerializer(serializers.Serializer):
-    uid_tag = serializers.CharField(max_length=60)
-
-
-class EstadoDePulseraInputSerializer(serializers.Serializer):
-    estado = serializers.ChoiceField(choices=PulseraNfc.Estado.choices)
-
-
-class PulseraOutputSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PulseraNfc
-        fields = ("id", "uid_tag", "estado", "creado_en")
-
-
-class DispositivoInputSerializer(serializers.Serializer):
-    nombre = serializers.CharField(max_length=100)
-
-
-class DispositivoOutputSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DispositivoNfc
-        fields = ("id", "nombre", "activo", "ultimo_uso_en", "creado_en")
-
-
-class DispositivoCreadoOutputSerializer(DispositivoOutputSerializer):
-    """El token en claro sale **una sola vez**: en la base solo queda su hash."""
-
-    token = serializers.CharField(read_only=True)
-
-    class Meta(DispositivoOutputSerializer.Meta):
-        fields = (*DispositivoOutputSerializer.Meta.fields, "token")
-
-
-class AlertaOutputSerializer(serializers.ModelSerializer):
-    cliente = serializers.CharField(source="cliente_evento.cliente.nombre_completo", read_only=True)
-
-    class Meta:
-        model = AlertaConsumo
-        fields = (
-            "id",
-            "cliente",
-            "cliente_evento",
-            "monto_acumulado",
-            "umbral_superado",
-            "accion_tomada",
-            "atendida_en",
-            "fecha",
-        )
-
-
-class AtencionDeAlertaInputSerializer(serializers.Serializer):
-    accion_tomada = serializers.CharField(max_length=200)
-
-
-# --------------------------------------------------------------------------- #
-# Punto de control
-# --------------------------------------------------------------------------- #
-class ConsultaDePuntoDeControlInputSerializer(serializers.Serializer):
-    uid_tag = serializers.CharField(max_length=60)
-
-
-class PuntoDeControlOutputSerializer(serializers.Serializer):
-    """Lo mínimo: el nombre y el monto. Ni documento, ni teléfono."""
-
-    estado = serializers.CharField()
-    cliente = serializers.CharField()
-    monto = serializers.DecimalField(max_digits=24, decimal_places=2)

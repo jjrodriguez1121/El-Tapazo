@@ -10,9 +10,6 @@ from eventos.excepciones.eventos import (
     PagoNoCubreElConsumo,
     PedidoNoCancelable,
     PedidoSinLineas,
-    PulseraNoDisponible,
-    PulseraYaAsignada,
-    UidDuplicado,
 )
 
 __all__ = [
@@ -25,7 +22,4 @@ __all__ = [
     "PagoNoCubreElConsumo",
     "PedidoNoCancelable",
     "PedidoSinLineas",
-    "PulseraNoDisponible",
-    "PulseraYaAsignada",
-    "UidDuplicado",
 ]

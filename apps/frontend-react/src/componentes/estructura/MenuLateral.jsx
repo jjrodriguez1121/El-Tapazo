@@ -1,6 +1,6 @@
 import { SignOutIcon } from '@phosphor-icons/react'
 
-import { CONFIGURACION_DEL_MENU, puedeVerElemento, seccionesVisibles } from '@/configuracion/menu'
+import { seccionesVisibles } from '@/configuracion/menu'
 
 import ElementoDelMenu from './ElementoDelMenu'
 import { CLASES_DE_FILA_DEL_MENU, CLASES_DE_FILA_INACTIVA } from './estilosDelMenu'
@@ -31,9 +31,6 @@ export default function MenuLateral({ usuario, alNavegar, alCerrarSesion, cerran
       ))}
 
       <div className="mt-auto flex flex-col gap-0.5 border-t border-blanco/7 pt-3.5">
-        {puedeVerElemento(CONFIGURACION_DEL_MENU, usuario.esAdministrador) && (
-          <ElementoDelMenu elemento={CONFIGURACION_DEL_MENU} alNavegar={alNavegar} />
-        )}
         <button
           type="button"
           onClick={alCerrarSesion}

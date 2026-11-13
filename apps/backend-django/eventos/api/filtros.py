@@ -2,7 +2,7 @@
 
 from django_filters import rest_framework as filtros
 
-from eventos.models import AlertaConsumo, ClienteEvento, Evento, GrupoEvento, PedidoEvento
+from eventos.models import ClienteEvento, Evento, GrupoEvento, PedidoEvento
 
 
 class EventoFiltro(filtros.FilterSet):
@@ -34,14 +34,3 @@ class PedidoFiltro(filtros.FilterSet):
     class Meta:
         model = PedidoEvento
         fields = ("evento", "cliente_evento", "estado", "mesero")
-
-
-class AlertaFiltro(filtros.FilterSet):
-    sin_atender = filtros.BooleanFilter(method="filtrar_sin_atender")
-
-    class Meta:
-        model = AlertaConsumo
-        fields = ("cliente_evento",)
-
-    def filtrar_sin_atender(self, consulta, nombre_del_campo, valor):
-        return consulta.filter(atendida_en__isnull=valor)

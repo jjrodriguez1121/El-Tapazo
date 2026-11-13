@@ -25,6 +25,7 @@ from negocios.permisos import EsStaffDePlataforma
 from negocios.selectores import (
     negocio_del_usuario,
     negocios_de_la_plataforma,
+    resumen_del_dashboard,
     resumen_de_ventas,
 )
 from negocios.servicios import negocios as servicio
@@ -151,3 +152,20 @@ class ResumenDeVentasView(MixinDelNegocio, APIView):
 
         resumen = resumen_de_ventas(negocio_id=self.negocio_id, **entrada.validated_data)
         return Response(serializers.ResumenDeVentasOutputSerializer(resumen).data)
+
+
+class ResumenDashboardView(MixinDelNegocio, APIView):
+    """GET /api/v1/negocios/informes/dashboard/ con periodo obligatorio."""
+
+    permission_classes = [EsAdministrador]
+
+    @extend_schema(
+        summary="Ver indicadores financieros y operativos del dashboard",
+        parameters=[serializers.RangoDeFechasObligatorioSerializer],
+        responses={200: serializers.ResumenDashboardOutputSerializer},
+    )
+    def get(self, request: Request) -> Response:
+        entrada = serializers.RangoDeFechasObligatorioSerializer(data=request.query_params)
+        entrada.is_valid(raise_exception=True)
+        resumen = resumen_del_dashboard(negocio_id=self.negocio_id, **entrada.validated_data)
+        return Response(serializers.ResumenDashboardOutputSerializer(resumen).data)

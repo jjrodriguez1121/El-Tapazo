@@ -1,23 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
+  CheckCircleIcon,
+  PrinterIcon,
   ImageIcon,
   MinusIcon,
+  MagnifyingGlassIcon,
   PackageIcon,
   PlusIcon,
-  PrinterIcon,
   ShoppingCartSimpleIcon,
   TrashIcon,
+  WarningCircleIcon,
 } from '@phosphor-icons/react'
 
 import Aviso from '@/componentes/ui/Aviso'
 import { formatearCantidad, formatearPesos } from '@/utilidades/formatos'
 import { mensajeDeError } from '@/utilidades/errores'
+import { imprimirComprobanteVenta } from '@/utilidades/imprimirComprobanteVenta'
+import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
+import { clienteApi } from '@/librerias/clienteApi'
+import useFiltroPersistente from '@/hooks/useFiltroPersistente'
+import { crearVenta, listarMetodosPago, obtenerDetalleVenta } from '@/modulos/ventas/api/apiVentas'
+import ModalNuevoCliente from '@/modulos/clientes/componentes/ModalNuevoCliente'
 
 import EsqueletoDeProductos from '../componentes/EsqueletoDeProductos'
 import { useCatalogoDeProductos } from '../hooks/useCatalogoDeProductos'
-import { CATEGORIAS_DE_EJEMPLO, PRODUCTOS_DE_EJEMPLO } from '../utilidades/datosDeEjemplo'
-
-const IVA = 0.19
 
 function ImagenProducto({ producto }) {
   return producto.imagen ? (
@@ -26,7 +32,9 @@ function ImagenProducto({ producto }) {
     <div
       aria-hidden="true"
       className="grid h-full w-full place-items-center text-azul-300"
-      style={{ backgroundImage: 'repeating-linear-gradient(45deg, #f3f5f5 0 7px, #e8ebec 7px 14px)' }}
+      style={{
+        backgroundImage: 'repeating-linear-gradient(45deg, #f3f5f5 0 7px, #e8ebec 7px 14px)',
+      }}
     >
       <ImageIcon size={24} />
     </div>
@@ -35,10 +43,44 @@ function ImagenProducto({ producto }) {
 
 export default function PaginaPuntoDeVenta() {
   const catalogo = useCatalogoDeProductos()
-  const [categoriaActiva, setCategoriaActiva] = useState('todas')
-  const [carrito, setCarrito] = useState([])
-  const [porcentajeDescuento, setPorcentajeDescuento] = useState('5')
+  const [categoriaActiva, setCategoriaActiva] = useFiltroPersistente(
+    'puntoDeVenta.categoria',
+    'todas'
+  )
+  const [busquedaProducto, setBusquedaProducto] = useFiltroPersistente(
+    'puntoDeVenta.busqueda',
+    ''
+  )
+  const [carrito, setCarrito] = useFiltroPersistente('puntoDeVenta.carrito', [])
+  const [porcentajeDescuento, setPorcentajeDescuento] = useState('0')
   const [avisoCobro, setAvisoCobro] = useState('')
+  const [tipoAviso, setTipoAviso] = useState('') // 'exito' | 'error'
+  const [tipoPago, setTipoPago] = useState('contado')
+  const [estadoEntrega, setEstadoEntrega] = useState('pendiente_entrega')
+  const [metodoPago, setMetodoPago] = useState('')
+  const [clienteId, setClienteId] = useState('')
+  const [fechaVencimiento, setFechaVencimiento] = useState('')
+  const [clientes, setClientes] = useState([])
+  const [modalClienteAbierto, setModalClienteAbierto] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [metodosPago, setMetodosPago] = useState([])
+  const [ventaParaImprimir, setVentaParaImprimir] = useState(null)
+
+  useEffect(() => {
+    clienteApi
+      .get('/clientes/', { params: { activo: true } })
+      .then(({ data }) => {
+        const registros = Array.isArray(data) ? data : (data.results ?? [])
+        setClientes(registros.filter((cliente) => cliente.activo !== false))
+      })
+      .catch(() => setClientes([]))
+    listarMetodosPago()
+      .then((metodos) => {
+        setMetodosPago(metodos)
+        setMetodoPago(String(metodos[0]?.id ?? ''))
+      })
+      .catch(() => setMetodosPago([]))
+  }, [])
 
   if (catalogo.isPending) return <EsqueletoDeProductos />
 
@@ -58,13 +100,14 @@ export default function PaginaPuntoDeVenta() {
     )
   }
 
-  const { productos: productosApi, categorias: categoriasApi, existencias: existenciasApi } = catalogo.data
-  const usandoEjemplos = productosApi.length === 0
-  const productos = usandoEjemplos ? PRODUCTOS_DE_EJEMPLO : productosApi
-  const categorias = usandoEjemplos ? CATEGORIAS_DE_EJEMPLO : categoriasApi
-  const existencias = usandoEjemplos
-    ? PRODUCTOS_DE_EJEMPLO.flatMap((producto) => producto.existencias)
-    : existenciasApi
+  const {
+    productos: productosApi,
+    categorias: categoriasApi,
+    existencias: existenciasApi,
+  } = catalogo.data
+  const productos = productosApi
+  const categorias = categoriasApi
+  const existencias = existenciasApi
   const existenciasPorProducto = new Map()
 
   for (const existencia of existencias) {
@@ -75,22 +118,56 @@ export default function PaginaPuntoDeVenta() {
     ])
   }
 
-  const productosVisibles = productos.filter(
-    (producto) => categoriaActiva === 'todas' || String(producto.categoria.id) === categoriaActiva
-  )
+  const terminoBusqueda = busquedaProducto.trim().toLocaleLowerCase()
+  const productosVisibles = productos.filter((producto) => {
+    const stockDisponible = (existenciasPorProducto.get(String(producto.id)) ?? []).reduce(
+      (total, existencia) => total + Number(existencia.cantidad_disponible),
+      0
+    )
+    const coincideCategoria =
+      categoriaActiva === 'todas' || String(producto.categoria.id) === categoriaActiva
+    const coincideBusqueda =
+      !terminoBusqueda ||
+      producto.nombre.toLocaleLowerCase().includes(terminoBusqueda) ||
+      String(producto.sku ?? '').toLocaleLowerCase().includes(terminoBusqueda)
+    return stockDisponible > 0 && coincideCategoria && coincideBusqueda
+  })
   const cantidadArticulos = carrito.reduce((total, linea) => total + linea.cantidad, 0)
   const subtotal = carrito.reduce(
-    (total, linea) => total + Number(linea.producto.precio_evento) * linea.cantidad,
+    (total, linea) =>
+      total +
+      Number(linea.producto.precio_venta ?? linea.producto.precio_evento ?? 0) * linea.cantidad,
     0
   )
   const descuento = Math.round(subtotal * (Number(porcentajeDescuento || 0) / 100))
-  const impuesto = Math.round(subtotal * IVA)
-  const total = subtotal + impuesto - descuento
+  const totalConDescuento = subtotal - descuento
+  const impuesto = Math.round(
+    carrito.reduce((totalImpuesto, linea) => {
+      const precio = Number(linea.producto.precio_venta ?? linea.producto.precio_evento ?? 0)
+      const porcentaje = Number(linea.producto.impuesto?.porcentaje ?? 0)
+      const importeLinea = Math.round(precio * linea.cantidad)
+      const importeLineaConDescuento =
+        subtotal > 0 ? importeLinea - Math.round((importeLinea * descuento) / subtotal) : 0
+      if (!porcentaje) return totalImpuesto
+      return (
+        totalImpuesto + Math.round((importeLineaConDescuento * porcentaje) / (100 + porcentaje))
+      )
+    }, 0)
+  )
+  const baseGravable = totalConDescuento - impuesto
+  const tasasDeImpuesto = [
+    ...new Set(carrito.map((linea) => Number(linea.producto.impuesto?.porcentaje ?? 0))),
+  ]
+  const etiquetaImpuesto =
+    tasasDeImpuesto.length === 1 ? `IVA (${tasasDeImpuesto[0]}%)` : 'IVA (mixto)'
+  const total = totalConDescuento
 
   function agregarAlCarrito(producto) {
     setAvisoCobro('')
     setCarrito((actual) => {
-      const lineaExistente = actual.find((linea) => String(linea.producto.id) === String(producto.id))
+      const lineaExistente = actual.find(
+        (linea) => String(linea.producto.id) === String(producto.id)
+      )
       if (lineaExistente) {
         return actual.map((linea) =>
           String(linea.producto.id) === String(producto.id)
@@ -122,8 +199,91 @@ export default function PaginaPuntoDeVenta() {
     setAvisoCobro('')
   }
 
-  function cobrar() {
-    setAvisoCobro('El cobro e impresión se conectarán cuando se integre el flujo de ventas.')
+  async function crearCliente(cliente) {
+    const partesNombre = cliente.nombre.trim().split(/\s+/)
+    const nombre = partesNombre.shift() ?? ''
+    const apellido = partesNombre.join(' ')
+    const esEstablecimiento = cliente.tipoDocumento.toLowerCase() === 'nit'
+    const { data } = await clienteApi.post('/clientes/', {
+      tipo_documento: cliente.tipoDocumento.toLowerCase(),
+      numero_documento: cliente.documento,
+      nombre: esEstablecimiento ? cliente.nombre.trim() : nombre,
+      apellido: esEstablecimiento ? '' : apellido,
+      fecha_nacimiento: cliente.fechaNacimiento || null,
+      telefono: cliente.telefono,
+      correo: cliente.correo,
+      ciudad: cliente.ciudad,
+    })
+    setClientes((actuales) => [...actuales, data])
+    setClienteId(String(data.id))
+  }
+
+  async function cobrar() {
+    if (tipoPago === 'credito' && (!clienteId || !fechaVencimiento)) {
+      setTipoAviso('error')
+      setAvisoCobro('Seleccione el cliente y la fecha de vencimiento para una venta a crédito.')
+      return
+    }
+    if (tipoPago === 'credito' && fechaVencimiento < obtenerFechaMinimaVencimiento()) {
+      setTipoAviso('error')
+      setAvisoCobro('La fecha de vencimiento debe ser a partir de mañana.')
+      return
+    }
+    setGuardando(true)
+    setAvisoCobro('')
+    setTipoAviso('')
+    try {
+      const venta = await crearVenta({
+        lineas: carrito.map((linea) => ({
+          producto_id: linea.producto.id,
+          cantidad: linea.cantidad,
+        })),
+        tipo_pago: tipoPago,
+        estado_entrega: estadoEntrega,
+        metodo_pago_id: tipoPago === 'contado' ? Number(metodoPago) : null,
+        cliente_id: clienteId ? Number(clienteId) : null,
+        fecha_vencimiento: tipoPago === 'credito' ? fechaVencimiento : null,
+        descuento_porcentaje: Number(porcentajeDescuento || 0),
+      })
+      setCarrito([])
+      setTipoAviso('exito')
+      setAvisoCobro(
+        `Venta ${venta.numero_venta} registrada por ${formatearPesos(Number(venta.total))}.`
+      )
+      const resultadoDetalle = await obtenerDetalleVenta(venta.id).then(
+        (detalle) => ({ detalle }),
+        (errorDetalle) => ({ error: errorDetalle })
+      )
+      if (resultadoDetalle.detalle) {
+        setVentaParaImprimir(resultadoDetalle.detalle)
+      } else {
+        setTipoAviso('error')
+        setAvisoCobro(
+          `La venta ${venta.numero_venta} se registró, pero no fue posible cargar el comprobante: ${mensajeDeError(resultadoDetalle.error)}`
+        )
+      }
+      catalogo.refetch().catch(() => {
+        setTipoAviso('error')
+        setAvisoCobro(
+          `La venta ${venta.numero_venta} se registró, pero no fue posible actualizar el catálogo.`
+        )
+      })
+    } catch (error) {
+      setTipoAviso('error')
+      setAvisoCobro(mensajeDeError(error))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  function imprimirVenta() {
+    try {
+      imprimirComprobanteVenta(ventaParaImprimir)
+      setVentaParaImprimir(null)
+    } catch (errorImpresion) {
+      setTipoAviso('error')
+      setAvisoCobro(errorImpresion.message || 'No fue posible preparar el comprobante PDF.')
+    }
   }
 
   return (
@@ -132,12 +292,30 @@ export default function PaginaPuntoDeVenta() {
         <header>
           <h1 className="text-titulo font-bold text-azul-950">Punto de venta</h1>
           <p className="mt-1 text-xs font-medium text-azul-400">
-            Agrega repuestos al carrito para registrar la venta
-            {usandoEjemplos && <span className="ml-2 text-alerta-700">Datos de ejemplo</span>}
+            Agrega productos al carrito para registrar la venta
           </p>
         </header>
 
-        <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Filtrar productos por categoría">
+        <label className="relative block">
+          <MagnifyingGlassIcon
+            aria-hidden="true"
+            size={16}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-azul-400"
+          />
+          <input
+            type="search"
+            aria-label="Buscar productos"
+            placeholder="Buscar por nombre o código..."
+            value={busquedaProducto}
+            onChange={(evento) => setBusquedaProducto(evento.target.value)}
+            className="h-10 w-full rounded-lg border border-azul-200 bg-blanco pl-9 pr-3 text-xs text-azul-950 outline-none placeholder:text-azul-400 focus:border-azul-600"
+          />
+        </label>
+
+        <div
+          className="flex gap-2 overflow-x-auto pb-1"
+          aria-label="Filtrar productos por categoría"
+        >
           <button
             type="button"
             aria-pressed={categoriaActiva === 'todas'}
@@ -167,8 +345,12 @@ export default function PaginaPuntoDeVenta() {
               0
             )
             const cantidadEnCarrito =
-              carrito.find((linea) => String(linea.producto.id) === String(producto.id))?.cantidad ?? 0
-            const ubicacion = stockDelProducto.map((existencia) => existencia.ubicacion.nombre).join(', ')
+              carrito.find((linea) => String(linea.producto.id) === String(producto.id))
+                ?.cantidad ?? 0
+            const ubicacion = stockDelProducto
+              .map((existencia) => existencia.ubicacion?.nombre)
+              .filter(Boolean)
+              .join(', ')
 
             return (
               <article
@@ -181,7 +363,10 @@ export default function PaginaPuntoDeVenta() {
                     {producto.sku}
                   </span>
                 </div>
-                <h2 className="mt-2 truncate text-[11px] font-semibold text-azul-950" title={producto.nombre}>
+                <h2
+                  className="mt-2 truncate text-[11px] font-semibold text-azul-950"
+                  title={producto.nombre}
+                >
                   {producto.nombre}
                 </h2>
                 <p className="mt-0.5 truncate text-[9px] text-azul-400">
@@ -190,7 +375,7 @@ export default function PaginaPuntoDeVenta() {
                 </p>
                 <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                   <span className="text-xs font-bold text-azul-950">
-                    {formatearPesos(Number(producto.precio_evento))}
+                    {formatearPesos(Number(producto.precio_venta ?? producto.precio_evento ?? 0))}
                   </span>
                   <button
                     type="button"
@@ -208,7 +393,9 @@ export default function PaginaPuntoDeVenta() {
           })}
           {!productosVisibles.length && (
             <p className="col-span-full rounded-xl border border-dashed border-azul-200 bg-blanco px-4 py-10 text-center text-sm text-azul-500">
-              No hay productos en esta categoría.
+              {busquedaProducto.trim()
+                ? 'No se encontraron productos disponibles con esa búsqueda.'
+                : 'No hay productos disponibles con stock en esta categoría.'}
             </p>
           )}
         </div>
@@ -216,7 +403,7 @@ export default function PaginaPuntoDeVenta() {
 
       <aside
         aria-label="Carrito de venta actual"
-        className="flex min-h-[460px] flex-col overflow-hidden rounded-xl border border-azul-150 bg-blanco xl:sticky xl:top-5 xl:h-[calc(100dvh-7rem)]"
+        className="flex min-h-[460px] flex-col rounded-xl border border-azul-150 bg-blanco xl:sticky xl:top-5 xl:max-h-[calc(100dvh-5rem)]"
       >
         <header className="flex items-start justify-between border-b border-azul-100 px-3.5 py-3">
           <div>
@@ -241,9 +428,11 @@ export default function PaginaPuntoDeVenta() {
                   <ImagenProducto producto={producto} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-[10px] font-semibold text-azul-950">{producto.nombre}</h3>
+                  <h3 className="truncate text-[10px] font-semibold text-azul-950">
+                    {producto.nombre}
+                  </h3>
                   <p className="text-[9px] font-medium text-azul-600">
-                    {formatearPesos(Number(producto.precio_evento))}
+                    {formatearPesos(Number(producto.precio_venta ?? producto.precio_evento ?? 0))}
                   </p>
                 </div>
                 <div className="flex flex-none items-center gap-1.5">
@@ -255,7 +444,9 @@ export default function PaginaPuntoDeVenta() {
                   >
                     <MinusIcon size={12} />
                   </button>
-                  <span className="w-3 text-center text-[10px] font-semibold text-azul-950">{cantidad}</span>
+                  <span className="w-3 text-center text-[10px] font-semibold text-azul-950">
+                    {cantidad}
+                  </span>
                   <button
                     type="button"
                     aria-label={`Sumar ${producto.nombre}`}
@@ -287,18 +478,22 @@ export default function PaginaPuntoDeVenta() {
           )}
         </div>
 
-        <section className="border-t border-azul-100 px-3.5 py-3">
+        <section className="overflow-y-auto border-t border-azul-100 px-3.5 py-3">
           <dl className="flex flex-col gap-2 text-[10px]">
             <div className="flex justify-between gap-3 text-azul-500">
-              <dt>Subtotal</dt><dd>{formatearPesos(subtotal)}</dd>
+              <dt>Subtotal</dt>
+              <dd>{formatearPesos(baseGravable)}</dd>
             </div>
             <div className="flex justify-between gap-3 text-azul-500">
-              <dt>IVA (19%)</dt><dd>{formatearPesos(impuesto)}</dd>
+              <dt>{etiquetaImpuesto}</dt>
+              <dd>{formatearPesos(impuesto)}</dd>
             </div>
             <div className="flex items-center justify-between gap-3 text-azul-500">
               <dt className="flex items-center gap-1.5">
                 Descuento
-                <label className="sr-only" htmlFor="porcentaje-descuento">Descuento porcentual</label>
+                <label className="sr-only" htmlFor="porcentaje-descuento">
+                  Descuento porcentual
+                </label>
                 <input
                   id="porcentaje-descuento"
                   aria-label="Descuento porcentual"
@@ -307,28 +502,176 @@ export default function PaginaPuntoDeVenta() {
                   max="100"
                   value={porcentajeDescuento}
                   onChange={(evento) =>
-                    setPorcentajeDescuento(String(Math.min(100, Math.max(0, Number(evento.target.value)))))
+                    setPorcentajeDescuento(
+                      String(Math.min(100, Math.max(0, Number(evento.target.value))))
+                    )
                   }
                   className="h-6 w-10 rounded border border-azul-150 text-center text-[9px] text-azul-700 outline-none focus:border-azul-600"
                 />
                 %
               </dt>
-              <dd>−{formatearPesos(descuento)}</dd>
+              <dd>
+                <span aria-hidden="true">−</span>
+                <span>{formatearPesos(descuento)}</span>
+              </dd>
             </div>
           </dl>
           <div className="mt-3 flex items-center justify-between border-t border-dashed border-azul-200 pt-2.5">
             <span className="text-sm font-bold text-azul-950">Total</span>
             <span className="text-sm font-bold text-azul-950">{formatearPesos(total)}</span>
           </div>
+          <div className="mt-3 grid gap-2">
+            <label className="text-[10px] font-bold text-azul-600">
+              Tipo de pago
+              <select
+                value={tipoPago}
+                onChange={(evento) => setTipoPago(evento.target.value)}
+                className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+              >
+                <option value="contado">Contado</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </label>
+            <label className="text-[10px] font-bold text-azul-600">
+              Estado de entrega
+              <select
+                value={estadoEntrega}
+                onChange={(evento) => setEstadoEntrega(evento.target.value)}
+                className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+              >
+                <option value="pendiente_entrega">Pendiente de entrega</option>
+                <option value="entregada">Entregada</option>
+              </select>
+            </label>
+            {tipoPago === 'contado' ? (
+              <label className="text-[10px] font-bold text-azul-600">
+                Medio de pago
+                <select
+                  value={metodoPago}
+                  onChange={(evento) => setMetodoPago(evento.target.value)}
+                  className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+                >
+                  {metodosPago.map((metodo) => (
+                    <option key={metodo.id} value={metodo.id}>
+                      {metodo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <label className="text-[10px] font-bold text-azul-600">
+              Cliente
+              <select
+                value={clienteId}
+                onChange={(evento) => {
+                  if (evento.target.value === 'nuevo') {
+                    setClienteId('')
+                    setModalClienteAbierto(true)
+                    return
+                  }
+                  setClienteId(evento.target.value)
+                }}
+                className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs"
+              >
+                <option value="">Seleccione...</option>
+                {clientes.map((cliente) => (
+                  <option key={cliente.id} value={cliente.id}>
+                    {cliente.nombre} {cliente.apellido}
+                  </option>
+                ))}
+                <option value="nuevo">+ Nuevo cliente</option>
+              </select>
+            </label>
+            {tipoPago === 'credito' && (
+              <div>
+                <label className="text-[10px] font-bold text-azul-600">
+                  Vencimiento
+                  <input
+                    required
+                    type="date"
+                    min={obtenerFechaMinimaVencimiento()}
+                    value={fechaVencimiento}
+                    aria-invalid={
+                      Boolean(fechaVencimiento) &&
+                      fechaVencimiento < obtenerFechaMinimaVencimiento()
+                    }
+                    onChange={(evento) => {
+                      setFechaVencimiento(evento.target.value)
+                      setAvisoCobro('')
+                    }}
+                    className="mt-1 h-8 w-full rounded-lg border border-azul-200 px-2 text-xs aria-[invalid=true]:border-error-600"
+                  />
+                </label>
+                <p className="mt-1 text-[9px] font-normal text-azul-500">
+                  Selecciona mañana o una fecha posterior.
+                </p>
+              </div>
+            )}
+          </div>
+          {modalClienteAbierto && (
+            <ModalNuevoCliente
+              alCerrar={() => setModalClienteAbierto(false)}
+              alGuardar={crearCliente}
+              clientesExistentes={clientes.map((cliente) => ({
+                tipo: cliente.tipo_documento === 'nit' ? 'establecimiento' : 'persona',
+                tipoDocumento: cliente.tipo_documento,
+                documento: cliente.numero_documento,
+              }))}
+            />
+          )}
           <button
             type="button"
-            disabled={!carrito.length}
+            disabled={!carrito.length || guardando}
             onClick={cobrar}
             className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-azul-950 px-3 text-[10px] font-bold text-blanco hover:bg-azul-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-azul-600 disabled:cursor-not-allowed disabled:bg-azul-300"
           >
-            <PrinterIcon size={14} /> Cobrar e imprimir
+            <CheckCircleIcon size={14} weight="bold" />{' '}
+            {guardando ? 'Registrando...' : 'Finalizar Venta'}
           </button>
-          {avisoCobro && <p role="status" className="mt-2 text-center text-[9px] text-azul-500">{avisoCobro}</p>}
+          {avisoCobro && (
+            <div
+              role="status"
+              className={`mt-2 flex items-center gap-1.5 rounded-lg p-2 text-[10px] font-semibold ${
+                tipoAviso === 'exito'
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}
+            >
+              {tipoAviso === 'exito' ? (
+                <CheckCircleIcon size={14} weight="fill" className="flex-none text-green-500" />
+              ) : (
+                <WarningCircleIcon size={14} weight="fill" className="flex-none text-red-500" />
+              )}
+              {avisoCobro}
+            </div>
+          )}
+          {ventaParaImprimir && (
+            <div className="mt-3 rounded-lg border border-exito-200 bg-exito-50 p-3">
+              <p className="text-[11px] font-semibold text-exito-800">
+                Venta {ventaParaImprimir.numero_venta} registrada correctamente.
+              </p>
+              <p className="mt-1 text-[10px] text-exito-700">
+                ¿Deseas imprimir o guardar el comprobante en PDF?
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVentaParaImprimir(null)}
+                  className="h-8 rounded-lg border border-exito-300 bg-blanco px-3 text-[10px] font-semibold text-exito-800 hover:bg-exito-100"
+                >
+                  Ahora no
+                </button>
+                <button
+                  type="button"
+                  onClick={imprimirVenta}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-exito-700 px-3 text-[10px] font-semibold text-blanco hover:bg-exito-800"
+                >
+                  <PrinterIcon size={14} />
+                  Imprimir / Guardar PDF
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       </aside>
     </div>

@@ -42,6 +42,5 @@ class FabricaDeProducto(factory.django.DjangoModelFactory):
     sku = factory.Sequence(lambda n: f"CER-{n:04d}")
     nombre = factory.Sequence(lambda n: f"Cerveza {n}")
     costo = Decimal("2000.00")
-    precio_evento = Decimal("5000.00")
-    precio_mayorista = Decimal("3500.00")
+    precio_venta = Decimal("5000.00")
     activo = True

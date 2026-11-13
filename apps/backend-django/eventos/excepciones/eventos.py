@@ -56,26 +56,6 @@ class CuentaYaLiberada(ErrorDeNegocio):
     status_http = 409
 
 
-class PulseraYaAsignada(ErrorDeNegocio):
-    """Esa pulsera la lleva puesta otra persona ahora mismo.
-
-    Lo garantiza la restricción `pulsera_con_una_sola_asignacion_activa`; esto
-    solo lo traduce a un mensaje que se entiende.
-    """
-
-    mensaje = "Esa pulsera ya está asignada a una cuenta abierta."
-    codigo = "pulsera_ya_asignada"
-    status_http = 409
-
-
-class PulseraNoDisponible(ErrorDeNegocio):
-    """El chip está dañado, perdido o retirado: no se le puede poner a nadie."""
-
-    mensaje = "Esa pulsera no está disponible."
-    codigo = "pulsera_no_disponible"
-    status_http = 409
-
-
 class PagoNoCubreElConsumo(ErrorDeNegocio):
     """Una cuenta del bar se salda con un solo pago que cubre el total.
 
@@ -119,15 +99,3 @@ class PedidoSinLineas(ErrorDeNegocio):
     mensaje = "La comanda no tiene productos."
     codigo = "pedido_sin_lineas"
     status_http = 400
-
-
-class UidDuplicado(ErrorDeNegocio):
-    """Ya hay una pulsera con ese UID en el negocio.
-
-    El UID viene de fábrica y no se repite entre chips, así que si choca es que
-    esa pulsera ya se dio de alta.
-    """
-
-    mensaje = "Ya hay una pulsera con ese UID en este negocio."
-    codigo = "uid_duplicado"
-    status_http = 409

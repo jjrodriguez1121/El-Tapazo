@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 
 import PanelDeMarca from '@/componentes/estructura/PanelDeMarca'
 import TintaDeFondo from '@/componentes/estructura/TintaDeFondo'
+import logoTapazo from '@/recursos/imagenes/logo-tapazo.png'
 
 /**
  * El armazón de las pantallas de identidad.
@@ -23,8 +24,13 @@ export default function PlantillaAcceso() {
         {/* Se centra con `my-auto` y no con `justify-center`: en una caja con scroll,
             justify-center deja fuera de alcance lo que sobresale por arriba cuando
             el formulario es más alto que el marco (el de la invitación lo es). */}
-        <main className="relative z-10 flex min-w-0 flex-1 flex-col items-center overflow-y-auto px-6.5 pt-7 pb-10 lg:px-14 lg:py-12">
+        <main className="relative z-10 order-1 flex min-w-0 flex-1 flex-col items-center overflow-y-auto px-6.5 pt-7 pb-10 lg:order-1 lg:px-14 lg:py-12">
           <div className="flex w-full max-w-100 flex-col gap-6.5 lg:my-auto">
+            <img
+              src={logoTapazo}
+              alt="Logo de El Tapazo"
+              className="mb-1 w-32 self-center lg:hidden"
+            />
             <Outlet />
           </div>
         </main>

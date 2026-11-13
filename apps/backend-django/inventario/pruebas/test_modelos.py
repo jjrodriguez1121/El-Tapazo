@@ -20,13 +20,20 @@ def test_la_cantidad_minima_no_puede_ser_negativa():
         FabricaDeExistencia(cantidad_minima=Decimal("-1.00"))
 
 
-def test_con_la_minima_en_cero_nunca_esta_bajo_minimo():
-    """Cero significa «sin alerta», no «alerta siempre». Es el valor por defecto."""
+def test_con_la_minima_en_cero_y_existencias_positivas_no_hay_alerta():
+    existencia = FabricaDeExistencia(
+        cantidad_disponible=Decimal("5.00"), cantidad_minima=Decimal("0.00")
+    )
+
+    assert existencia.esta_bajo_minimo is False
+
+
+def test_una_existencia_agotada_esta_en_alerta_aunque_no_tenga_minimo():
     existencia = FabricaDeExistencia(
         cantidad_disponible=Decimal("0.00"), cantidad_minima=Decimal("0.00")
     )
 
-    assert existencia.esta_bajo_minimo is False
+    assert existencia.esta_bajo_minimo is True
 
 
 def test_esta_bajo_minimo_cuando_el_saldo_baja_del_punto_de_reposicion():

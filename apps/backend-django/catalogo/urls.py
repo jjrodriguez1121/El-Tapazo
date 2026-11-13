@@ -13,6 +13,7 @@ app_name = "catalogo"
 
 router = SimpleRouter()
 router.register("categorias", vistas.CategoriaViewSet, basename="categoria")
+router.register("impuestos", vistas.ImpuestoViewSet, basename="impuesto")
 router.register("proveedores", vistas.ProveedorViewSet, basename="proveedor")
 router.register("productos", vistas.ProductoViewSet, basename="producto")
 

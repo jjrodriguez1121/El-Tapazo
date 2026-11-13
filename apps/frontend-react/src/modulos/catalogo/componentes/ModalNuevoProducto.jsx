@@ -43,6 +43,13 @@ function EncabezadoSeccion({ Icono, children }) {
   )
 }
 
+function calcularPrecioConMargen(datosProducto, margen) {
+  const costo = Number(datosProducto?.costo ?? 0)
+  const porcentajeIva = Number(datosProducto?.impuesto?.porcentaje ?? 0)
+  const precioAntesDeIva = costo * (1 + margen / 100)
+  return Math.round(precioAntesDeIva * (1 + porcentajeIva / 100) * 100) / 100
+}
+
 export default function ModalNuevoProducto({
   categorias,
   alCerrar,
@@ -62,16 +69,19 @@ export default function ModalNuevoProducto({
         ? String(categorias[0].id)
         : '',
     unidad: productoParaEditar?.unidad ?? 'Unidad',
-    precioVenta: productoParaEditar?.precio_evento != null
-      ? String(productoParaEditar.precio_evento)
+    precioVenta: productoParaEditar?.precio_venta != null
+      ? String(productoParaEditar.precio_venta)
       : '',
+    margenGanancia: productoParaEditar?.margen_ganancia != null
+      ? String(productoParaEditar.margen_ganancia)
+      : '30',
+    precioAutomatico: productoParaEditar?.precio_venta_automatico ?? true,
     stockActual: existencias.length
       ? String(existencias.reduce((total, existencia) => total + Number(existencia.cantidad_disponible), 0))
       : '',
     stockMinimo: existencias.length
       ? String(existencias.reduce((total, existencia) => total + Number(existencia.cantidad_minima ?? 0), 0))
       : '',
-    ubicacion: existencias.map((existencia) => existencia.ubicacion.nombre).join(', '),
   })
   const [imagen, setImagen] = useState(
     productoParaEditar?.imagen
@@ -103,16 +113,16 @@ export default function ModalNuevoProducto({
     setErrores((actuales) => ({ ...actuales, imagen: '' }))
   }
 
-  function enviar(evento) {
+  async function enviar(evento) {
     evento.preventDefault()
     const nuevosErrores = {
       nombre: validarObligatorio(datos.nombre, 'Escribe el nombre del producto.'),
       sku: validarSku(datos.sku),
       categoriaId: validarObligatorio(datos.categoriaId, 'Selecciona una categoría.'),
       precioVenta: validarNumeroNoNegativo(datos.precioVenta, 'El precio de venta'),
+      margenGanancia: validarNumeroNoNegativo(datos.margenGanancia, 'El margen de ganancia'),
       stockActual: validarNumeroNoNegativo(datos.stockActual, 'El stock actual', { entero: true }),
       stockMinimo: validarNumeroNoNegativo(datos.stockMinimo, 'El stock mínimo', { entero: true }),
-      ubicacion: validarObligatorio(datos.ubicacion, 'Escribe la ubicación del producto.'),
     }
 
     const categoria = categorias.find((opcion) => String(opcion.id) === datos.categoriaId)
@@ -135,15 +145,16 @@ export default function ModalNuevoProducto({
       return
     }
 
-    alCrear({
+    await alCrear({
       nombre: datos.nombre.trim(),
       sku: datos.sku.trim(),
       categoria,
       unidad: datos.unidad,
       precioVenta: Number(datos.precioVenta),
+      margenGanancia: Number(datos.margenGanancia),
+      precioAutomatico: datos.precioAutomatico,
       stockActual: Number(datos.stockActual),
       stockMinimo: Number(datos.stockMinimo),
-      ubicacion: datos.ubicacion.trim(),
       imagen: imagen?.vistaPrevia ?? '',
     })
     alCerrar()
@@ -169,7 +180,7 @@ export default function ModalNuevoProducto({
               {estaEditando ? 'Editar producto' : 'Nuevo producto'}
             </h2>
             <p className="mt-1 text-xs font-medium text-azul-500">
-              Completa la información del repuesto.
+              Completa la información del producto.
             </p>
           </div>
           <button
@@ -188,7 +199,7 @@ export default function ModalNuevoProducto({
             <div className="grid gap-x-3 gap-y-3 sm:grid-cols-[2fr_1fr]">
               <CampoFormulario
                 id={`${id}-nombre`}
-                etiqueta="Nombre del repuesto"
+                etiqueta="Nombre del producto"
                 name="nombre"
                 required
                 autoComplete="off"
@@ -266,6 +277,30 @@ export default function ModalNuevoProducto({
                 value={datos.precioVenta}
                 onChange={(evento) => cambiar('precioVenta', evento.target.value)}
                 error={errores.precioVenta}
+                disabled={datos.precioAutomatico}
+              />
+              <CampoFormulario
+                id={`${id}-margen`}
+                etiqueta="Ganancia sobre costo (%)"
+                name="margenGanancia"
+                type="number"
+                required
+                min="0"
+                step="0.01"
+                aria-describedby={`${id}-margen-ayuda`}
+                value={datos.margenGanancia}
+                onChange={(evento) => {
+                  const margen = Number(evento.target.value)
+                  setDatos((actuales) => ({
+                    ...actuales,
+                    margenGanancia: evento.target.value,
+                    ...(actuales.precioAutomatico && {
+                      precioVenta: String(calcularPrecioConMargen(productoParaEditar, margen)),
+                    }),
+                  }))
+                  setErrores((actuales) => ({ ...actuales, margenGanancia: '' }))
+                }}
+                error={errores.margenGanancia}
               />
               <CampoFormulario
                 id={`${id}-stock`}
@@ -291,18 +326,30 @@ export default function ModalNuevoProducto({
                 onChange={(evento) => cambiar('stockMinimo', evento.target.value)}
                 error={errores.stockMinimo}
               />
-              <CampoFormulario
-                id={`${id}-ubicacion`}
-                etiqueta="Ubicación"
-                name="ubicacion"
-                maxLength={100}
-                required
-                placeholder="Ej. Bodega A-12"
-                value={datos.ubicacion}
-                onChange={(evento) => cambiar('ubicacion', evento.target.value)}
-                error={errores.ubicacion}
-              />
             </div>
+            <p id={`${id}-margen-ayuda`} className="mt-2 text-[11px] text-azul-500">
+              La ganancia se calcula sobre el costo y luego se agrega el IVA al precio de venta.
+            </p>
+            <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-azul-700">
+              <input
+                type="checkbox"
+                checked={datos.precioAutomatico}
+                onChange={(evento) => {
+                  const precioAutomatico = evento.target.checked
+                  setDatos((actuales) => ({
+                    ...actuales,
+                    precioAutomatico,
+                    ...(precioAutomatico && {
+                      precioVenta: String(
+                        calcularPrecioConMargen(productoParaEditar, Number(actuales.margenGanancia))
+                      ),
+                    }),
+                  }))
+                }}
+                className="h-4 w-4 rounded border-azul-300"
+              />
+              Calcular el precio automáticamente con el margen y el costo promedio
+            </label>
           </section>
 
           <section className="rounded-xl border border-azul-150 bg-blanco p-4 sm:p-5">

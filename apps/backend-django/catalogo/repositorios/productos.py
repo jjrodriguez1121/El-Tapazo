@@ -46,8 +46,10 @@ def crear(
     nombre: str,
     categoria_id: int,
     costo: Decimal,
-    precio_evento: Decimal,
-    precio_mayorista: Decimal,
+    precio_venta: Decimal,
+    imagen: str,
+    margen_ganancia: Decimal = Decimal("30.00"),
+    precio_venta_automatico: bool = True,
 ) -> Producto:
     return Producto.objects.create(
         negocio_id=negocio_id,
@@ -55,6 +57,8 @@ def crear(
         nombre=nombre,
         categoria_id=categoria_id,
         costo=costo,
-        precio_evento=precio_evento,
-        precio_mayorista=precio_mayorista,
+        precio_venta=precio_venta,
+        imagen=imagen,
+        margen_ganancia=margen_ganancia,
+        precio_venta_automatico=precio_venta_automatico,
     )

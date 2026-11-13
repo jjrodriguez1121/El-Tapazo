@@ -1,4 +1,4 @@
-"""Alta, cambio y baja de fichas de cliente."""
+"""Alta, cambios y activación de fichas de cliente."""
 
 from clientes.dtos import DatosDeClienteDTO
 from clientes.excepciones import DocumentoDuplicado
@@ -68,6 +68,14 @@ def desactivar_cliente(*, cliente_id: int, negocio_id: int) -> Cliente:
     return cliente
 
 
+def activar_cliente(*, cliente_id: int, negocio_id: int) -> Cliente:
+    """Restaura una ficha desactivada, conservando su historial."""
+    cliente = obtener_cliente(cliente_id=cliente_id, negocio_id=negocio_id)
+    cliente.activo = True
+    cliente.save(update_fields=["activo", "actualizado_en"])
+    return cliente
+
+
 def _limpiar(datos: DatosDeClienteDTO) -> dict:
     return {
         "tipo_documento": datos.tipo_documento,
@@ -77,5 +85,6 @@ def _limpiar(datos: DatosDeClienteDTO) -> dict:
         "fecha_nacimiento": datos.fecha_nacimiento,
         "telefono": datos.telefono.strip(),
         "correo": datos.correo.strip(),
+        "ciudad": datos.ciudad.strip(),
         "notas": datos.notas.strip(),
     }

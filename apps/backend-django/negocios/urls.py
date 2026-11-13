@@ -20,5 +20,6 @@ router.register("", vistas.NegocioViewSet, basename="negocio")
 urlpatterns = [
     path("mio/", vistas.MiNegocioView.as_view(), name="mi-negocio"),
     path("informes/ventas/", vistas.ResumenDeVentasView.as_view(), name="resumen-de-ventas"),
+    path("informes/dashboard/", vistas.ResumenDashboardView.as_view(), name="resumen-dashboard"),
     path("", include(router.urls)),
 ]

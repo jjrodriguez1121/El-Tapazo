@@ -1,7 +1,7 @@
 """Alta, cambio de precio y baja de productos."""
 
 import logging
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 
@@ -10,9 +10,37 @@ from catalogo.excepciones import SkuDuplicado
 from catalogo.models import Producto
 from catalogo.repositorios import productos as repositorio
 from catalogo.selectores import obtener_categoria, obtener_producto
+from inventario.models import Existencia
 from catalogo.validadores import normalizar_sku, validar_formato_sku
 
 logger = logging.getLogger(__name__)
+
+
+def calcular_precio_venta(
+    *, costo: Decimal, margen: Decimal, porcentaje_iva: Decimal = Decimal("0")
+) -> Decimal:
+    """Aplica la ganancia sobre el costo y agrega el IVA al precio resultante."""
+    precio_sin_iva = costo * (Decimal("1") + margen / Decimal("100"))
+    return (precio_sin_iva * (Decimal("1") + porcentaje_iva / Decimal("100"))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+
+def recalcular_precio_venta(producto: Producto) -> Producto:
+    """Calcula el precio final con IVA incluido desde el costo promedio y el margen."""
+    if not producto.precio_venta_automatico:
+        return producto
+
+    costo = Decimal(producto.costo or 0)
+    margen = Decimal(producto.margen_ganancia or 0)
+    porcentaje_iva = Decimal(producto.impuesto.porcentaje) if producto.impuesto_id else Decimal("0")
+    producto.precio_venta = calcular_precio_venta(
+        costo=costo,
+        margen=margen,
+        porcentaje_iva=porcentaje_iva,
+    )
+    producto.save(update_fields=["precio_venta", "actualizado_en"])
+    return producto
 
 
 @transaction.atomic
@@ -32,15 +60,24 @@ def crear_producto(*, negocio_id: int, datos: DatosDeProductoDTO) -> Producto:
         raise SkuDuplicado(sku=sku)
 
     categoria = obtener_categoria(categoria_id=datos.categoria_id, negocio_id=negocio_id)
-    return repositorio.crear(
+    producto = repositorio.crear(
         negocio_id=negocio_id,
         sku=sku,
         nombre=datos.nombre.strip(),
         categoria_id=categoria.id,
         costo=datos.costo,
-        precio_evento=datos.precio_evento,
-        precio_mayorista=datos.precio_mayorista,
+        precio_venta=datos.precio_venta,
+        imagen=datos.imagen,
+        margen_ganancia=datos.margen_ganancia,
+        precio_venta_automatico=datos.precio_venta_automatico,
     )
+    Existencia.objects.create(
+        negocio_id=negocio_id,
+        producto=producto,
+        cantidad_disponible=datos.cantidad_disponible,
+        cantidad_minima=datos.cantidad_minima,
+    )
+    return producto
 
 
 @transaction.atomic
@@ -63,19 +100,29 @@ def actualizar_producto(
     producto.nombre = datos.nombre.strip()
     producto.categoria = categoria
     producto.costo = datos.costo
-    producto.precio_evento = datos.precio_evento
-    producto.precio_mayorista = datos.precio_mayorista
+    producto.precio_venta = datos.precio_venta
+    producto.margen_ganancia = datos.margen_ganancia
+    producto.precio_venta_automatico = datos.precio_venta_automatico
+    producto.imagen = datos.imagen
     producto.save(
         update_fields=[
             "sku",
             "nombre",
             "categoria",
             "costo",
-            "precio_evento",
-            "precio_mayorista",
+            "precio_venta",
+            "margen_ganancia",
+            "precio_venta_automatico",
+            "imagen",
             "actualizado_en",
         ]
     )
+    existencia = getattr(producto, "existencias", None)
+    if existencia is not None and datos.cantidad_minima != existencia.cantidad_minima:
+        existencia.cantidad_minima = datos.cantidad_minima
+        existencia.save(update_fields=["cantidad_minima", "actualizado_en"])
+    if datos.precio_venta_automatico:
+        recalcular_precio_venta(producto)
     return producto
 
 
@@ -84,8 +131,7 @@ def cambiar_precio(
     producto_id: int,
     negocio_id: int,
     usuario_id: int,
-    precio_evento: Decimal | None = None,
-    precio_mayorista: Decimal | None = None,
+    precio_venta: Decimal | None = None,
 ) -> Producto:
     """Cambia uno de los dos precios de venta, o los dos, dejando rastro de quién.
 
@@ -105,10 +151,8 @@ def cambiar_precio(
     """
     producto = obtener_producto(producto_id=producto_id, negocio_id=negocio_id)
     cambios: dict[str, Decimal] = {}
-    if precio_evento is not None:
-        cambios["precio_evento"] = precio_evento
-    if precio_mayorista is not None:
-        cambios["precio_mayorista"] = precio_mayorista
+    if precio_venta is not None:
+        cambios["precio_venta"] = precio_venta
     if not cambios:
         return producto
 

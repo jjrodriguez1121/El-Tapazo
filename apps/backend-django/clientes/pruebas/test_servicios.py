@@ -107,6 +107,15 @@ def test_desactivar_una_ficha_no_la_borra(negocio):
     assert cliente.activo is False
 
 
+def test_activar_una_ficha_desactivada(negocio):
+    cliente = FabricaDeCliente(negocio=negocio, activo=False)
+
+    servicio.activar_cliente(cliente_id=cliente.id, negocio_id=negocio.id)
+
+    cliente.refresh_from_db()
+    assert cliente.activo is True
+
+
 def test_no_se_puede_tocar_la_ficha_de_otro_negocio(negocio):
     ajena = FabricaDeCliente()
 

@@ -10,6 +10,7 @@ from django.urls import reverse
 
 from clientes.models import Cliente
 from clientes.pruebas.fabricas import FabricaDeCliente
+from ventas.models import CuentaPorCobrar, Venta
 
 pytestmark = pytest.mark.django_db
 
@@ -53,6 +54,18 @@ def test_un_mesero_no_puede_desactivar_una_ficha(cliente_api_autenticado, mesero
     assert ficha.activo is True
 
 
+def test_un_mesero_no_puede_reactivar_una_ficha(cliente_api_autenticado, mesero, negocio):
+    ficha = FabricaDeCliente(negocio=negocio, activo=False)
+
+    respuesta = cliente_api_autenticado(mesero).post(
+        reverse("clientes:cliente-activacion", args=[ficha.id])
+    )
+
+    assert respuesta.status_code == 403
+    ficha.refresh_from_db()
+    assert ficha.activo is False
+
+
 def test_un_administrador_si_puede_desactivarla(cliente_api_autenticado, administrador, negocio):
     ficha = FabricaDeCliente(negocio=negocio)
 
@@ -62,6 +75,31 @@ def test_un_administrador_si_puede_desactivarla(cliente_api_autenticado, adminis
 
     assert respuesta.status_code == 200
     assert respuesta.data["activo"] is False
+
+
+def test_un_administrador_puede_reactivar_una_ficha(cliente_api_autenticado, administrador, negocio):
+    ficha = FabricaDeCliente(negocio=negocio, activo=False)
+
+    respuesta = cliente_api_autenticado(administrador).post(
+        reverse("clientes:cliente-activacion", args=[ficha.id])
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.data["activo"] is True
+    ficha.refresh_from_db()
+    assert ficha.activo is True
+
+
+def test_el_endpoint_no_permite_borrar_clientes(cliente_api_autenticado, administrador, negocio):
+    ficha = FabricaDeCliente(negocio=negocio)
+
+    respuesta = cliente_api_autenticado(administrador).delete(
+        reverse("clientes:cliente-detail", args=[ficha.id])
+    )
+
+    assert respuesta.status_code == 405
+    ficha.refresh_from_db()
+    assert ficha.activo is True
 
 
 # --------------------------------------------------------------------------- #
@@ -74,6 +112,34 @@ def test_el_listado_solo_trae_las_fichas_del_negocio(cliente_api_autenticado, ca
     respuesta = cliente_api_autenticado(cajero).get(URL_CLIENTES)
 
     assert respuesta.data["count"] == 2
+
+
+def test_el_listado_muestra_el_saldo_pendiente_del_cliente(
+    cliente_api_autenticado, cajero, negocio
+):
+    ficha = FabricaDeCliente(negocio=negocio)
+    venta = Venta.objects.create(
+        negocio=negocio,
+        cliente=ficha,
+        vendedor=cajero,
+        tipo_pago=Venta.TipoPago.CREDITO,
+        estado=Venta.Estado.PENDIENTE,
+        total="50000.00",
+    )
+    CuentaPorCobrar.objects.create(
+        negocio=negocio,
+        venta=venta,
+        fecha_vencimiento="2026-12-31",
+        total="50000.00",
+        saldo="27500.00",
+        estado=CuentaPorCobrar.Estado.PARCIAL,
+    )
+
+    respuesta = cliente_api_autenticado(cajero).get(URL_CLIENTES)
+
+    assert respuesta.status_code == 200
+    assert respuesta.data["results"][0]["id"] == ficha.id
+    assert respuesta.data["results"][0]["saldo_pendiente"] == "27500.00"
 
 
 def test_pedir_la_ficha_de_otro_negocio_devuelve_404(cliente_api_autenticado, cajero):
@@ -127,6 +193,19 @@ def test_buscar_por_documento_devuelve_la_ficha(cliente_api_autenticado, cajero,
 
     assert respuesta.status_code == 200
     assert respuesta.data["id"] == ficha.id
+
+
+def test_buscar_por_documento_no_devuelve_una_ficha_inactiva(
+    cliente_api_autenticado, cajero, negocio
+):
+    FabricaDeCliente(negocio=negocio, numero_documento="1020304050", activo=False)
+
+    respuesta = cliente_api_autenticado(cajero).get(
+        URL_POR_DOCUMENTO,
+        {"tipo_documento": Cliente.TipoDocumento.CEDULA, "numero_documento": "1020304050"},
+    )
+
+    assert respuesta.status_code == 404
 
 
 def test_buscar_un_documento_que_no_existe_devuelve_404(cliente_api_autenticado, cajero):

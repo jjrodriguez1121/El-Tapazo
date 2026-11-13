@@ -39,6 +39,7 @@ test('muestra la ficha del producto de ejemplo con proveedor y movimientos', () 
   expect(screen.getByText('Stock disponible')).toBeInTheDocument()
   expect(screen.getByText('Bavaria S.A.')).toBeInTheDocument()
   expect(screen.getByText('Entrada por compra')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Agregar a venta' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: /Volver a productos/ })).toHaveAttribute(
     'href',
     '/productos'
@@ -63,11 +64,11 @@ test('abre el mismo formulario precargado y actualiza la ficha localmente', asyn
 
   await usuario.click(screen.getByRole('button', { name: 'Editar producto' }))
   expect(screen.getByRole('heading', { name: 'Editar producto' })).toBeInTheDocument()
-  expect(screen.getByRole('textbox', { name: 'Nombre del repuesto' })).toHaveValue('Águila')
+  expect(screen.getByRole('textbox', { name: 'Nombre del producto' })).toHaveValue('Águila')
   expect(screen.getByRole('textbox', { name: 'Código / SKU' })).toHaveValue('CER-001')
 
-  await usuario.clear(screen.getByRole('textbox', { name: 'Nombre del repuesto' }))
-  await usuario.type(screen.getByRole('textbox', { name: 'Nombre del repuesto' }), 'Águila Especial')
+  await usuario.clear(screen.getByRole('textbox', { name: 'Nombre del producto' }))
+  await usuario.type(screen.getByRole('textbox', { name: 'Nombre del producto' }), 'Águila Especial')
   await usuario.clear(screen.getByRole('spinbutton', { name: 'Precio de venta' }))
   await usuario.type(screen.getByRole('spinbutton', { name: 'Precio de venta' }), '7200')
   await usuario.click(screen.getByRole('button', { name: 'Guardar cambios' }))

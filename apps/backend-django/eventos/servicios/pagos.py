@@ -42,10 +42,9 @@ def registrar_pago_de_cuenta(
     """Cobra la cuenta de una persona y la libera.
 
     **Bloquea la cuenta antes de cobrar.** Dos cajeros cobrando la misma
-    pulsera a la vez generarían dos `PagoEvento` y la caja del día cuadraría de
-    más, y la restricción `pulsera_con_una_sola_asignacion_activa` **no lo
-    impide**: impide dos asignaciones activas, no dos cierres. Por eso se
-    bloquea y se vuelve a comprobar `liberada_en` **después** del bloqueo.
+    cuenta a la vez generarían dos `PagoEvento` y la caja del día cuadraría de
+    más. Por eso se bloquea y se vuelve a comprobar `liberada_en` **después**
+    del bloqueo.
 
     Raises:
         NoEncontradoEnEsteNegocio, CuentaYaLiberada, PagoNoCubreElConsumo.

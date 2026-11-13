@@ -1,20 +1,17 @@
 """Evento / bar: el canal de venta directa.
 
 La cadena es: `evento` → `grupo_evento` (la mesa) → `cliente_evento` (la
-persona con su pulsera) → `pedido_evento` → `detalle_pedido_evento`.
+persona) → `pedido_evento` → `detalle_pedido_evento`.
 
 - `eventos` — una jornada de venta: la fiesta del sábado, o el día de hoy en
   una licorería que abre a diario. Es lo que se abre al empezar y se cierra al
   cuadrar la caja.
-- `pulseras_nfc` — el inventario de chips físicos y su condición. Nada más.
 - `grupos_evento` — la mesa, la mancha, el combo: varias cuentas que llegaron
   juntas.
-- `clientes_evento` — la cuenta de una persona durante un evento, con pulsera
-  o sin ella.
+- `clientes_evento` — la cuenta de una persona durante un evento.
 - `pedidos_evento` — una comanda. Sin cuenta asociada es venta de mostrador.
 - `detalle_pedido_evento` — los productos de esa comanda, con el precio
   congelado al momento de la venta.
-- `alertas_consumo` — cuándo una cuenta cruzó su umbral, y qué se hizo.
 - `pagos_evento` — el dinero recibido, y contra qué se recibió.
 """
 
@@ -51,15 +48,6 @@ class Evento(ModeloDelNegocio):
         CERRADO = "cerrado", "Cerrado"
         CANCELADO = "cancelado", "Cancelado"
 
-    ubicacion = models.ForeignKey(
-        "inventario.Ubicacion",
-        on_delete=models.PROTECT,
-        related_name="eventos",
-        verbose_name="ubicación",
-        null=True,
-        blank=True,
-        help_text="Dónde se monta la barra. Puede definirse después de planear el evento.",
-    )
     nombre = models.CharField("nombre", max_length=150)
     tipo_espacio = models.CharField(
         "tipo de espacio",
@@ -110,12 +98,6 @@ class Evento(ModeloDelNegocio):
             # cuerpo de `Meta` no ve las clases anidadas de `Evento`. Si algún
             # día cambia el valor del enum, la prueba de esta restricción es la
             # que avisa.
-            models.UniqueConstraint(
-                fields=["ubicacion"],
-                condition=models.Q(estado="en_curso", ubicacion__isnull=False),
-                name="evento_una_sola_jornada_en_curso_por_ubicacion",
-                violation_error_message="Esa ubicación ya tiene una jornada abierta.",
-            ),
         ]
         indexes = [
             # "Los eventos de este negocio, del más reciente al más viejo" es
@@ -132,135 +114,11 @@ class Evento(ModeloDelNegocio):
         return self.estado == self.Estado.EN_CURSO
 
 
-class PulseraNfc(ModeloDelNegocio):
-    """Un chip físico del negocio, identificado por el UID que trae de fábrica.
-
-    **La pulsera no es la identidad: apunta a ella.** En el chip no se escribe
-    nada — ni el nombre, ni el documento, ni el saldo. Lo único que aporta es
-    su número de serie, y ese número lleva a la cuenta abierta, que lleva al
-    cliente. Por eso una pulsera perdida no filtra los datos de nadie: quien la
-    encuentre tiene un número, no una cédula.
-
-    `estado` es **solo la condición física** del chip. A quién se le asignó no
-    se guarda aquí sino en `clientes_evento`, que es una fila nueva cada vez
-    que la pulsera se le pone a alguien. Guardarlo aquí perdería el historial.
-    """
-
-    class Estado(models.TextChoices):
-        DISPONIBLE = "disponible", "Disponible"
-        DANADA = "dañada", "Dañada"
-        PERDIDA = "perdida", "Perdida"
-        RETIRADA = "retirada", "Retirada"
-
-    # Se redeclara el campo heredado solo para que la relación inversa se lea
-    # `negocio.pulseras_nfc` y no `negocio.pulseranfcs`.
-    negocio = models.ForeignKey(
-        "negocios.Negocio",
-        on_delete=models.PROTECT,
-        related_name="pulseras_nfc",
-        verbose_name="negocio",
-    )
-
-    uid_tag = models.CharField(
-        "UID del chip",
-        max_length=60,
-        help_text="Número de serie que el chip trae de fábrica. No se escribe: se lee.",
-    )
-    estado = models.CharField(
-        "estado",
-        max_length=20,
-        choices=Estado.choices,
-        default=Estado.DISPONIBLE,
-        help_text="Solo la condición física del chip, no a quién se le prestó.",
-    )
-
-    class Meta:
-        db_table = "pulseras_nfc"
-        ordering = ["uid_tag"]
-        verbose_name = "pulsera NFC"
-        verbose_name_plural = "pulseras NFC"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["negocio", "uid_tag"],
-                name="pulsera_uid_unico_por_negocio",
-                violation_error_message="Ese chip ya está registrado en este negocio.",
-            ),
-        ]
-
-    def __str__(self) -> str:
-        return self.uid_tag
-
-    @property
-    def se_puede_asignar(self) -> bool:
-        """El chip está sano y en poder del negocio."""
-        return self.estado == self.Estado.DISPONIBLE
-
-
-class DispositivoNfc(ModeloDelNegocio):
-    """Un lector de la puerta: el aparato que consulta si una cuenta está saldada.
-
-    Existe para que el punto de control **no lleve la sesión de una persona**.
-    Un aparato colgado en la puerta de un bar lo desarma cualquiera, y lo que
-    se saque de ahí no puede ser la sesión de un cajero: si alguien abre la
-    caja y se lleva el token, se revoca ese y ya.
-
-    Se guarda **solo el hash del token**, igual que en `invitaciones`: quien
-    lea la base de datos no puede autenticarse con lo que encuentre. El token
-    en claro se enseña una sola vez, al darlo de alta.
-    """
-
-    # Se redeclara el campo heredado solo para que la relación inversa se lea
-    # `negocio.dispositivos_nfc` y no `negocio.dispositivonfcs`.
-    negocio = models.ForeignKey(
-        "negocios.Negocio",
-        on_delete=models.PROTECT,
-        related_name="dispositivos_nfc",
-        verbose_name="negocio",
-    )
-
-    nombre = models.CharField(
-        "nombre",
-        max_length=100,
-        help_text="Dónde está puesto: «Puerta principal», «Salida de la terraza».",
-    )
-    hash_token = models.CharField("hash del token", max_length=64)
-    activo = models.BooleanField(
-        "activo",
-        default=True,
-        help_text="Desactivar revoca el token sin perder de qué aparato era.",
-    )
-    ultimo_uso_en = models.DateTimeField(
-        "último uso",
-        null=True,
-        blank=True,
-        help_text="Vacío mientras no haya consultado nunca. Sirve para ver si sigue vivo.",
-    )
-
-    class Meta:
-        db_table = "dispositivos_nfc"
-        ordering = ["nombre"]
-        verbose_name = "dispositivo NFC"
-        verbose_name_plural = "dispositivos NFC"
-        constraints = [
-            # Único global y no por negocio, por el mismo motivo que
-            # `usuarios.correo`: cuando llega la petición del lector todavía no
-            # se sabe de qué negocio es — precisamente se averigua por el token.
-            models.UniqueConstraint(
-                fields=["hash_token"],
-                name="dispositivo_nfc_token_unico",
-                violation_error_message="Ese token ya está en uso.",
-            ),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.nombre} ({self.negocio})"
-
-
 class GrupoEvento(ModeloDelNegocio):
     """La mesa, la mancha, el combo: las cuentas que llegaron juntas.
 
     Cuando entran quince personas y quieren una sola cuenta compartida, sus
-    pulseras quedan todas bajo el mismo grupo. El grupo no acumula el consumo
+    cuentas quedan bajo el mismo grupo. El grupo no acumula el consumo
     —eso lo hace cada `ClienteEvento`—; lo que aporta es el "juntas": permite
     cobrarle a todo el grupo de una vez, o persona por persona, sin cambiar el
     modelo.
@@ -340,21 +198,7 @@ class GrupoEvento(ModeloDelNegocio):
 
 
 class ClienteEvento(ModeloDelNegocio):
-    """La cuenta de una persona durante un evento.
-
-    Es la fila que une las tres cosas: la persona (`cliente`), el grupo con el
-    que llegó y —si la hay— la pulsera que lleva puesta. Cada vez que a alguien
-    se le abre cuenta se crea una fila **nueva**; no se reutiliza la anterior.
-    Así la misma pulsera puede pasar por veinte personas en una noche y el
-    historial de cada una queda entero.
-
-    `pulsera` puede ir vacía: es la cuenta que se lleva a mano, sin NFC.
-
-    `liberada_en` vacío significa cuenta activa. Al pagar y cerrar se le pone
-    la fecha, y desde ese momento la pulsera queda libre para la siguiente
-    persona — el "borrado" ocurre aquí, en la base de datos; **el chip físico
-    no se toca ni se reescribe jamás**.
-    """
+    """La cuenta de una persona durante un evento."""
 
     # Se redeclara el campo heredado solo para que la relación inversa se lea
     # `negocio.clientes_evento` y no `negocio.clienteeventos`.
@@ -377,24 +221,6 @@ class ClienteEvento(ModeloDelNegocio):
         related_name="cuentas_evento",
         verbose_name="cliente",
     )
-    pulsera = models.ForeignKey(
-        "eventos.PulseraNfc",
-        on_delete=models.PROTECT,
-        related_name="asignaciones",
-        verbose_name="pulsera",
-        null=True,
-        blank=True,
-        help_text="Vacío = cuenta sin pulsera, se lleva a mano.",
-    )
-    limite_alerta = models.DecimalField(
-        "límite de alerta",
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text="Monto a partir del cual se avisa. Vacío = sin límite.",
-    )
-
     asignada_por = models.ForeignKey(
         "usuarios.Usuario",
         on_delete=models.PROTECT,
@@ -422,20 +248,6 @@ class ClienteEvento(ModeloDelNegocio):
         verbose_name = "cuenta de evento"
         verbose_name_plural = "cuentas de evento"
         constraints = [
-            # LA MÁS IMPORTANTE DE LA APP: una pulsera no puede estar puesta a
-            # dos personas al mismo tiempo. Puede reasignarse mil veces —cada
-            # vez es una fila nueva—, pero solo una puede estar sin liberar.
-            models.UniqueConstraint(
-                fields=["pulsera"],
-                condition=models.Q(liberada_en__isnull=True, pulsera__isnull=False),
-                name="pulsera_con_una_sola_asignacion_activa",
-                violation_error_message="Esa pulsera ya está asignada a una cuenta abierta.",
-            ),
-            models.CheckConstraint(
-                condition=models.Q(limite_alerta__isnull=True) | models.Q(limite_alerta__gte=0),
-                name="cliente_evento_limite_no_negativo",
-                violation_error_message="El límite de alerta no puede ser negativo.",
-            ),
             # O están los dos datos de la liberación, o no está ninguno: una
             # cuenta liberada sin saber por quién no sirve para nada.
             models.CheckConstraint(
@@ -597,100 +409,6 @@ class DetallePedidoEvento(ModeloDelNegocio):
         return self.cantidad * self.precio_unitario
 
 
-class AlertaConsumo(ModeloDelNegocio):
-    """Cuándo una cuenta cruzó su umbral de consumo, y qué se hizo al respecto.
-
-    Existe como tabla y no como un simple aviso en pantalla porque el aviso se
-    va con el turno y la responsabilidad no: queda quién lo atendió, cuándo y
-    qué decidió. En un negocio que vende alcohol, eso es justamente lo que hay
-    que poder demostrar después.
-
-    `atendida_en` vacío = la alerta sigue sin atender.
-    """
-
-    # Se redeclara el campo heredado solo para que la relación inversa se lea
-    # `negocio.alertas_consumo` y no `negocio.alertaconsumos`.
-    negocio = models.ForeignKey(
-        "negocios.Negocio",
-        on_delete=models.PROTECT,
-        related_name="alertas_consumo",
-        verbose_name="negocio",
-    )
-
-    cliente_evento = models.ForeignKey(
-        "eventos.ClienteEvento",
-        on_delete=models.PROTECT,
-        related_name="alertas",
-        verbose_name="cuenta",
-    )
-    monto_acumulado = models.DecimalField(
-        "monto acumulado",
-        max_digits=12,
-        decimal_places=2,
-        help_text="Cuánto llevaba consumido la cuenta cuando saltó la alerta.",
-    )
-    umbral_superado = models.DecimalField(
-        "umbral superado",
-        max_digits=12,
-        decimal_places=2,
-        help_text=(
-            "El límite que se cruzó. Se copia para que cambiarlo después no reescriba la historia."
-        ),
-    )
-
-    atendida_por = models.ForeignKey(
-        "usuarios.Usuario",
-        on_delete=models.PROTECT,
-        related_name="alertas_atendidas",
-        verbose_name="atendida por",
-        null=True,
-        blank=True,
-    )
-    accion_tomada = models.CharField(
-        "acción tomada",
-        max_length=200,
-        blank=True,
-        help_text="Vacío mientras la alerta no se atienda.",
-    )
-    atendida_en = models.DateTimeField(
-        "atendida en",
-        null=True,
-        blank=True,
-        help_text="Vacío = sin atender.",
-    )
-    fecha = models.DateTimeField(
-        "fecha",
-        default=timezone.now,
-        help_text="Cuándo saltó la alerta.",
-    )
-
-    class Meta:
-        db_table = "alertas_consumo"
-        ordering = ["-fecha"]
-        verbose_name = "alerta de consumo"
-        verbose_name_plural = "alertas de consumo"
-        constraints = [
-            # O están los dos datos de la atención, o no está ninguno: una
-            # alerta atendida sin saber por quién no sirve de nada.
-            models.CheckConstraint(
-                condition=(
-                    models.Q(atendida_en__isnull=True, atendida_por__isnull=True)
-                    | models.Q(atendida_en__isnull=False, atendida_por__isnull=False)
-                ),
-                name="alerta_atencion_coherente",
-                violation_error_message="Al atender una alerta hay que registrar quién la atendió.",
-            ),
-        ]
-
-    def __str__(self) -> str:
-        return f"Alerta de {self.monto_acumulado} — cuenta {self.cliente_evento_id}"
-
-    @property
-    def esta_atendida(self) -> bool:
-        """Alguien ya se hizo cargo de la alerta."""
-        return self.atendida_en is not None
-
-
 class PagoEvento(ModeloDelNegocio):
     """Dinero recibido, y contra qué se recibió.
 
@@ -767,7 +485,7 @@ class PagoEvento(ModeloDelNegocio):
     recibido_por = models.ForeignKey(
         "usuarios.Usuario",
         on_delete=models.PROTECT,
-        related_name="pagos_recibidos",
+        related_name="pagos_evento_recibidos",
         verbose_name="recibido por",
     )
     fecha = models.DateTimeField(
@@ -821,4 +539,3 @@ class PagoEvento(ModeloDelNegocio):
 ESTADOS_DE_EVENTO = Evento.Estado.choices
 ESTADOS_DE_GRUPO = GrupoEvento.Estado.choices
 ESTADOS_DE_PEDIDO_EVENTO = PedidoEvento.Estado.choices
-ESTADOS_DE_PULSERA = PulseraNfc.Estado.choices

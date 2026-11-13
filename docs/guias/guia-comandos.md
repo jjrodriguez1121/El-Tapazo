@@ -58,6 +58,27 @@ Lo normal es usar el script `./dev.sh`, que además elige puertos libres:
 | Instalar una dependencia | Agrégala a `requirements/base.txt` y `./dev.sh up --build` | — |
 | Ver SQL de una migración | `./dev.sh manage sqlmigrate catalogo 0001` | — |
 | Verificar el proyecto | `./dev.sh manage check` | — |
+| Llenar con datos de prueba (≥100 por módulo) | `./dev.sh manage poblar_datos_de_prueba` | — |
+| Volver a generarlos desde cero | `./dev.sh manage poblar_datos_de_prueba --reiniciar` | — |
+
+`poblar_datos_de_prueba` solo corre con `DEBUG` activo y sobre el negocio de
+`admin@gmail.com` (cámbialo con `--correo`). Crea categorías, proveedores,
+productos con imagen, clientes, compras y ventas de contado y a crédito,
+abonos de cartera y PQRs, todo a través de la API. Además deja una factura de
+proveedor en `apps/backend-django/media/pruebas/factura-proveedor-prueba.pdf`
+para probar el buscador de coincidencias de **Compras → Importar factura PDF**.
+`--reiniciar` borra antes los datos operativos de ese negocio.
+
+Las fotos de los productos se buscan en la web (Bing, sin clave de API) y se
+guardan descargadas. Tarda unos 5 minutos; sin internet, o con
+`--sin-imagenes-web`, quedan ilustraciones dibujadas. Para buscar fotos de un
+catálogo que ya existe:
+
+| Qué | Comando |
+| --- | --- |
+| Foto a los productos que no tienen | `./dev.sh manage asignar_imagenes_de_productos` |
+| Cambiar todas las fotos | `./dev.sh manage asignar_imagenes_de_productos --reemplazar` |
+| Solo un negocio, máximo 20 | `./dev.sh manage asignar_imagenes_de_productos --negocio 2 --limite 20` |
 
 ---
 

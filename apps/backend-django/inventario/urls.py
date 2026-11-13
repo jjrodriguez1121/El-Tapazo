@@ -15,7 +15,6 @@ from inventario.api import vistas
 app_name = "inventario"
 
 router = SimpleRouter()
-router.register("ubicaciones", vistas.UbicacionViewSet, basename="ubicacion")
 router.register("existencias", vistas.ExistenciaViewSet, basename="existencia")
 router.register("movimientos", vistas.MovimientoViewSet, basename="movimiento")
 

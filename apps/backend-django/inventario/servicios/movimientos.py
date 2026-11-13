@@ -39,7 +39,6 @@ from inventario.excepciones import CantidadInvalida, ExistenciasInsuficientes
 from inventario.models import Existencia, MovimientoInventario
 from inventario.repositorios import existencias as repositorio
 from inventario.repositorios import movimientos as repositorio_de_movimientos
-from inventario.repositorios import ubicaciones as repositorio_de_ubicaciones
 from nucleo.excepciones import NoEncontradoEnEsteNegocio
 
 SIN_EXISTENCIAS = Decimal("0.00")
@@ -63,7 +62,7 @@ def aplicar_movimientos(
 
     Raises:
         CantidadInvalida: una línea en cero, o dos que se anulan entre sí.
-        NoEncontradoEnEsteNegocio: algún producto o ubicación es de otro negocio.
+        NoEncontradoEnEsteNegocio: algún producto es de otro negocio.
         ExistenciasInsuficientes: el saldo quedaría en negativo.
     """
     consolidadas = _consolidar(lineas)
@@ -71,10 +70,9 @@ def aplicar_movimientos(
 
     movimientos = []
     # Ordenar es lo que fija el orden de bloqueo y evita los interbloqueos.
-    for (producto_id, ubicacion_id), cantidad in sorted(consolidadas.items()):
+    for producto_id, cantidad in sorted(consolidadas.items()):
         existencia = _bloquear_o_crear(
             producto_id=producto_id,
-            ubicacion_id=ubicacion_id,
             negocio_id=negocio_id,
             cantidad=cantidad,
         )
@@ -85,7 +83,6 @@ def aplicar_movimientos(
             MovimientoInventario(
                 negocio_id=negocio_id,
                 producto_id=producto_id,
-                ubicacion_id=ubicacion_id,
                 tipo=tipo,
                 cantidad=cantidad,
                 referencia_tipo=referencia_tipo,
@@ -97,8 +94,8 @@ def aplicar_movimientos(
     return repositorio_de_movimientos.crear_en_lote(movimientos=movimientos)
 
 
-def _consolidar(lineas: list[LineaDeMovimientoDTO]) -> dict[tuple[int, int], Decimal]:
-    """Suma las líneas repetidas del mismo par producto/ubicación.
+def _consolidar(lineas: list[LineaDeMovimientoDTO]) -> dict[int, Decimal]:
+    """Suma las líneas repetidas del mismo producto.
 
     Una comanda con "2 Águila" y "3 Águila" son **cinco** unidades que salen,
     no dos operaciones sobre la misma fila con el saldo leído a destiempo.
@@ -111,11 +108,11 @@ def _consolidar(lineas: list[LineaDeMovimientoDTO]) -> dict[tuple[int, int], Dec
     if not lineas:
         raise CantidadInvalida("No hay nada que mover.")
 
-    consolidadas: dict[tuple[int, int], Decimal] = defaultdict(Decimal)
+    consolidadas: dict[int, Decimal] = defaultdict(Decimal)
     for linea in lineas:
         if linea.cantidad == 0:
             raise CantidadInvalida("Un movimiento de cero no es un movimiento.")
-        consolidadas[(linea.producto_id, linea.ubicacion_id)] += linea.cantidad
+        consolidadas[linea.producto_id] += linea.cantidad
 
     if any(cantidad == 0 for cantidad in consolidadas.values()):
         raise CantidadInvalida("Hay líneas del mismo producto que se anulan entre sí.")
@@ -124,20 +121,15 @@ def _consolidar(lineas: list[LineaDeMovimientoDTO]) -> dict[tuple[int, int], Dec
 
 def _comprobar_que_todo_es_del_negocio(*, claves, negocio_id: int) -> None:
     """Sin esto, mandando ids ajenos se movería el inventario de otro negocio."""
-    productos = {producto_id for producto_id, _ in claves}
-    ubicaciones = {ubicacion_id for _, ubicacion_id in claves}
+    productos = set(claves)
     if not repositorio_de_productos.todos_son_del_negocio(
         producto_ids=productos, negocio_id=negocio_id
-    ):
-        raise NoEncontradoEnEsteNegocio
-    if not repositorio_de_ubicaciones.todas_son_del_negocio(
-        ubicacion_ids=ubicaciones, negocio_id=negocio_id
     ):
         raise NoEncontradoEnEsteNegocio
 
 
 def _bloquear_o_crear(
-    *, producto_id: int, ubicacion_id: int, negocio_id: int, cantidad: Decimal
+    *, producto_id: int, negocio_id: int, cantidad: Decimal
 ) -> Existencia | None:
     """La fila del saldo, bloqueada. La crea en cero si hace falta y suma.
 
@@ -146,7 +138,7 @@ def _bloquear_o_crear(
     alguien intenta vender algo que no hay llenaría la tabla de basura.
     """
     existencia = repositorio.bloquear(
-        producto_id=producto_id, ubicacion_id=ubicacion_id, negocio_id=negocio_id
+        producto_id=producto_id, negocio_id=negocio_id
     )
     if existencia is not None:
         return existencia
@@ -162,7 +154,7 @@ def _bloquear_o_crear(
     try:
         with transaction.atomic():
             repositorio.crear_en_cero(
-                producto_id=producto_id, ubicacion_id=ubicacion_id, negocio_id=negocio_id
+                producto_id=producto_id, negocio_id=negocio_id
             )
     except IntegrityError:
         # Otra transacción la creó primero. No es un error: la queremos igual.
@@ -170,7 +162,7 @@ def _bloquear_o_crear(
 
     # Se relee siempre, ya bloqueada: la fila puede ser la nuestra o la suya.
     return repositorio.bloquear(
-        producto_id=producto_id, ubicacion_id=ubicacion_id, negocio_id=negocio_id
+        producto_id=producto_id, negocio_id=negocio_id
     )
 
 

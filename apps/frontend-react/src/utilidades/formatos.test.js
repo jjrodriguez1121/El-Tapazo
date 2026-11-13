@@ -3,6 +3,7 @@ import { expect, test } from 'vitest'
 import {
   formatearCantidad,
   formatearFechaCorta,
+  formatearFechaHora,
   formatearFechaLarga,
   formatearPesos,
 } from './formatos'
@@ -22,5 +23,15 @@ test('formatearFechaLarga escribe el día completo con mayúscula inicial', () =
 })
 
 test('formatearFechaCorta formatea fecha en día/mes/año', () => {
-  expect(formatearFechaCorta(new Date(2026, 8, 11))).toBe('11/09/2026')
+  expect(formatearFechaCorta(new Date('2026-09-11T12:00:00-05:00'))).toBe('11/09/2026')
+})
+
+test('formatearFechaCorta conserva la fecha civil y convierte timestamps a horario de Bogotá', () => {
+  expect(formatearFechaCorta('2026-11-08')).toBe('08/11/2026')
+  expect(formatearFechaCorta('2026-11-09T04:30:00Z')).toBe('08/11/2026')
+})
+
+test('formatearFechaHora muestra el timestamp en horario de Bogotá', () => {
+  expect(formatearFechaHora('2026-11-09T04:30:00Z')).toContain('8')
+  expect(formatearFechaHora('2026-11-09T04:30:00Z')).toMatch(/11:30 p\.\s*m\./)
 })

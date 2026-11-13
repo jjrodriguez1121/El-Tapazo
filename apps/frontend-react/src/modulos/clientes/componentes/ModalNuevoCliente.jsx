@@ -9,6 +9,7 @@ import {
   validarObligatorio,
   validarTelefono,
 } from '@/utilidades/validaciones'
+import { CIUDADES_PRINCIPALES_COLOMBIA } from '@/utilidades/ciudades'
 
 function CampoCliente({ etiqueta, id, error = '', className = '', ...props }) {
   return (
@@ -28,21 +29,27 @@ function CampoCliente({ etiqueta, id, error = '', className = '', ...props }) {
   )
 }
 
-export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistentes = [] }) {
+function datosIniciales(cliente) {
+  if (!cliente) {
+    return {
+      tipo: 'persona', nombre: '', telefono: '', tipoDocumento: 'cedula', documento: '',
+      fechaNacimiento: '', correo: '', ciudad: '', contacto: '', segmento: 'tienda',
+    }
+  }
+  return {
+    tipo: cliente.tipo === 'establecimiento' ? 'establecimiento' : 'persona',
+    nombre: cliente.nombre ?? '', telefono: cliente.telefono ?? '',
+    tipoDocumento: cliente.tipoDocumento ?? 'cedula', documento: cliente.documento ?? '',
+    fechaNacimiento: cliente.fechaNacimiento ?? '', correo: cliente.correo ?? '',
+    ciudad: cliente.ciudad ?? '', contacto: cliente.contacto ?? '', segmento: cliente.segmento ?? 'tienda',
+  }
+}
+
+export default function ModalNuevoCliente({ alCerrar, alGuardar, clienteInicial = null, clientesExistentes = [] }) {
   const id = useId()
-  const [datos, setDatos] = useState({
-    tipo: 'persona',
-    nombre: '',
-    telefono: '',
-    tipoDocumento: 'cedula',
-    documento: '',
-    fechaNacimiento: '',
-    correo: '',
-    ciudad: '',
-    contacto: '',
-    segmento: 'tienda',
-  })
+  const [datos, setDatos] = useState(() => datosIniciales(clienteInicial))
   const [errores, setErrores] = useState({})
+  const [errorGuardado, setErrorGuardado] = useState('')
   const esEstablecimiento = datos.tipo === 'establecimiento'
 
   function cambiar(campo, valor) {
@@ -50,7 +57,7 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     setErrores((actuales) => ({ ...actuales, [campo]: '' }))
   }
 
-  function enviar(evento) {
+  async function enviar(evento) {
     evento.preventDefault()
     const nombre = datos.nombre.trim()
     const telefono = datos.telefono.trim()
@@ -68,6 +75,7 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     const tipoDocumentoActual = esEstablecimiento ? 'nit' : datos.tipoDocumento
     const documentoDuplicado = clientesExistentes.some(
       (cliente) =>
+        cliente.id !== clienteInicial?.id &&
         cliente.tipo === datos.tipo &&
         tipoDocumentoNormalizado(
           cliente.tipo === 'establecimiento' ? 'nit' : cliente.tipoDocumento ?? 'cedula'
@@ -81,21 +89,23 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
     setErrores(nuevosErrores)
     if (Object.values(nuevosErrores).some(Boolean)) return
 
-    alCrear({
-      id: `cliente-local-${Date.now()}`,
+    try {
+      await alGuardar({
       tipo: datos.tipo,
       nombre,
       telefono,
-      tipoDocumento: esEstablecimiento ? 'NIT' : datos.tipoDocumento,
+      tipoDocumento: esEstablecimiento ? 'nit' : datos.tipoDocumento,
       documento,
       fechaNacimiento: esEstablecimiento ? '' : datos.fechaNacimiento,
       correo: datos.correo.trim(),
       ciudad: datos.ciudad.trim(),
       contacto: esEstablecimiento ? datos.contacto.trim() : '',
       segmento: esEstablecimiento ? datos.segmento : '',
-      saldoPendiente: 0,
     })
-    alCerrar()
+      alCerrar()
+    } catch {
+      setErrorGuardado('No fue posible guardar el cliente. Revisa los datos e inténtalo nuevamente.')
+    }
   }
 
   return (
@@ -107,7 +117,9 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
         className="mx-auto my-4 w-full max-w-2xl rounded-xl border border-azul-150 bg-blanco p-5 shadow-xl sm:p-6"
       >
         <header className="mb-5">
-          <h2 id={`${id}-titulo`} className="text-lg font-bold text-azul-950">Nuevo cliente</h2>
+          <h2 id={`${id}-titulo`} className="text-lg font-bold text-azul-950">
+            {clienteInicial ? 'Editar cliente' : 'Nuevo cliente'}
+          </h2>
           <p className="mt-1 text-xs font-medium text-azul-400">
             Registra una persona o un establecimiento.
           </p>
@@ -251,21 +263,27 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
               onChange={(evento) => cambiar('correo', evento.target.value)}
               error={errores.correo}
             />
-            <CampoCliente
-              id={`${id}-ciudad`}
-              etiqueta="Ciudad"
-              name="ciudad"
-              autoComplete="address-level2"
-              maxLength={100}
-              placeholder="Opcional"
-              value={datos.ciudad}
-              onChange={(evento) => cambiar('ciudad', evento.target.value)}
-            />
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor={`${id}-ciudad`} className="text-xs font-semibold text-azul-600">Ciudad</label>
+              <select
+                id={`${id}-ciudad`}
+                name="ciudad"
+                value={datos.ciudad}
+                onChange={(evento) => cambiar('ciudad', evento.target.value)}
+                className="h-10 w-full rounded-lg border border-azul-200 bg-blanco px-3 text-sm text-azul-950 outline-none focus:border-azul-600 focus:ring-3 focus:ring-azul-600/15"
+              >
+                <option value="">Seleccione una ciudad...</option>
+                {CIUDADES_PRINCIPALES_COLOMBIA.map((ciudad) => (
+                  <option key={ciudad} value={ciudad}>{ciudad}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {Object.values(errores).some(Boolean) && (
             <Aviso>Revisa los campos marcados antes de guardar.</Aviso>
           )}
+          {errorGuardado && <Aviso>{errorGuardado}</Aviso>}
 
           <footer className="flex justify-end gap-2">
             <button
@@ -279,7 +297,7 @@ export default function ModalNuevoCliente({ alCerrar, alCrear, clientesExistente
               type="submit"
               className="inline-flex h-10 items-center gap-2 rounded-lg bg-azul-950 px-4 text-xs font-bold text-blanco hover:bg-azul-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-azul-600"
             >
-              <CheckIcon size={16} weight="bold" /> Guardar cliente
+              <CheckIcon size={16} weight="bold" /> {clienteInicial ? 'Guardar cambios' : 'Guardar cliente'}
             </button>
           </footer>
         </form>

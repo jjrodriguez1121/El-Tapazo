@@ -12,15 +12,15 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.request import Request
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from catalogo.api import filtros, serializers
 from catalogo.dtos import DatosDeProductoDTO
-from catalogo.models import Categoria, Producto, Proveedor
+from catalogo.models import Categoria, Impuesto, Producto, Proveedor
 from catalogo.selectores import productos as selector
 from catalogo.servicios import categorias as servicio_de_categorias
-from catalogo.servicios import ofertas as servicio_de_ofertas
 from catalogo.servicios import productos as servicio
 from catalogo.servicios import proveedores as servicio_de_proveedores
 from nucleo.api.vistas import MixinDelNegocio
@@ -34,6 +34,19 @@ class _ViewSetDelCatalogo(
 
     permission_classes = [EsAdministrador]
     lookup_value_regex = "[0-9]+"
+
+
+class ImpuestoViewSet(_ViewSetDelCatalogo):
+    """Tarifas tributarias disponibles para clasificar productos."""
+
+    serializer_class = serializers.ImpuestoAnidadoSerializer
+    queryset = Impuesto.objects.none()
+
+    def get_queryset(self):
+        return Impuesto.objects.filter(
+            negocio_id=self.negocio_id,
+            activo=True,
+        ).order_by("nombre")
 
 
 # --------------------------------------------------------------------------- #
@@ -103,6 +116,18 @@ class CategoriaViewSet(_ViewSetDelCatalogo):
         )
         return Response(serializers.CategoriaOutputSerializer(categoria).data)
 
+    @extend_schema(
+        summary="Activar una categoría previamente desactivada",
+        request=None,
+        responses={200: serializers.CategoriaOutputSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="activacion")
+    def activacion(self, request: Request, pk: str) -> Response:
+        categoria = servicio_de_categorias.activar_categoria(
+            categoria_id=int(pk), negocio_id=self.negocio_id
+        )
+        return Response(serializers.CategoriaOutputSerializer(categoria).data)
+
 
 # --------------------------------------------------------------------------- #
 # Proveedores
@@ -168,6 +193,18 @@ class ProveedorViewSet(_ViewSetDelCatalogo):
         )
         return Response(serializers.ProveedorOutputSerializer(proveedor).data)
 
+    @extend_schema(
+        summary="Activar un proveedor previamente desactivado",
+        request=None,
+        responses={200: serializers.ProveedorOutputSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="activacion")
+    def activacion(self, request: Request, pk: str) -> Response:
+        proveedor = servicio_de_proveedores.activar_proveedor(
+            proveedor_id=int(pk), negocio_id=self.negocio_id
+        )
+        return Response(serializers.ProveedorOutputSerializer(proveedor).data)
+
 
 # --------------------------------------------------------------------------- #
 # Productos
@@ -196,16 +233,8 @@ class ProductoViewSet(_ViewSetDelCatalogo):
         responses={201: serializers.ProductoOutputSerializer},
     )
     def create(self, request: Request) -> Response:
-        entrada = serializers.ProductoInputSerializer(data=request.data)
-        entrada.is_valid(raise_exception=True)
-
-        producto = servicio.crear_producto(
-            negocio_id=self.negocio_id,
-            datos=DatosDeProductoDTO(**entrada.validated_data),
-        )
-        return Response(
-            serializers.ProductoOutputSerializer(producto).data,
-            status=status.HTTP_201_CREATED,
+        raise PermissionDenied(
+            "Los productos nuevos se crean al registrar una compra."
         )
 
     @extend_schema(
@@ -262,68 +291,3 @@ class ProductoViewSet(_ViewSetDelCatalogo):
     def margen(self, request: Request, pk: str) -> Response:
         margen = selector.margen_de_venta(producto_id=int(pk), negocio_id=self.negocio_id)
         return Response(serializers.MargenDeVentaOutputSerializer(margen).data)
-
-    @extend_schema(
-        methods=["GET"],
-        summary="Comparar el precio de cada proveedor",
-        description="Del más barato al más caro: es para lo que existe esta lista.",
-        responses={200: serializers.OfertaOutputSerializer(many=True)},
-    )
-    @extend_schema(
-        methods=["POST"],
-        summary="Registrar el precio de un proveedor",
-        request=serializers.OfertaInputSerializer,
-        responses={201: serializers.OfertaOutputSerializer},
-    )
-    @action(detail=True, methods=["get", "post"], url_path="proveedores")
-    def proveedores(self, request: Request, pk: str) -> Response:
-        if request.method == "POST":
-            entrada = serializers.OfertaInputSerializer(data=request.data)
-            entrada.is_valid(raise_exception=True)
-
-            oferta = servicio_de_ofertas.asociar_proveedor_a_producto(
-                producto_id=int(pk), negocio_id=self.negocio_id, **entrada.validated_data
-            )
-            return Response(
-                serializers.OfertaOutputSerializer(oferta).data,
-                status=status.HTTP_201_CREATED,
-            )
-
-        ofertas = selector.comparar_precios_de_proveedores(
-            producto_id=int(pk), negocio_id=self.negocio_id
-        )
-        return Response(serializers.OfertaOutputSerializer(ofertas, many=True).data)
-
-    @extend_schema(
-        summary="Quitar el precio de un proveedor",
-        description="Esta lista dice a quién se le puede comprar hoy; la historia de "
-        "las compras vive en el kardex, así que aquí sí se borra la fila.",
-        responses={204: None},
-    )
-    @action(
-        detail=True,
-        methods=["delete"],
-        url_path=r"proveedores/(?P<proveedor_id>[0-9]+)",
-    )
-    def desasociar_proveedor(self, request: Request, pk: str, proveedor_id: str) -> Response:
-        servicio_de_ofertas.desasociar_proveedor(
-            producto_id=int(pk), proveedor_id=int(proveedor_id), negocio_id=self.negocio_id
-        )
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @extend_schema(
-        summary="Marcar el proveedor habitual",
-        description="Solo puede haber uno por producto: el anterior deja de serlo.",
-        request=None,
-        responses={200: serializers.OfertaOutputSerializer},
-    )
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path=r"proveedores/(?P<proveedor_id>[0-9]+)/principal",
-    )
-    def marcar_principal(self, request: Request, pk: str, proveedor_id: str) -> Response:
-        oferta = servicio_de_ofertas.marcar_proveedor_principal(
-            producto_id=int(pk), proveedor_id=int(proveedor_id), negocio_id=self.negocio_id
-        )
-        return Response(serializers.OfertaOutputSerializer(oferta).data)

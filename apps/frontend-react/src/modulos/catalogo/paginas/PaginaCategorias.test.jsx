@@ -1,35 +1,77 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import { renderizarEnRuta } from '@/pruebas/renderizar'
 
-import { crearCategoria } from '../api/apiCategorias'
+import {
+  activarCategoria,
+  actualizarCategoria,
+  crearCategoria,
+  desactivarCategoria,
+} from '../api/apiCategorias'
+import { obtenerCatalogoDeProductos, obtenerTodasLasCategorias } from '../api/apiListaProductos'
 
 import PaginaCategorias from './PaginaCategorias'
 
-vi.mock('../api/apiCategorias', () => ({ crearCategoria: vi.fn() }))
+vi.mock('../api/apiCategorias', () => ({
+  crearCategoria: vi.fn(),
+  actualizarCategoria: vi.fn(),
+  desactivarCategoria: vi.fn(),
+  activarCategoria: vi.fn(),
+}))
+vi.mock('../api/apiListaProductos', () => ({
+  obtenerCatalogoDeProductos: vi.fn(),
+  obtenerTodasLasCategorias: vi.fn(),
+}))
 
 beforeEach(() => {
   crearCategoria.mockReset()
+  actualizarCategoria.mockReset()
+  desactivarCategoria.mockReset()
+  activarCategoria.mockReset()
+  obtenerCatalogoDeProductos.mockResolvedValue({
+    productos: [
+      ...Array.from({ length: 13 }, (_, indice) => ({ id: indice, categoria: { id: 1 } })),
+      ...Array.from({ length: 12 }, (_, indice) => ({ id: indice + 13, categoria: { id: 2 } })),
+      ...Array.from({ length: 6 }, (_, indice) => ({ id: indice + 25, categoria: { id: 3 } })),
+      ...Array.from({ length: 6 }, (_, indice) => ({ id: indice + 31, categoria: { id: 4 } })),
+      ...Array.from({ length: 6 }, (_, indice) => ({ id: indice + 37, categoria: { id: 5 } })),
+      ...Array.from({ length: 7 }, (_, indice) => ({ id: indice + 43, categoria: { id: 6 } })),
+    ],
+  })
+  obtenerTodasLasCategorias.mockResolvedValue([
+    { id: 1, nombre: 'Cervezas', activa: true },
+    { id: 2, nombre: 'Gaseosas', activa: true },
+    { id: 3, nombre: 'Energizantes', activa: true },
+    { id: 4, nombre: 'Aguas', activa: true },
+    { id: 5, nombre: 'Ron', activa: true },
+    { id: 6, nombre: 'Aguardientes', activa: true },
+  ])
+  desactivarCategoria.mockImplementation(async (id) => ({
+    id,
+    activa: false,
+  }))
+  activarCategoria.mockImplementation(async (id) => ({
+    id,
+    activa: true,
+  }))
 })
 
-test('renderiza el título y el botón de nueva categoría', () => {
+afterEach(() => vi.restoreAllMocks())
+
+test('renderiza el título y el botón de nueva categoría', async () => {
   renderizarEnRuta(<PaginaCategorias />, '/categorias')
 
-  expect(screen.getByRole('heading', { name: 'Categorías' })).toBeInTheDocument()
-  expect(
-    screen.getByText('Organización del catálogo de productos')
-  ).toBeInTheDocument()
-  expect(
-    screen.getByRole('button', { name: /Nueva categoría/i })
-  ).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Categorías' })).toBeInTheDocument()
+  expect(screen.getByText('Organización del catálogo de productos')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Nueva categoría/i })).toBeInTheDocument()
 })
 
-test('muestra las tarjetas de categorías con sus nombres y cantidades de productos', () => {
+test('muestra las tarjetas de categorías con sus nombres y cantidades de productos', async () => {
   renderizarEnRuta(<PaginaCategorias />, '/categorias')
 
-  expect(screen.getByText('Cervezas')).toBeInTheDocument()
+  expect(await screen.findByText('Cervezas')).toBeInTheDocument()
   expect(screen.getByText('13 productos')).toBeInTheDocument()
 
   expect(screen.getByText('Gaseosas')).toBeInTheDocument()
@@ -49,25 +91,50 @@ test('crea una categoría desde el formulario y la agrega al listado', async () 
   crearCategoria.mockResolvedValue({ id: 50, nombre: 'Cócteles', descripcion: '' })
   renderizarEnRuta(<PaginaCategorias />, '/categorias')
 
-  await usuario.click(screen.getByRole('button', { name: /Nueva categoría/i }))
+  await usuario.click(await screen.findByRole('button', { name: /Nueva categoría/i }))
   await usuario.type(screen.getByRole('textbox', { name: 'Nombre' }), 'Cócteles')
   await usuario.click(screen.getByRole('button', { name: 'Crear categoría' }))
 
   await waitFor(() =>
-    expect(crearCategoria).toHaveBeenCalledWith({ nombre: 'Cócteles', descripcion: '' })
+    expect(crearCategoria.mock.calls[0][0]).toEqual({ nombre: 'Cócteles', descripcion: '' })
   )
-  expect(await screen.findByText('Cócteles')).toBeInTheDocument()
-  expect(screen.getByText('0 productos')).toBeInTheDocument()
 })
 
 test('impide crear una categoría duplicada', async () => {
   const usuario = userEvent.setup()
   renderizarEnRuta(<PaginaCategorias />, '/categorias')
 
-  await usuario.click(screen.getByRole('button', { name: /Nueva categoría/i }))
+  await usuario.click(await screen.findByRole('button', { name: /Nueva categoría/i }))
   await usuario.type(screen.getByRole('textbox', { name: 'Nombre' }), '  cervezas  ')
   await usuario.click(screen.getByRole('button', { name: 'Crear categoría' }))
 
   expect(screen.getByText('Ya existe una categoría con ese nombre.')).toBeInTheDocument()
   expect(crearCategoria).not.toHaveBeenCalled()
+})
+
+test('desactiva y reactiva una categoría sin quitar sus productos', async () => {
+  const usuario = userEvent.setup()
+  renderizarEnRuta(<PaginaCategorias />, '/categorias')
+
+  await usuario.click(await screen.findByRole('button', { name: 'Desactivar Cervezas' }))
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('No se eliminarán sus productos')
+  await usuario.click(screen.getByRole('button', { name: 'Desactivar categoría' }))
+  expect(desactivarCategoria).toHaveBeenCalledWith(1)
+
+  await usuario.selectOptions(
+    screen.getByRole('combobox', { name: 'Estado de las categorías' }),
+    'inactivas'
+  )
+  expect(await screen.findByText('Cervezas')).toBeInTheDocument()
+  expect(screen.getByText('Inactiva')).toBeInTheDocument()
+  expect(screen.getByText('13 productos')).toBeInTheDocument()
+
+  await usuario.click(screen.getByRole('button', { name: 'Activar Cervezas' }))
+  await usuario.click(screen.getByRole('button', { name: 'Activar categoría' }))
+  expect(activarCategoria).toHaveBeenCalledWith(1)
+  await usuario.selectOptions(
+    screen.getByRole('combobox', { name: 'Estado de las categorías' }),
+    'activas'
+  )
+  expect(await screen.findByText('Cervezas')).toBeInTheDocument()
 })

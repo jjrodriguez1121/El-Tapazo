@@ -58,7 +58,8 @@ def fijar_cantidad_minima(
 
     Es por ubicación y no por producto porque el punto real es distinto en cada
     sitio: veinte cervezas en la barra es alerta y en la bodega no. Un cero
-    significa "sin alerta", no "alerta siempre".
+    desactiva la alerta por mínimo; las existencias agotadas siguen apareciendo
+    en las alertas de reposición.
 
     Raises:
         CantidadInvalida: la cantidad es negativa.

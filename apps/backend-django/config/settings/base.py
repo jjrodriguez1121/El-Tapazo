@@ -54,8 +54,11 @@ LOCAL_APPS = [
     "clientes",
     "catalogo",
     "inventario",
+    "ventas",
+    "compras",
+    "pqrs",
     "eventos",
-    "distribucion",
+    "asistente",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -173,9 +176,6 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "inicio_sesion": env("LIMITE_INICIO_SESION", default="10/min"),
         "correos_salientes": env("LIMITE_CORREOS_SALIENTES", default="5/hour"),
-        # Sin freno, cualquiera con un lector de tres dólares puede ir
-        # preguntándole al sistema cuánto debe cada persona del bar.
-        "punto_de_control": env("LIMITE_PUNTO_DE_CONTROL", default="60/min"),
     },
 }
 
@@ -190,11 +190,8 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "TipoDeUbicacion": "inventario.models.TIPOS_DE_UBICACION",
         "TipoDeMovimiento": "inventario.models.TIPOS_DE_MOVIMIENTO",
-        "EstadoDeEvento": "eventos.models.ESTADOS_DE_EVENTO",
-        "EstadoDeGrupo": "eventos.models.ESTADOS_DE_GRUPO",
-        "EstadoDePedidoEvento": "eventos.models.ESTADOS_DE_PEDIDO_EVENTO",
-        "EstadoDePulsera": "eventos.models.ESTADOS_DE_PULSERA",
-        "EstadoDePedidoDistribucion": "distribucion.models.ESTADOS_DE_PEDIDO_DISTRIBUCION",
+        "EstadoDeVenta": "ventas.models.ESTADOS_DE_VENTA",
+        "EstadoDeCuentaPorCobrar": "ventas.models.ESTADOS_DE_CUENTA_POR_COBRAR",
         "EstadoDeNegocio": "negocios.models.ESTADOS_DE_NEGOCIO",
     },
 }
@@ -240,3 +237,11 @@ URL_FRONTEND = env("URL_FRONTEND", default="http://localhost:5173")
 
 # Cuánto dura una invitación antes de vencerse.
 VIGENCIA_INVITACION_DIAS = env.int("VIGENCIA_INVITACION_DIAS", default=7)
+
+# --------------------------------------------------------------------------- #
+# Asistente con IA (Groq)
+# --------------------------------------------------------------------------- #
+# La clave va solo en el .env del backend; el navegador nunca la ve.
+GROQ_API_KEY = env("GROQ_API_KEY", default="")
+GROQ_MODELO = env("GROQ_MODELO", default="openai/gpt-oss-120b")
+GROQ_TIEMPO_LIMITE = env.int("GROQ_TIEMPO_LIMITE", default=60)

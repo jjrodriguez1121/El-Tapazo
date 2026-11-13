@@ -21,7 +21,6 @@ from eventos.excepciones import (
 )
 from eventos.models import DetallePedidoEvento, Evento, PedidoEvento
 from eventos.repositorios import pedidos as repositorio
-from eventos.servicios.alertas import revisar_limite_de_consumo
 from eventos.servicios.cuentas import obtener_cuenta
 from eventos.servicios.jornadas import obtener_jornada
 from inventario.dtos import LineaDeProductoDTO
@@ -107,8 +106,6 @@ def registrar_pedido(
         negocio_id=negocio_id,
     )
 
-    if cliente_evento_id is not None:
-        revisar_limite_de_consumo(cliente_evento_id=cliente_evento_id, negocio_id=negocio_id)
     return pedido
 
 
@@ -197,7 +194,7 @@ def _precios_congelados(*, lineas: list[LineaDePedidoDTO], negocio_id: int) -> d
 
     ids = {linea.producto_id for linea in lineas}
     productos = repositorio_de_productos.del_negocio(negocio_id=negocio_id).filter(pk__in=ids)
-    precios = {producto.id: producto.precio_evento for producto in productos}
+    precios = {producto.id: producto.precio_venta for producto in productos}
     if len(precios) != len(ids):
         raise NoEncontradoEnEsteNegocio
     return precios

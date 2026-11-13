@@ -23,12 +23,11 @@ from eventos.excepciones import (
     PagoNoCubreElConsumo,
     PedidoNoCancelable,
     PedidoSinLineas,
-    PulseraYaAsignada,
 )
-from eventos.models import AlertaConsumo, Evento, GrupoEvento, PagoEvento, PedidoEvento
-from eventos.pruebas.fabricas import FabricaDeCuenta, FabricaDeEvento, FabricaDePulsera
+from eventos.models import Evento, GrupoEvento, PagoEvento, PedidoEvento
+from eventos.pruebas.fabricas import FabricaDeCuenta, FabricaDeEvento
 from eventos.selectores import consumo_de_una_cuenta, informe_de_cierre
-from eventos.servicios import alertas, cuentas, jornadas, pagos, pedidos, pulseras
+from eventos.servicios import cuentas, jornadas, pagos, pedidos
 from inventario.models import Existencia, MovimientoInventario
 from inventario.pruebas.fabricas import FabricaDeExistencia, FabricaDeUbicacion
 from nucleo.excepciones import NoEncontradoEnEsteNegocio
@@ -44,7 +43,7 @@ def barra(negocio):
     return FabricaDeExistencia(
         negocio=negocio,
         cantidad_disponible=Decimal("100.00"),
-        producto=FabricaDeProducto(negocio=negocio, precio_evento=Decimal("5000.00")),
+        producto=FabricaDeProducto(negocio=negocio, precio_venta=Decimal("5000.00")),
     )
 
 
@@ -125,58 +124,8 @@ def test_cerrar_la_caja_sin_cuentas_abiertas_pasa(negocio, jornada):
 
 
 # --------------------------------------------------------------------------- #
-# Cuentas y pulseras
+# Cuentas
 # --------------------------------------------------------------------------- #
-def test_una_pulsera_no_se_asigna_a_dos_personas_a_la_vez(negocio, jornada, mesero):
-    pulsera = FabricaDePulsera(negocio=negocio)
-    grupo = cuentas.abrir_grupo(
-        evento_id=jornada.id, negocio_id=negocio.id, abierto_por_id=mesero.id
-    )
-    cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        pulsera_id=pulsera.id,
-    )
-
-    with pytest.raises(PulseraYaAsignada):
-        cuentas.abrir_cuenta(
-            grupo_id=grupo.id,
-            cliente_id=FabricaDeCliente(negocio=negocio).id,
-            negocio_id=negocio.id,
-            asignada_por_id=mesero.id,
-            pulsera_id=pulsera.id,
-        )
-
-
-def test_liberar_una_cuenta_deja_la_pulsera_libre_para_otra_fila(negocio, jornada, mesero, cajero):
-    """El borrado ocurre en la base, no en el chip."""
-    pulsera = FabricaDePulsera(negocio=negocio)
-    grupo = cuentas.abrir_grupo(
-        evento_id=jornada.id, negocio_id=negocio.id, abierto_por_id=mesero.id
-    )
-    primera = cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        pulsera_id=pulsera.id,
-    )
-    cuentas.liberar_cuenta(cuenta_id=primera.id, negocio_id=negocio.id, liberada_por_id=cajero.id)
-
-    segunda = cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        pulsera_id=pulsera.id,
-    )
-
-    assert segunda.id != primera.id
-    assert segunda.pulsera_id == pulsera.id
-
-
 def test_una_cuenta_liberada_no_se_libera_dos_veces(negocio, cuenta, cajero):
     cuentas.liberar_cuenta(cuenta_id=cuenta.id, negocio_id=negocio.id, liberada_por_id=cajero.id)
 
@@ -247,8 +196,8 @@ def test_subir_el_precio_manana_no_cambia_la_comanda_de_hoy(
     negocio, jornada, mesero, barra, cuenta
 ):
     pedido = _pedir(negocio, jornada, mesero, barra, cuenta.id)
-    barra.producto.precio_evento = Decimal("9000.00")
-    barra.producto.save(update_fields=["precio_evento"])
+    barra.producto.precio_venta = Decimal("9000.00")
+    barra.producto.save(update_fields=["precio_venta"])
 
     assert pedido.detalles.get().precio_unitario == Decimal("5000.00")
     assert consumo_de_una_cuenta(cliente_evento_id=cuenta.id, negocio_id=negocio.id) == Decimal(
@@ -455,8 +404,7 @@ def test_un_pago_que_no_cubre_lo_consumido_se_rechaza(
 
 
 def test_no_se_cobra_dos_veces_la_misma_cuenta(negocio, jornada, mesero, cajero, barra, cuenta):
-    """La restricción de la pulsera no cubre esto: impide dos asignaciones
-    activas, no dos cierres."""
+    """Cerrar y cobrar la misma cuenta dos veces no debe duplicar los pagos."""
     _pedir(negocio, jornada, mesero, barra, cuenta.id, cantidad="2.00")
     pagos.registrar_pago_de_cuenta(
         cuenta_id=cuenta.id,
@@ -539,131 +487,8 @@ def test_una_comanda_de_cuenta_no_se_cobra_en_el_mostrador(
 
 
 # --------------------------------------------------------------------------- #
-# Alertas de consumo
+# Informe de cierre
 # --------------------------------------------------------------------------- #
-def test_cruzar_el_limite_crea_una_alerta_con_el_umbral_copiado(negocio, jornada, mesero, barra):
-    grupo = cuentas.abrir_grupo(
-        evento_id=jornada.id, negocio_id=negocio.id, abierto_por_id=mesero.id
-    )
-    vigilada = cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        limite_alerta=Decimal("8000.00"),
-    )
-
-    _pedir(negocio, jornada, mesero, barra, vigilada.id, cantidad="2.00")
-
-    alerta = AlertaConsumo.objects.get()
-    assert alerta.monto_acumulado == Decimal("10000.00")
-    assert alerta.umbral_superado == Decimal("8000.00")
-
-
-def test_no_se_repite_la_alerta_en_cada_comanda_posterior(negocio, jornada, mesero, barra):
-    """Si no, la pantalla del cajero se llena de avisos de lo mismo."""
-    grupo = cuentas.abrir_grupo(
-        evento_id=jornada.id, negocio_id=negocio.id, abierto_por_id=mesero.id
-    )
-    vigilada = cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        limite_alerta=Decimal("8000.00"),
-    )
-
-    _pedir(negocio, jornada, mesero, barra, vigilada.id, cantidad="2.00")
-    _pedir(negocio, jornada, mesero, barra, vigilada.id, cantidad="2.00")
-
-    assert AlertaConsumo.objects.count() == 1
-
-
-def test_una_cuenta_sin_limite_no_dispara_alertas(negocio, jornada, mesero, barra, cuenta):
-    _pedir(negocio, jornada, mesero, barra, cuenta.id, cantidad="10.00")
-
-    assert AlertaConsumo.objects.count() == 0
-
-
-def test_atender_una_alerta_guarda_quien_y_que_hizo(negocio, jornada, mesero, barra, cajero):
-    grupo = cuentas.abrir_grupo(
-        evento_id=jornada.id, negocio_id=negocio.id, abierto_por_id=mesero.id
-    )
-    vigilada = cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        limite_alerta=Decimal("1000.00"),
-    )
-    _pedir(negocio, jornada, mesero, barra, vigilada.id, cantidad="1.00")
-
-    atendida = alertas.atender_alerta(
-        alerta_id=AlertaConsumo.objects.get().id,
-        negocio_id=negocio.id,
-        atendida_por_id=cajero.id,
-        accion_tomada="Se le cortó el servicio.",
-    )
-
-    assert atendida.atendida_en is not None
-    assert atendida.atendida_por_id == cajero.id
-
-
-# --------------------------------------------------------------------------- #
-# Punto de control e informe de cierre
-# --------------------------------------------------------------------------- #
-def test_el_punto_de_control_responde_con_saldo_y_solo_el_nombre(negocio, jornada, mesero, barra):
-    """Cualquiera con un lector barato puede preguntar: sale lo mínimo."""
-    from eventos.selectores import consultar_punto_de_control
-
-    pulsera = FabricaDePulsera(negocio=negocio)
-    grupo = cuentas.abrir_grupo(
-        evento_id=jornada.id, negocio_id=negocio.id, abierto_por_id=mesero.id
-    )
-    con_pulsera = cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        pulsera_id=pulsera.id,
-    )
-    _pedir(negocio, jornada, mesero, barra, con_pulsera.id, cantidad="2.00")
-
-    respuesta = consultar_punto_de_control(uid_tag=pulsera.uid_tag, negocio_id=negocio.id)
-
-    assert respuesta["estado"] == "con_saldo"
-    assert respuesta["monto"] == Decimal("10000.00")
-    assert set(respuesta) == {"estado", "cliente", "monto"}
-
-
-def test_el_punto_de_control_dice_saldada_si_ya_pago(negocio, jornada, mesero, cajero, barra):
-    from eventos.selectores import consultar_punto_de_control
-
-    pulsera = FabricaDePulsera(negocio=negocio)
-    grupo = cuentas.abrir_grupo(
-        evento_id=jornada.id, negocio_id=negocio.id, abierto_por_id=mesero.id
-    )
-    con_pulsera = cuentas.abrir_cuenta(
-        grupo_id=grupo.id,
-        cliente_id=FabricaDeCliente(negocio=negocio).id,
-        negocio_id=negocio.id,
-        asignada_por_id=mesero.id,
-        pulsera_id=pulsera.id,
-    )
-    _pedir(negocio, jornada, mesero, barra, con_pulsera.id, cantidad="1.00")
-    pagos.registrar_pago_de_cuenta(
-        cuenta_id=con_pulsera.id,
-        negocio_id=negocio.id,
-        monto=Decimal("5000.00"),
-        metodo=METODO,
-        recibido_por_id=cajero.id,
-    )
-
-    respuesta = consultar_punto_de_control(uid_tag=pulsera.uid_tag, negocio_id=negocio.id)
-
-    assert respuesta["estado"] == "saldada"
-
-
 def test_el_informe_de_cierre_cuadra_lo_vendido_con_lo_cobrado(
     negocio, jornada, mesero, cajero, barra, cuenta
 ):
@@ -681,12 +506,6 @@ def test_el_informe_de_cierre_cuadra_lo_vendido_con_lo_cobrado(
     assert informe["total_cobrado"] == Decimal("15000.00")
     assert informe["ventas_por_producto"][0]["unidades"] == Decimal("3.00")
     assert informe["cuentas_atendidas"] == 1
-
-
-def test_registrar_una_pulsera_normaliza_el_uid(negocio):
-    pulsera = pulseras.registrar_pulsera(negocio_id=negocio.id, uid_tag=" 04a2b3c4 ")
-
-    assert pulsera.uid_tag == "04A2B3C4"
 
 
 def test_no_se_ve_la_cuenta_de_otro_negocio(negocio, cajero):

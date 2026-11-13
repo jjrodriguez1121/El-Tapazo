@@ -1,26 +1,120 @@
-import { screen, within } from '@testing-library/react'
-import { expect, test } from 'vitest'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { expect, test, vi } from 'vitest'
 
+import { clienteApi } from '@/librerias/clienteApi'
 import { renderizarEnRuta } from '@/pruebas/renderizar'
 
 import PaginaTablero from './PaginaTablero'
 
-test('enseña las cuatro cifras del día con su formato', () => {
+vi.mock('@/librerias/clienteApi', () => ({
+  clienteApi: { get: vi.fn(() => Promise.resolve({ data: [] })) },
+}))
+
+test('exige un rango de fechas para consultar el dashboard', async () => {
   renderizarEnRuta(<PaginaTablero />, '/inicio')
 
   expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
-  expect(screen.getByText('Ventas de hoy')).toBeInTheDocument()
-  expect(screen.getByText('$1.240.000')).toBeInTheDocument()
-  expect(screen.getByText('Stock bajo')).toBeInTheDocument()
+  expect(screen.getByLabelText('Desde')).toBeRequired()
+  expect(screen.getByLabelText('Hasta')).toBeRequired()
+  expect(await screen.findByRole('button', { name: 'Aplicar filtro' })).toBeInTheDocument()
+  expect(screen.getByText('Ventas facturadas')).toBeInTheDocument()
 })
 
-test('las alertas de stock cuentan cuántos productos están bajos y llevan al inventario', () => {
+test('las alertas de stock llevan al inventario', () => {
   renderizarEnRuta(<PaginaTablero />, '/inicio')
 
   const alertas = screen.getByRole('heading', { name: 'Alertas de stock' }).closest('section')
-  expect(within(alertas).getByText('5 bajos')).toBeInTheDocument()
   expect(within(alertas).getByRole('link', { name: 'Ver inventario' })).toHaveAttribute(
     'href',
     '/productos'
   )
+})
+
+test('carga las alertas de stock de todas las páginas', async () => {
+  clienteApi.get.mockReset()
+  clienteApi.get.mockImplementation((ruta, configuracion) => {
+    if (ruta === '/inventario/existencias/bajo-minimo/') {
+      if (configuracion.params.page === 1) {
+        return Promise.resolve({
+          data: {
+            count: 21,
+            next: '?page=2',
+            results: Array.from({ length: 20 }, (_, indice) => ({
+              id: indice + 1,
+              producto: { nombre: `Producto ${indice + 1}` },
+              cantidad_disponible: indice === 0 ? '0.00' : '2.00',
+            })),
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          count: 21,
+          next: null,
+          results: [
+            {
+              id: 21,
+              producto: { nombre: 'Producto agotado 21' },
+              cantidad_disponible: '0.00',
+            },
+          ],
+        },
+      })
+    }
+
+    return Promise.resolve({ data: [] })
+  })
+
+  renderizarEnRuta(<PaginaTablero />, '/inicio')
+
+  const alertas = screen.getByRole('heading', { name: 'Alertas de stock' }).closest('section')
+  expect(await within(alertas).findByText('Producto agotado 21')).toBeInTheDocument()
+  expect(within(alertas).getByText('21 bajos')).toBeInTheDocument()
+  expect(within(alertas).getAllByText('0 und')).toHaveLength(2)
+})
+
+test('asigna las ventas del gráfico al día de Bogotá aunque el timestamp UTC sea del día siguiente', async () => {
+  clienteApi.get.mockReset()
+  clienteApi.get.mockImplementation((ruta) => {
+    if (ruta === '/negocios/informes/dashboard/') {
+      return Promise.resolve({ data: { ventas_facturadas: '300' } })
+    }
+
+    if (ruta === '/ventas/') {
+      return Promise.resolve({
+        data: [
+          {
+            id: 1,
+            fecha_venta: '2026-11-09T04:30:00Z',
+            total: '100',
+            estado: 'pagada',
+          },
+          {
+            id: 2,
+            fecha_venta: '2026-11-09T05:30:00Z',
+            total: '200',
+            estado: 'pagada',
+          },
+        ],
+      })
+    }
+
+    return Promise.resolve({ data: [] })
+  })
+
+  renderizarEnRuta(<PaginaTablero />, '/inicio')
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Aplicar filtro' })).toBeEnabled()
+  )
+  fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-11-08' } })
+  fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-11-09' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtro' }))
+
+  const grafica = screen.getByRole('heading', { name: 'Ventas por día' }).closest('section')
+  await waitFor(() => {
+    expect(within(grafica).getByText('$100')).toBeVisible()
+    expect(within(grafica).getByText('$200')).toBeVisible()
+  })
+  expect(grafica.querySelectorAll('.bg-azul-600')).toHaveLength(7)
 })

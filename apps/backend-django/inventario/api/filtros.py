@@ -2,13 +2,7 @@
 
 from django_filters import rest_framework as filtros
 
-from inventario.models import Existencia, MovimientoInventario, Ubicacion
-
-
-class UbicacionFiltro(filtros.FilterSet):
-    class Meta:
-        model = Ubicacion
-        fields = ("activa", "tipo")
+from inventario.models import Existencia, MovimientoInventario
 
 
 class ExistenciaFiltro(filtros.FilterSet):
@@ -16,7 +10,7 @@ class ExistenciaFiltro(filtros.FilterSet):
 
     class Meta:
         model = Existencia
-        fields = ("ubicacion", "producto")
+        fields = ("producto",)
 
 
 class MovimientoFiltro(filtros.FilterSet):
@@ -24,4 +18,4 @@ class MovimientoFiltro(filtros.FilterSet):
 
     class Meta:
         model = MovimientoInventario
-        fields = ("producto", "ubicacion", "tipo", "referencia_tipo", "referencia_id")
+        fields = ("producto", "tipo", "referencia_tipo", "referencia_id")

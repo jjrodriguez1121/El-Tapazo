@@ -13,11 +13,13 @@ from clientes.excepciones import FechaDeNacimientoInvalida
 from clientes.models import FECHA_NACIMIENTO_MINIMA
 
 
-def validar_fecha_de_nacimiento(fecha: date) -> None:
+def validar_fecha_de_nacimiento(fecha: date | None) -> None:
     """Descarta fechas imposibles: del futuro o anteriores a 1900.
 
     Raises:
         FechaDeNacimientoInvalida.
     """
+    if fecha is None:
+        return
     if fecha <= FECHA_NACIMIENTO_MINIMA or fecha > timezone.localdate():
         raise FechaDeNacimientoInvalida(fecha=fecha.isoformat())

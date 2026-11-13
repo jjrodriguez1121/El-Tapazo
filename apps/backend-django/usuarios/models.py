@@ -2,7 +2,7 @@
 
 Aquí vive **solo quien opera el software**: administradores, meseros y cajeros.
 Los clientes de un evento no son usuarios: no se registran ni tienen contraseña
-(su identidad es la pulsera NFC, en la app `eventos`).
+(sus datos de cliente viven en `clientes`).
 
 Nota sobre los nombres: unos pocos atributos van en inglés porque Django los
 exige por contrato — `password` y `last_login` (los define `AbstractBaseUser`),
