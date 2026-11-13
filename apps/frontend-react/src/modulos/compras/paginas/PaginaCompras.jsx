@@ -8,7 +8,11 @@ import { imprimirComprobanteCompra } from '@/utilidades/imprimirComprobanteCompr
 import { obtenerFechaMinimaVencimiento } from '@/utilidades/fechas'
 import { crearCompra, listarCompras } from '../api/apiCompras'
 import { listarMetodosPago } from '@/modulos/ventas/api/apiVentas'
+import ImportarFacturaPdf from '../componentes/ImportarFacturaPdf'
 import ModalDetalleCompra from '../componentes/ModalDetalleCompra'
+
+const esLineaVacia = (linea) =>
+  linea.tipo === 'existente' && !linea.productoId && linea.costoUnitario === ''
 
 const lineaVacia = () => ({
   tipo: 'existente',
@@ -41,6 +45,8 @@ async function listarProductosDelProveedor(proveedorId) {
 export default function PaginaCompras() {
   const [compras, setCompras] = useState([])
   const [productos, setProductos] = useState([])
+  // Productos que llegan desde una factura PDF y no son del proveedor elegido.
+  const [productosDeFactura, setProductosDeFactura] = useState([])
   const [cargandoProductos, setCargandoProductos] = useState(false)
   const [proveedores, setProveedores] = useState([])
   const [categorias, setCategorias] = useState([])
@@ -143,13 +149,56 @@ export default function PaginaCompras() {
     }
   }, [datos.proveedorId])
 
+  const opcionesDeProducto = [
+    ...productos,
+    ...productosDeFactura.filter(
+      (extra) => !productos.some((producto) => producto.id === extra.id)
+    ),
+  ]
+  const buscarProducto = (productoId) =>
+    opcionesDeProducto.find((producto) => String(producto.id) === String(productoId))
+
   function cambiarProveedor(proveedorId) {
     setDatos((actual) => ({ ...actual, proveedorId }))
     setLineas((actuales) =>
       actuales.map((linea) =>
-        linea.tipo === 'existente' ? { ...linea, productoId: '' } : linea
+        linea.tipo === 'existente' &&
+        !productosDeFactura.some((extra) => String(extra.id) === String(linea.productoId))
+          ? { ...linea, productoId: '' }
+          : linea
       )
     )
+  }
+
+  function agregarDesdeFactura({ linea, producto }) {
+    const nueva = producto
+      ? {
+          ...lineaVacia(),
+          productoId: String(producto.id),
+          cantidad: linea.cantidad,
+          costoUnitario: linea.costo_unitario,
+        }
+      : {
+          ...lineaVacia(),
+          tipo: 'nuevo',
+          sku: linea.codigo.slice(0, 50),
+          nombre: linea.descripcion.slice(0, 200),
+          cantidad: linea.cantidad,
+          costoUnitario: linea.costo_unitario,
+        }
+    if (producto) {
+      setProductosDeFactura((actuales) =>
+        actuales.some((extra) => extra.id === producto.id) ? actuales : [...actuales, producto]
+      )
+    }
+    setLineas((actuales) =>
+      actuales.length === 1 && esLineaVacia(actuales[0]) ? [nueva] : [...actuales, nueva]
+    )
+  }
+
+  function usarEncabezadoDeFactura({ numeroFactura, proveedorId }) {
+    if (numeroFactura) setDatos((actual) => ({ ...actual, numeroFactura }))
+    if (proveedorId && proveedorId !== datos.proveedorId) cambiarProveedor(proveedorId)
   }
 
   function cambiarLinea(indice, campo, valor) {
@@ -323,6 +372,14 @@ export default function PaginaCompras() {
           )}
         </div>
 
+        <div className="mt-5">
+          <ImportarFacturaPdf
+            alAgregarLinea={agregarDesdeFactura}
+            alUsarEncabezado={usarEncabezadoDeFactura}
+            proveedorActualId={datos.proveedorId}
+          />
+        </div>
+
         <div className="mt-5 flex flex-col gap-3">
           {lineas.map((linea, indice) => (
             <section
@@ -347,7 +404,7 @@ export default function PaginaCompras() {
                     Producto
                     <select
                       required
-                      disabled={!datos.proveedorId || cargandoProductos}
+                      disabled={!opcionesDeProducto.length && (!datos.proveedorId || cargandoProductos)}
                       value={linea.productoId}
                       onChange={(e) => cambiarLinea(indice, 'productoId', e.target.value)}
                       className="h-9 rounded-lg border border-azul-200 px-2 text-sm"
@@ -357,11 +414,11 @@ export default function PaginaCompras() {
                           ? 'Seleccione un proveedor...'
                           : cargandoProductos
                             ? 'Cargando productos...'
-                            : productos.length
+                            : opcionesDeProducto.length
                               ? 'Seleccione...'
                               : 'Sin productos de este proveedor'}
                       </option>
-                      {productos.map((producto) => (
+                      {opcionesDeProducto.map((producto) => (
                         <option key={producto.id} value={producto.id}>
                           {producto.sku} · {producto.nombre}
                         </option>
@@ -371,10 +428,8 @@ export default function PaginaCompras() {
                   <div className="flex flex-col justify-end text-xs font-semibold text-azul-700 md:col-span-2">
                     Tarifa informativa
                     <span className="flex h-9 items-center rounded-lg border border-azul-150 bg-blanco px-2 text-sm font-normal text-azul-600">
-                      {productos.find(
-                        (producto) => String(producto.id) === String(linea.productoId)
-                      )?.impuesto
-                        ? `${productos.find((producto) => String(producto.id) === String(linea.productoId)).impuesto.nombre} · ${productos.find((producto) => String(producto.id) === String(linea.productoId)).impuesto.porcentaje}%`
+                      {buscarProducto(linea.productoId)?.impuesto
+                        ? `${buscarProducto(linea.productoId).impuesto.nombre} · ${buscarProducto(linea.productoId).impuesto.porcentaje}%`
                         : 'Sin tarifa asignada'}
                     </span>
                   </div>

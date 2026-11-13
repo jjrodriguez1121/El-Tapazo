@@ -2,14 +2,16 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from catalogo.models import Categoria, Impuesto, Producto, Proveedor
 from catalogo.servicios.productos import calcular_precio_venta
 from compras.api.serializers import CompraCrearSerializer, CompraOutputSerializer
 from compras.models import Compra, CuentaPorPagar, DetalleCompra, PagoCompra
+from compras.servicios.factura_pdf import FacturaIlegible, analizar_factura
 from inventario.models import Existencia, MovimientoInventario
 from nucleo.permisos import EsAdministrador
 from ventas.models import MetodoPago
@@ -42,6 +44,30 @@ def compra_detalle(request, compra_id):
     if not compra:
         return Response({"detail": "Compra no encontrada."}, status=404)
     return Response(CompraOutputSerializer(compra).data)
+
+
+TAMANO_MAXIMO_PDF = 10 * 1024 * 1024
+
+
+@api_view(["POST"])
+@permission_classes([EsAdministrador])
+@parser_classes([MultiPartParser])
+def coincidencias_factura_pdf(request):
+    """Lee una factura de proveedor en PDF y busca sus productos en el catálogo.
+
+    No guarda nada: devuelve los renglones con sus candidatos para que la
+    pantalla de compras los agregue a la compra que se está armando.
+    """
+    archivo = request.FILES.get("archivo")
+    if archivo is None:
+        return Response({"detail": "Adjunta la factura en PDF."}, status=400)
+    if archivo.size > TAMANO_MAXIMO_PDF:
+        return Response({"detail": "El archivo pesa más de 10 MB."}, status=400)
+    try:
+        resultado = analizar_factura(request.user.negocio_id, archivo.read())
+    except FacturaIlegible as error:
+        return Response({"detail": str(error)}, status=422)
+    return Response(resultado)
 
 
 @api_view(["GET"])
